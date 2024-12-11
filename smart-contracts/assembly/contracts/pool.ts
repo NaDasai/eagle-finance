@@ -24,10 +24,12 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { setOwner } from '../utils/ownership';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
-import { getAmountOut } from '../lib/poolMath';
+import { getAmountOut, getInputAmountNet } from '../lib/poolMath';
 import { powerU256 } from '../lib/math';
 
 export const reserves = new PersistentMap<Address, u256>('reserves');
+export const protocolFees = new PersistentMap<Address, u256>('protocolFees');
+
 export const lpManagerKey = stringToBytes('lpManager');
 export const tokenAAddressKey = stringToBytes('tokenA');
 export const tokenBAddressKey = stringToBytes('tokenB');
@@ -180,6 +182,22 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     'Invalid token address',
   );
 
+  // Calculate fees
+  const feeRate = _getFeeRate(); // e.g., 3 => 3%
+  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 50 => 50%
+
+  // totalFee = (amountIn * feeRate) / 100
+  const totalFee = getInputAmountNet(amountIn, feeRate);
+
+  // protocolFee = (totalFee * feeShareProtocol) / 100
+  const protocolFee = getInputAmountNet(totalFee, feeShareProtocol);
+
+  // lpFee = totalFee - protocolFee
+  const lpFee = u256.sub(totalFee, protocolFee);
+
+  // netInput = amountIn - totalFee
+  const netInput = u256.sub(amountIn, totalFee);
+
   // get the address of the other token in the pool
   const tokenOutAddress =
     tokenInAddress == tokenAAddress ? tokenBAddress : tokenAAddress;
@@ -189,7 +207,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const reserveOut = reserves.get(new Address(tokenOutAddress), u256.Zero);
 
   // calculate the amount of tokens to be swapped
-  const amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+  const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
 
   // esnure that the amountOut is greater than zero
   assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
@@ -204,9 +222,52 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     amountOut,
   );
 
-  // update the reserves of the two tokens in the pool
-  reserves.set(new Address(tokenInAddress), u256.add(reserveIn, amountIn));
-  reserves.set(new Address(tokenOutAddress), u256.sub(reserveOut, amountOut));
+  // Update reserves:
+  // The input reserve increases by netInput + lpFee (the portion of fees that goes to the LPs).
+  // The protocolFee is not added to reserves. Instead, we store it separately.
+  const newReserveIn = u256.add(reserveIn, u256.add(netInput, lpFee));
+  const newReserveOut = u256.sub(reserveOut, amountOut);
+
+  reserves.set(new Address(tokenInAddress), newReserveIn);
+  reserves.set(new Address(tokenOutAddress), newReserveOut);
+
+  // Accumulate protocol fees
+  if (protocolFee > u256.Zero) {
+    _addProtocolFee(tokenInAddress, protocolFee);
+  }
+
+  generateEvent(
+    `Swap: In=${amountIn.toString()} of ${tokenInAddress}, Out=${amountOut.toString()} of ${tokenOutAddress}, Fees: total=${totalFee.toString()}, protocol=${protocolFee.toString()}, lp=${lpFee.toString()}`,
+  );
+}
+
+/**
+ * Claims accumulated protocol fees for a given token.
+ * @param tokenAddress - Address of the token to claim fees for.
+ * @returns void
+ */
+export function claimProtocolFees(tokenAddress: string): void {
+  _onlyOwner();
+
+  const accumulatedFees = protocolFees.get(
+    new Address(tokenAddress),
+    u256.Zero,
+  );
+  assert(accumulatedFees > u256.Zero, 'No accumulated fees');
+
+  // Transfer accumulated protocol fees to the owner
+  new IMRC20(new Address(tokenAddress)).transferFrom(
+    Context.callee(),
+    Context.caller(), // the owner
+    accumulatedFees,
+  );
+
+  // Reset protocol fees for that token
+  protocolFees.set(new Address(tokenAddress), u256.Zero);
+
+  generateEvent(
+    `Protocol fees claimed: ${accumulatedFees.toString()} of ${tokenAddress}`,
+  );
 }
 
 /**
@@ -351,6 +412,19 @@ function _getLocalReserveB(): u256 {
     new Address(bytesToString(Storage.get(tokenBAddressKey))),
     u256.Zero,
   );
+}
+
+function _getFeeRate(): u16 {
+  return bytesToU16(Storage.get(feeRateKey));
+}
+
+function _getFeeShareProtocol(): u16 {
+  return bytesToU16(Storage.get(feeShareProtocolKey));
+}
+
+function _addProtocolFee(tokenAddress: string, amount: u256): void {
+  const current = protocolFees.get(new Address(tokenAddress), u256.Zero);
+  protocolFees.set(new Address(tokenAddress), u256.add(current, amount));
 }
 
 /**
