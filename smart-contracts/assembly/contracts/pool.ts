@@ -21,7 +21,7 @@ import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { setOwner } from '../utils/ownership';
-import { _setOwner } from '../utils/ownership-internal';
+import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut } from '../lib/poolMath';
 
@@ -226,6 +226,9 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
  * @returns void
  */
 export function syncReserves(): void {
+  // called only by the owner of the pool
+  _onlyOwner();
+
   // const reserveA = _getLocalReserveA();
   // const reserveB = _getLocalReserveB();
 
