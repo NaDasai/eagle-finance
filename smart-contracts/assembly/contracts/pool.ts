@@ -218,7 +218,53 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const lpTokenAmount = args
     .nextU256()
     .expect('LpTokenAmount is missing or invalid');
+
+  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
+  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
+  const lpManagerTokenAddress = bytesToString(Storage.get(lpManagerAddressKey));
+
+  const lpToken = new IMRC20(new Address(lpManagerTokenAddress));
+  const totalSupply = lpToken.totalSupply();
+
+  // Current reserves
+  const reserveA = _getLocalReserveA();
+  const reserveB = _getLocalReserveB();
+
+  // amountAOut = (lpTokenAmount * reserveA) / totalSupply
+  const amountAOut = u256.div(u256.mul(lpTokenAmount, reserveA), totalSupply);
+  // amountBOut = (lpTokenAmount * reserveB) / totalSupply
+  const amountBOut = u256.div(u256.mul(lpTokenAmount, reserveB), totalSupply);
+
+  // burn lp tokens
+  lpToken.burn(lpTokenAmount);
+
+  // Transfer tokens to user
+  new IMRC20(new Address(tokenAAddress)).transferFrom(
+    Context.callee(),
+    Context.caller(),
+    amountAOut,
+  );
+  new IMRC20(new Address(tokenBAddress)).transferFrom(
+    Context.callee(),
+    Context.caller(),
+    amountBOut,
+  );
+
+  // Update reserves
+  _updateReserveA(u256.sub(reserveA, amountAOut));
+  _updateReserveB(u256.sub(reserveB, amountBOut));
+
+  generateEvent(
+    `Removed liquidity: ${lpTokenAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
+  );
 }
+
+/**
+ *  Retrieves the swap estimation for a given input amount.
+ *  @param binaryArgs - Arguments serialized with Args (tokenInAddress, amountIn)
+ * @returns The estimated output amount.
+ */
+export function getSwapEstimation(binaryArgs: StaticArray<u8>): void {}
 
 /**
  * Synchronizes the reserves of the pool with the current balances of the tokens.
@@ -246,13 +292,6 @@ export function syncReserves(): void {
   _updateReserveA(balanceA);
   _updateReserveB(balanceB);
 }
-
-/**
- *  Retrieves the swap estimation for a given input amount.
- *  @param binaryArgs - Arguments serialized with Args (tokenInAddress, amountIn)
- * @returns The estimated output amount.
- */
-export function getSwapEstimation(binaryArgs: StaticArray<u8>): void {}
 
 /**
  * Retrieves the local reserve of token A.
