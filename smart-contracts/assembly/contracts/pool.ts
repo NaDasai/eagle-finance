@@ -25,6 +25,7 @@ import { setOwner } from '../utils/ownership';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut } from '../lib/poolMath';
+import { powerU256 } from '../lib/math';
 
 export const reserves = new PersistentMap<Address, u256>('reserves');
 export const lpManagerKey = stringToBytes('lpManager');
@@ -108,8 +109,8 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   if (reserveA == u256.Zero && reserveB == u256.Zero) {
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = u256.mul(amountA, amountB);
-    // TODO: sqrt is not implemented in u256 assembly
-    // liquidity = u256.sqrt(product);
+    // TOTEST: sqrt is not implemented in u256 type so we use manual powerU256 instead
+    liquidity = powerU256(product, i64.parse(f64(0.5).toString()));
   } else {
     // Add liquidity proportionally
     // Optimal amountB given amountA:
