@@ -246,8 +246,21 @@ export function swap(binaryArgs: StaticArray<u8>): void {
  * @param tokenAddress - Address of the token to claim fees for.
  * @returns void
  */
-export function claimProtocolFees(tokenAddress: string): void {
+export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
   _onlyOwner();
+
+  const args = new Args(binaryArgs);
+
+  const tokenAddress = args.nextString().expect('No token address');
+
+  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
+  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
+
+  // ensure tokenAddress is either tokenA or tokenB
+  assert(
+    tokenAddress == tokenAAddress || tokenAddress == tokenBAddress,
+    'Invalid token address',
+  );
 
   const accumulatedFees = protocolFees.get(
     new Address(tokenAddress),
@@ -266,7 +279,7 @@ export function claimProtocolFees(tokenAddress: string): void {
   protocolFees.set(new Address(tokenAddress), u256.Zero);
 
   generateEvent(
-    `Protocol fees claimed: ${accumulatedFees.toString()} of ${tokenAddress}`,
+    `Protocol fees claimed: ${accumulatedFees.toString()} of ${tokenAddress} by ${Context.caller().toString()}`,
   );
 }
 
