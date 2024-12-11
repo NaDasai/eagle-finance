@@ -88,8 +88,71 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
   const amountA = args.nextU256().expect('Amount A is missing or invalid');
-
   const amountB = args.nextU256().expect('Amount B is missing or invalid');
+
+  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
+  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
+  const lpManagerTokenAddress = bytesToString(Storage.get(lpManagerAddressKey));
+
+  const reserveA = _getLocalReserveA();
+  const reserveB = _getLocalReserveB();
+
+  const lpToken = new IMRC20(new Address(lpManagerTokenAddress));
+  const totalSupply = lpToken.totalSupply();
+
+  let finalAmountA = amountA;
+  let finalAmountB = amountB;
+  let liquidity: u256;
+
+  if (reserveA == u256.Zero && reserveB == u256.Zero) {
+    // Initial liquidity: liquidity = sqrt(amountA * amountB)
+    const product = u256.mul(amountA, amountB);
+    // TODO: sqrt is not implemented in u256 assembly
+    // liquidity = u256.sqrt(product);
+  } else {
+    // Add liquidity proportionally
+    // Optimal amountB given amountA:
+    const amountBOptimal = u256.div(u256.mul(amountA, reserveB), reserveA);
+    if (amountBOptimal > amountB) {
+      // User provided less B than optimal, adjust A
+      const amountAOptimal = u256.div(u256.mul(amountB, reserveA), reserveB);
+      finalAmountA = amountAOptimal;
+    } else {
+      // User provided more B than needed, adjust B
+      finalAmountB = amountBOptimal;
+    }
+
+    // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
+    const liqA = u256.div(u256.mul(finalAmountA, totalSupply), reserveA);
+    const liqB = u256.div(u256.mul(finalAmountB, totalSupply), reserveB);
+    liquidity = liqA < liqB ? liqA : liqB;
+
+    assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
+
+    const contractAddress = Context.callee();
+
+    // Transfer tokens from user to contract
+    new IMRC20(new Address(tokenAAddress)).transfer(
+      contractAddress,
+      finalAmountA,
+    );
+
+    new IMRC20(new Address(tokenBAddress)).transfer(
+      contractAddress,
+      finalAmountB,
+    );
+
+    // Mint LP tokens to user
+    lpToken.mint(Context.caller(), liquidity);
+
+    // Update reserves
+    _updateReserveA(u256.add(reserveA, finalAmountA));
+    _updateReserveB(u256.add(reserveB, finalAmountB));
+
+    generateEvent(
+      `Liquidity added: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
+    );
+  }
 }
 
 /**
