@@ -11,7 +11,7 @@ export function getInputAmountNet(inputAmount: u256, feeRate: u16): u256 {
   return inputAmountNet;
 }
 
-export function getOutputAmount(
+export function getAmountOut(
   inputAmount: u256,
   inputReserve: u256,
   outputReserve: u256,

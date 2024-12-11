@@ -23,6 +23,7 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { setOwner } from '../utils/ownership';
 import { _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
+import { getAmountOut } from '../lib/poolMath';
 
 export const reserves = new PersistentMap<Address, u256>('reserves');
 export const lpManagerKey = stringToBytes('lpManager');
@@ -104,6 +105,43 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     .expect('TokenIn is missing or invalid');
 
   const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+
+  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
+  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
+
+  // check if the token address is one of the two tokens in the pool
+  assert(
+    tokenInAddress == tokenAAddress || tokenInAddress == tokenBAddress,
+    'Invalid token address',
+  );
+
+  // get the address of the other token in the pool
+  const tokenOutAddress =
+    tokenInAddress == tokenAAddress ? tokenBAddress : tokenAAddress;
+
+  // get the reserves of the two tokens in the pool
+  const reserveIn = reserves.get(new Address(tokenInAddress), u256.Zero);
+  const reserveOut = reserves.get(new Address(tokenOutAddress), u256.Zero);
+
+  // calculate the amount of tokens to be swapped
+  const amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+
+  // esnure that the amountOut is greater than zero
+  assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
+
+  // transfer the amountIn to the contract
+  new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
+
+  // transfer the amountOut to the caller
+  new IMRC20(new Address(tokenOutAddress)).transferFrom(
+    Context.callee(),
+    Context.caller(),
+    amountOut,
+  );
+
+  // update the reserves of the two tokens in the pool
+  reserves.set(new Address(tokenInAddress), u256.add(reserveIn, amountIn));
+  reserves.set(new Address(tokenOutAddress), u256.sub(reserveOut, amountOut));
 }
 
 /**
