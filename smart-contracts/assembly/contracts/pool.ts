@@ -16,6 +16,7 @@ import {
   bytesToU16,
   stringToBytes,
   u16ToBytes,
+  u256ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';
@@ -264,7 +265,41 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
  *  @param binaryArgs - Arguments serialized with Args (tokenInAddress, amountIn)
  * @returns The estimated output amount.
  */
-export function getSwapEstimation(binaryArgs: StaticArray<u8>): void {}
+export function getSwapOutEstimation(
+  binaryArgs: StaticArray<u8>,
+): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+  const tokenInAddress = args
+    .nextString()
+    .expect('TokenInAddress is missing or invalid');
+  const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+
+  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
+  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
+
+  // Validate tokenIn is either tokenA or tokenB
+  assert(
+    tokenInAddress == tokenAAddress || tokenInAddress == tokenBAddress,
+    'Invalid token address for input',
+  );
+
+  const tokenOutAddress =
+    tokenInAddress == tokenAAddress ? tokenBAddress : tokenAAddress;
+
+  // Get current reserves
+  const reserveIn = reserves.get(new Address(tokenInAddress), u256.Zero);
+  const reserveOut = reserves.get(new Address(tokenOutAddress), u256.Zero);
+
+  // Calculate amountOut
+  const amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+
+  // For estimation, we simply emit an event or store in some state (here we choose event)
+  generateEvent(
+    `Estimation: Input = ${amountIn.toString()} of ${tokenInAddress}, Output = ${amountOut.toString()} of ${tokenOutAddress}`,
+  );
+
+  return u256ToBytes(amountOut);
+}
 
 /**
  * Synchronizes the reserves of the pool with the current balances of the tokens.
