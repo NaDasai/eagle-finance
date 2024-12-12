@@ -18,6 +18,8 @@ import {
 import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
+import { _setOwner } from '../utils/ownership-internal';
+import { _buildPoolKey } from '../utils';
 
 export const pools = new PersistentMap<string, Pool>('pools');
 
@@ -31,41 +33,57 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // If you remove this check, someone could call your constructor function and reset your smart contract.
   assert(Context.isDeployingContract());
 
+  // set the owner of the registry contract to the caller of the constructor
+  _setOwner(Context.caller().toString());
+
   generateEvent(`Registery Contract Deployed.`);
 }
 
-export function createPool(binaryArgs: StaticArray<u8>): void {
-  // deploy new pool smart contract with the new token pairs and get its address
-
+export function subscribePool(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  const tokenAAddress = args
+  const poolAddress = args
+    .nextString()
+    .expect('PoolAddress is missing or invalid');
+
+  const aTokenAddress = args
     .nextString()
     .expect('TokenAddress A is missing or invalid');
 
-  const tokenBAddress = args
+  const bTokenAddress = args
     .nextString()
     .expect('TokenAddress B is missing or invalid');
 
-  // TODO: check if there is already a pool with the same token pair
+  const feeShareProtocol = args
+    .nextF64()
+    .expect('ProtocolFee is missing or invalid');
 
-  // TODO: deploy new pool smart contract with the new token pairs and get its address
-  const poolAddress = new Address();
+  const inputFeeRate = args
+    .nextF64()
+    .expect('InputFeeRate is missing or invalid');
 
-  // TODO: add the new pool to the registery
-  pools.set(
-    _buildPoolKey(new Address(tokenAAddress), new Address(tokenBAddress)),
-    new Pool(),
+  // TODO: check if the pool is already in the registery
+  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, feeShareProtocol);
+
+  assert(!pools.contains(poolKey), 'Pool already in the registery');
+
+  // TODO: deploy an lp token for the pool and get its address
+  const lpTokenAddress = new Address(
+    '0x0000000000000000000000000000000000000000000000000000000000000000',
   );
-}
 
-function _buildPoolKey(tokenA: Address, tokenB: Address): string {
-  // sort the addresses to ensure that the key of the pool is always the same
-  if (tokenA.toString() > tokenB.toString()) {
-    const temp = tokenA;
-    tokenA = tokenB;
-    tokenB = temp;
-  }
-  const key = tokenA.toString() + tokenB.toString();
-  return key;
+  // TODO: add the pool to the registery
+  const pool = new Pool(
+    new Address(poolAddress),
+    new Address(aTokenAddress),
+    new Address(bTokenAddress),
+    inputFeeRate,
+    feeShareProtocol,
+    lpTokenAddress,
+  );
+
+  pools.set(poolKey, pool);
+
+  // TODO: emit an event
+  generateEvent(`Pool ${poolAddress} added to the registery`);
 }
