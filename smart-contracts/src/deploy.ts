@@ -3,7 +3,6 @@ import {
   Args,
   Mas,
   SmartContract,
-  U16,
   Web3Provider,
 } from '@massalabs/massa-web3';
 import { getScByteCode } from './utils';
@@ -15,13 +14,13 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'pool.wasm');
 
-const name = 'Massa';
 const constructorArgs = new Args()
-  .addString('token a addr')
-  .addString('token b addr')
-  .addU16(U16.fromNumber(10))
-  .addU16(U16.fromNumber(20))
-  .addString('lp token addr')
+  .addString('AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA') // token a address
+  .addString('AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA') // token b address
+  .addF64(0.5)
+  .addF64(0.05)
+  .addString('AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA') // lp token address
+  .addString('AS12DTJdW6RB3peNQUE4V1T2RZHdxzraEWXdYdvyzejZodhHeDFGA') // registery address
   .serialize();
 
 const contract = await SmartContract.deploy(
