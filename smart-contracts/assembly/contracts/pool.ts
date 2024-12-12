@@ -6,8 +6,11 @@ import {
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
+  bytesToF64,
   bytesToString,
   bytesToU16,
+  bytesToU256,
+  f64ToBytes,
   stringToBytes,
   u16ToBytes,
   u256ToBytes,
@@ -18,21 +21,35 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getInputAmountNet } from '../lib/poolMath';
-import { powerU256 } from '../lib/math';
+import { isBetweenZeroAndOne, powerU256 } from '../lib/math';
+import { IRegistery } from '../interfaces/IRegistry';
+import { isValidSmartContractAddress } from '../utils';
+import { _ownerAddress, ownerAddress } from '../utils/ownership';
 
-export const reserves = new PersistentMap<Address, u256>('reserves');
-export const protocolFees = new PersistentMap<Address, u256>('protocolFees');
-
-export const tokenAAddressKey = stringToBytes('tokenA');
-export const tokenBAddressKey = stringToBytes('tokenB');
-export const feeRateKey = stringToBytes('feeRate');
-export const feeShareProtocolKey = stringToBytes('feeShareProtocol');
-export const lpManagerAddressKey = stringToBytes('lpManager');
+// storage key containning the value of the token A reserve inside the pool
+export const aTokenReserve = stringToBytes('aTokenReserve');
+// storage key containning the value of the token B reserve inside the pool
+export const bTokenReserve = stringToBytes('bTokenReserve');
+// storage key containning address of the token A inside the pool
+export const aTokenAddress = stringToBytes('tokenA');
+// storage key containning address of the token B inside the pool
+export const bTokenAddress = stringToBytes('tokenB');
+// storage key containning the accumulated fee protocol of the token A inside the pool
+export const aProtocolFee = stringToBytes('aProtocolFee');
+// storage key containning the accumulated fee protocol of the token B inside the pool
+export const bProtocolFee = stringToBytes('bProtocolFee');
+// storage key containning the fee rate value of the pool. value is between 0 and 1
+export const feeRate = stringToBytes('feeRate');
+// storage key containning the fee share protocol value of the pool. value is between 0 and 1
+export const feeShareProtocol = stringToBytes('feeShareProtocol');
+// storage key containning the address of the LP token inside the pool
+export const lpTokenAddress = stringToBytes('lpTokkenAddress');
+// storage key containning the address of the registry contract inside the pool
+export const registryContractAddress = stringToBytes('registry');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
- *
- * @param binaryArgs - Arguments serialized with Args
+ * @param binaryArgs - Arguments serialized with Args (addressA, addressB, feeRate, feeShareProtocol, lpTokenAddress, registryAddress)
  */
 export function constructor(binaryArgs: StaticArray<u8>): void {
   // This line is important. It ensures that this function can't be called in the future.
@@ -41,38 +58,89 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   const args = new Args(binaryArgs);
 
+  // read the arguments
+
   const addressA = args.nextString().expect('Address A is missing or invalid');
   const addressB = args.nextString().expect('Address B is missing or invalid');
+
   const inputFeeRate = args
-    .nextU16()
+    .nextF64()
     .expect('Input fee rate is missing or invalid');
-  const FeeShareProtocol = args
-    .nextU16()
+  const feeShareProtocolInput = args
+    .nextF64()
     .expect('Fee share protocol is missing or invalid');
 
-  const lpManagerTokenAddress = args
+  const lpTokenAddressInput = args
     .nextString()
-    .expect('LpManagerTTokenAddress is missing or invalid');
+    .expect('LpTTokenAddress is missing or invalid');
+
+  const registryAddress = args
+    .nextString()
+    .expect('RegistryAddress is missing or invalid');
+
+  // esnure that the fee rate is between 0 and 1
+  assert(isBetweenZeroAndOne(inputFeeRate), 'Fee rate must be between 0 and 1');
+
+  // ensure that the fee share protocol is between 0 and 1
+  assert(
+    isBetweenZeroAndOne(feeShareProtocolInput),
+    'Fee share protocol must be between 0 and 1',
+  );
+
+  // ensure that the addressA is a valid smart contract address
+  assert(isValidSmartContractAddress(addressA), 'Invalid addressA');
+
+  // ensure that the addressB is a valid smart contract address
+  assert(isValidSmartContractAddress(addressB), 'Invalid addressB');
+
+  // ensure that the lpTokenAddressInput is a valid smart contract address
+  assert(
+    isValidSmartContractAddress(lpTokenAddressInput),
+    'Invalid LP Token Address ',
+  );
+
+  // ensure that the registryAddress is a valid smart contract address
+  assert(
+    isValidSmartContractAddress(registryAddress),
+    'Invalid RegistryAddress',
+  );
 
   // store fee rate
-  Storage.set(feeRateKey, u16ToBytes(inputFeeRate));
+  Storage.set(feeRate, f64ToBytes(inputFeeRate));
   // store fee share protocol
-  Storage.set(feeShareProtocolKey, u16ToBytes(FeeShareProtocol));
+  Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
   // store the lpManager token address
-  Storage.set(lpManagerAddressKey, stringToBytes(lpManagerTokenAddress));
+  Storage.set(lpTokenAddress, stringToBytes(lpTokenAddressInput));
 
   // store the tokens a and b addresses
-  Storage.set(tokenAAddressKey, stringToBytes(addressA));
-  Storage.set(tokenBAddressKey, stringToBytes(addressB));
+  Storage.set(aTokenAddress, stringToBytes(addressA));
+  Storage.set(bTokenAddress, stringToBytes(addressB));
 
   // store the tokens a and b addresses reserves in the contract storage
-  reserves.set(new Address(addressA), u256.Zero);
-  reserves.set(new Address(addressB), u256.Zero);
+  Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
+  Storage.set(bTokenReserve, u256ToBytes(u256.Zero));
 
-  // set the owner of the contract
-  _setOwner(Context.caller().toString());
+  // store the registry address
+  Storage.set(registryContractAddress, stringToBytes(registryAddress));
 
-  generateEvent(`Constructor called`);
+  // get the registry contract instance
+  const registry = new IRegistery(new Address(registryAddress));
+
+  // subscribe the pool address to the registry
+  registry.subscribePool(
+    Context.callee().toString(),
+    addressA,
+    addressB,
+    feeShareProtocolInput,
+    inputFeeRate,
+  );
+
+  // set the owner of the pool contract to the same registry owner address
+  _setOwner(registry.ownerAddress());
+
+  generateEvent(
+    `New pool deployed at ${Context.callee()}. Token A: ${addressA}. Token B: ${addressB}. Registry: ${registryAddress}.`,
+  );
 }
 
 /**
@@ -86,14 +154,15 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const amountA = args.nextU256().expect('Amount A is missing or invalid');
   const amountB = args.nextU256().expect('Amount B is missing or invalid');
 
-  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
-  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
-  const lpManagerTokenAddress = bytesToString(Storage.get(lpManagerAddressKey));
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+  const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
 
+  // get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
-  const lpToken = new IMRC20(new Address(lpManagerTokenAddress));
+  const lpToken = new IMRC20(new Address(lpTokenAddressStored));
   const totalSupply = lpToken.totalSupply();
 
   let finalAmountA = amountA;
@@ -117,38 +186,39 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
       // User provided more B than needed, adjust B
       finalAmountB = amountBOptimal;
     }
-
-    // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
-    const liqA = u256.div(u256.mul(finalAmountA, totalSupply), reserveA);
-    const liqB = u256.div(u256.mul(finalAmountB, totalSupply), reserveB);
-    liquidity = liqA < liqB ? liqA : liqB;
-
-    assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
-
-    const contractAddress = Context.callee();
-
-    // Transfer tokens from user to contract
-    new IMRC20(new Address(tokenAAddress)).transfer(
-      contractAddress,
-      finalAmountA,
-    );
-
-    new IMRC20(new Address(tokenBAddress)).transfer(
-      contractAddress,
-      finalAmountB,
-    );
-
-    // Mint LP tokens to user
-    lpToken.mint(Context.caller(), liquidity);
-
-    // Update reserves
-    _updateReserveA(u256.add(reserveA, finalAmountA));
-    _updateReserveB(u256.add(reserveB, finalAmountB));
-
-    generateEvent(
-      `Liquidity added: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
-    );
   }
+
+  // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
+  const liqA = u256.div(u256.mul(finalAmountA, totalSupply), reserveA);
+  const liqB = u256.div(u256.mul(finalAmountB, totalSupply), reserveB);
+  liquidity = liqA < liqB ? liqA : liqB;
+
+  assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
+
+  const contractAddress = Context.callee();
+
+  // Transfer tokens A from user to contract
+  new IMRC20(new Address(aTokenAddressStored)).transfer(
+    contractAddress,
+    finalAmountA,
+  );
+
+  // Transfer tokens B from user to contract
+  new IMRC20(new Address(bTokenAddressStored)).transfer(
+    contractAddress,
+    finalAmountB,
+  );
+
+  // Mint LP tokens to user
+  lpToken.mint(Context.caller(), liquidity);
+
+  // Update reserves
+  _updateReserveA(u256.add(reserveA, finalAmountA));
+  _updateReserveB(u256.add(reserveB, finalAmountB));
+
+  generateEvent(
+    `Liquidity added: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
+  );
 }
 
 /**
@@ -165,12 +235,13 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
-  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
-  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
   // check if the token address is one of the two tokens in the pool
   assert(
-    tokenInAddress == tokenAAddress || tokenInAddress == tokenBAddress,
+    tokenInAddress == aTokenAddressStored ||
+      tokenInAddress == bTokenAddressStored,
     'Invalid token address',
   );
 
@@ -192,11 +263,13 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // get the address of the other token in the pool
   const tokenOutAddress =
-    tokenInAddress == tokenAAddress ? tokenBAddress : tokenAAddress;
+    tokenInAddress == aTokenAddressStored
+      ? bTokenAddressStored
+      : aTokenAddressStored;
 
   // get the reserves of the two tokens in the pool
-  const reserveIn = reserves.get(new Address(tokenInAddress), u256.Zero);
-  const reserveOut = reserves.get(new Address(tokenOutAddress), u256.Zero);
+  const reserveIn = _getReserve(tokenInAddress);
+  const reserveOut = _getReserve(tokenOutAddress);
 
   // calculate the amount of tokens to be swapped
   const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
@@ -220,12 +293,13 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const newReserveIn = u256.add(reserveIn, u256.add(netInput, lpFee));
   const newReserveOut = u256.sub(reserveOut, amountOut);
 
-  reserves.set(new Address(tokenInAddress), newReserveIn);
-  reserves.set(new Address(tokenOutAddress), newReserveOut);
+  // update the pool reserves
+  _updateReserve(tokenInAddress, newReserveIn);
+  _updateReserve(tokenOutAddress, newReserveOut);
 
   // Accumulate protocol fees
   if (protocolFee > u256.Zero) {
-    _addProtocolFee(tokenInAddress, protocolFee);
+    _addTokenAccumulatedProtocolFee(tokenInAddress, protocolFee);
   }
 
   generateEvent(
@@ -239,39 +313,36 @@ export function swap(binaryArgs: StaticArray<u8>): void {
  * @returns void
  */
 export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
-  _onlyOwner();
-
   const args = new Args(binaryArgs);
 
   const tokenAddress = args.nextString().expect('No token address');
 
-  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
-  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
   // ensure tokenAddress is either tokenA or tokenB
   assert(
-    tokenAddress == tokenAAddress || tokenAddress == tokenBAddress,
+    tokenAddress == aTokenAddressStored || tokenAddress == bTokenAddressStored,
     'Invalid token address',
   );
 
-  const accumulatedFees = protocolFees.get(
-    new Address(tokenAddress),
-    u256.Zero,
-  );
-  assert(accumulatedFees > u256.Zero, 'No accumulated fees');
+  // get accumulated fees of the token
+  const accumulatedFeesStored = _getTokenAccumulatedProtocolFee(tokenAddress);
+
+  assert(accumulatedFeesStored > u256.Zero, 'No accumulated fees');
 
   // Transfer accumulated protocol fees to the owner
   new IMRC20(new Address(tokenAddress)).transferFrom(
     Context.callee(),
-    Context.caller(), // the owner
-    accumulatedFees,
+    _ownerAddress(), // the owner of the registry contract
+    accumulatedFeesStored,
   );
 
   // Reset protocol fees for that token
-  protocolFees.set(new Address(tokenAddress), u256.Zero);
+  _setTokenAccumulatedProtocolFee(tokenAddress, u256.Zero);
 
   generateEvent(
-    `Protocol fees claimed: ${accumulatedFees.toString()} of ${tokenAddress} by ${Context.caller().toString()}`,
+    `Protocol fees claimed: ${accumulatedFeesStored.toString()} of ${tokenAddress} by ${Context.caller().toString()}`,
   );
 }
 
@@ -287,11 +358,11 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     .nextU256()
     .expect('LpTokenAmount is missing or invalid');
 
-  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
-  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
-  const lpManagerTokenAddress = bytesToString(Storage.get(lpManagerAddressKey));
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+  const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
 
-  const lpToken = new IMRC20(new Address(lpManagerTokenAddress));
+  const lpToken = new IMRC20(new Address(lpTokenAddressStored));
   const totalSupply = lpToken.totalSupply();
 
   // Current reserves
@@ -307,12 +378,12 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   lpToken.burn(lpTokenAmount);
 
   // Transfer tokens to user
-  new IMRC20(new Address(tokenAAddress)).transferFrom(
+  new IMRC20(new Address(aTokenAddressStored)).transferFrom(
     Context.callee(),
     Context.caller(),
     amountAOut,
   );
-  new IMRC20(new Address(tokenBAddress)).transferFrom(
+  new IMRC20(new Address(bTokenAddressStored)).transferFrom(
     Context.callee(),
     Context.caller(),
     amountBOut,
@@ -341,21 +412,24 @@ export function getSwapOutEstimation(
     .expect('TokenInAddress is missing or invalid');
   const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
-  const tokenAAddress = bytesToString(Storage.get(tokenAAddressKey));
-  const tokenBAddress = bytesToString(Storage.get(tokenBAddressKey));
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
   // Validate tokenIn is either tokenA or tokenB
   assert(
-    tokenInAddress == tokenAAddress || tokenInAddress == tokenBAddress,
+    tokenInAddress == aTokenAddressStored ||
+      tokenInAddress == bTokenAddressStored,
     'Invalid token address for input',
   );
 
   const tokenOutAddress =
-    tokenInAddress == tokenAAddress ? tokenBAddress : tokenAAddress;
+    tokenInAddress == aTokenAddressStored
+      ? bTokenAddressStored
+      : aTokenAddressStored;
 
   // Get current reserves
-  const reserveIn = reserves.get(new Address(tokenInAddress), u256.Zero);
-  const reserveOut = reserves.get(new Address(tokenOutAddress), u256.Zero);
+  const reserveIn = _getReserve(tokenInAddress);
+  const reserveOut = _getReserve(tokenOutAddress);
 
   // Calculate amountOut
   const amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
@@ -374,20 +448,17 @@ export function getSwapOutEstimation(
  * @returns void
  */
 export function syncReserves(): void {
-  // called only by the owner of the pool
+  // only owner of registery contract can call this function
   _onlyOwner();
 
-  // const reserveA = _getLocalReserveA();
-  // const reserveB = _getLocalReserveB();
-
-  // get teh balance of this contract for token A
+  // get the balance of this contract for token A
   const balanceA = getTokenBalance(
-    new Address(bytesToString(Storage.get(tokenAAddressKey))),
+    new Address(bytesToString(Storage.get(aTokenAddress))),
   );
 
-  // get teh balance of this contract for token B
+  // get the balance of this contract for token B
   const balanceB = getTokenBalance(
-    new Address(bytesToString(Storage.get(tokenBAddressKey))),
+    new Address(bytesToString(Storage.get(bTokenAddress))),
   );
 
   // update reserves
@@ -396,15 +467,30 @@ export function syncReserves(): void {
 }
 
 /**
+ * Retrieves the reserve of a token in the pool.
+ * @param tokenAddress - The address of the token.
+ * @returns The current reserve of the token in the pool.
+ */
+function _getReserve(tokenAddress: string): u256 {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  if (tokenAddress == aTokenAddressStored) {
+    return _getLocalReserveA();
+  } else if (tokenAddress == bTokenAddressStored) {
+    return _getLocalReserveB();
+  } else {
+    return u256.Zero;
+  }
+}
+
+/**
  * Retrieves the local reserve of token A.
  *
  * @returns The current reserve of token A in the pool.
  */
 function _getLocalReserveA(): u256 {
-  return reserves.get(
-    new Address(bytesToString(Storage.get(tokenAAddressKey))),
-    u256.Zero,
-  );
+  return u256.fromBytes(Storage.get(aTokenReserve));
 }
 
 /**
@@ -413,23 +499,92 @@ function _getLocalReserveA(): u256 {
  * @returns The current reserve of token B in the pool.
  */
 function _getLocalReserveB(): u256 {
-  return reserves.get(
-    new Address(bytesToString(Storage.get(tokenBAddressKey))),
-    u256.Zero,
-  );
+  return u256.fromBytes(Storage.get(bTokenReserve));
 }
 
-function _getFeeRate(): u16 {
-  return bytesToU16(Storage.get(feeRateKey));
+/**
+ * Retrieves the accumulated protocol fee for a token.
+ * @param tokenAddress The address of the token for which to retrieve the accumulated protocol fee.
+ * @returns The accumulated protocol fee for the specified token.
+ */
+function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  if (tokenAddress == aTokenAddressStored) {
+    return bytesToU256(Storage.get(aProtocolFee));
+  } else if (tokenAddress == bTokenAddressStored) {
+    return bytesToU256(Storage.get(bProtocolFee));
+  } else {
+    return u256.Zero;
+  }
 }
 
-function _getFeeShareProtocol(): u16 {
-  return bytesToU16(Storage.get(feeShareProtocolKey));
+/**
+ * Sets the accumulated protocol fee for a given token address.
+ * @param tokenAddress - The address of the token.
+ * @param amount - The new amount of accumulated protocol fee for the token.
+ */
+function _setTokenAccumulatedProtocolFee(
+  tokenAddress: string,
+  amount: u256,
+): void {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  if (tokenAddress == aTokenAddressStored) {
+    Storage.set(aProtocolFee, u256ToBytes(amount));
+  } else if (tokenAddress == bTokenAddressStored) {
+    Storage.set(bProtocolFee, u256ToBytes(amount));
+  }
 }
 
-function _addProtocolFee(tokenAddress: string, amount: u256): void {
-  const current = protocolFees.get(new Address(tokenAddress), u256.Zero);
-  protocolFees.set(new Address(tokenAddress), u256.add(current, amount));
+/**
+ * Retrieves the current fee rate for the protocol.
+ *
+ * @returns The current fee rate for the protocol.
+ */
+function _getFeeRate(): f64 {
+  return bytesToF64(Storage.get(feeRate));
+}
+
+/**
+ * Retrieves the current fee share for the protocol.
+ *
+ * @returns The current fee share for the protocol.
+ */
+function _getFeeShareProtocol(): f64 {
+  return bytesToF64(Storage.get(feeShareProtocol));
+}
+
+/**
+ * Adds the accumulated protocol fee for a token.
+ * @param tokenAddress The address of the token for which to add the accumulated protocol fee.
+ * @param amount The amount of accumulated protocol fee to add.
+ */
+function _addTokenAccumulatedProtocolFee(
+  tokenAddress: string,
+  amount: u256,
+): void {
+  const current = _getTokenAccumulatedProtocolFee(tokenAddress);
+  _setTokenAccumulatedProtocolFee(tokenAddress, u256.add(current, amount));
+}
+
+/**
+ *  Updates the reserve of token in the pool.
+ *  @param tokenAddress - The address of the token.
+ *  @param amount - The new amount of token in the pool.
+ *  @returns - void
+ */
+function _updateReserve(tokenAddress: string, amount: u256): void {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  if (tokenAddress == aTokenAddressStored) {
+    _updateReserveA(amount);
+  } else if (tokenAddress == bTokenAddressStored) {
+    _updateReserveB(amount);
+  }
 }
 
 /**
@@ -437,10 +592,7 @@ function _addProtocolFee(tokenAddress: string, amount: u256): void {
  *  @param amount - The new amount of token A in the pool.
  */
 function _updateReserveA(amount: u256): void {
-  reserves.set(
-    new Address(bytesToString(Storage.get(tokenAAddressKey))),
-    amount,
-  );
+  Storage.set(aTokenReserve, u256ToBytes(amount));
 }
 
 /**
@@ -448,8 +600,5 @@ function _updateReserveA(amount: u256): void {
  * @param amount - The new amount of token B in the pool.
  */
 function _updateReserveB(amount: u256): void {
-  reserves.set(
-    new Address(bytesToString(Storage.get(tokenBAddressKey))),
-    amount,
-  );
+  Storage.set(bTokenReserve, u256ToBytes(amount));
 }

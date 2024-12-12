@@ -3,32 +3,35 @@ import { Address } from '@massalabs/massa-as-sdk';
 
 export class Pool implements Serializable {
   constructor(
-    public addressA: Address = new Address(),
-    public addressB: Address = new Address(),
-    public inputFeeRate: u16 = u16(0),
-    public feeShareProtocol: u16 = u16(0),
-    public lpManagerToken: Address = new Address(),
+    public poolAddress: Address = new Address(),
+    public aAddress: Address = new Address(),
+    public bAddress: Address = new Address(),
+    public inputFeeRate: f64 = f64(0),
+    public feeShareProtocol: f64 = f64(0),
+    public lpTokenAddress: Address = new Address(),
   ) {}
 
   serialize(): StaticArray<u8> {
     return new Args()
-      .add(this.addressA)
-      .add(this.addressB)
+      .add(this.poolAddress)
+      .add(this.aAddress)
+      .add(this.bAddress)
       .add(this.inputFeeRate)
       .add(this.feeShareProtocol)
-      .add(this.lpManagerToken)
+      .add(this.lpTokenAddress)
       .serialize();
   }
 
   deserialize(data: StaticArray<u8>, offset: i32): Result<i32> {
     const args = new Args(data, offset);
 
-    this.addressA = new Address(args.nextString().expect('Invalid address'));
-    this.addressB = new Address(args.nextString().expect('Invalid address'));
-    this.inputFeeRate = args.nextU16().expect('Invalid input fee rate');
-    this.feeShareProtocol = args.nextU16().expect('Invalid fee share protocol');
-    this.lpManagerToken = new Address(
-      args.nextString().expect('Invalid lpManagerToken'),
+    this.poolAddress = new Address(args.nextString().expect('Invalid address'));
+    this.aAddress = new Address(args.nextString().expect('Invalid address'));
+    this.bAddress = new Address(args.nextString().expect('Invalid address'));
+    this.inputFeeRate = args.nextF64().expect('Invalid input fee rate');
+    this.feeShareProtocol = args.nextF64().expect('Invalid fee share protocol');
+    this.lpTokenAddress = new Address(
+      args.nextString().expect('Invalid lpTokenAddress'),
     );
 
     return new Result(args.offset);
