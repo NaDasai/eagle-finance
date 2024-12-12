@@ -20,6 +20,7 @@ import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
 import { _buildPoolKey } from '../utils';
+import { ownerAddress } from '../utils/ownership';
 
 export const pools = new PersistentMap<string, Pool>('pools');
 
@@ -87,3 +88,6 @@ export function subscribePool(binaryArgs: StaticArray<u8>): void {
   // TODO: emit an event
   generateEvent(`Pool ${poolAddress} added to the registery`);
 }
+
+// exprot all the functions from teh ownership file
+export * from '../utils/ownership';
