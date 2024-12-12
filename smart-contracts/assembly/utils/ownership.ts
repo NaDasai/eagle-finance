@@ -1,4 +1,4 @@
-import { Storage } from '@massalabs/massa-as-sdk';
+import { Address, Storage } from '@massalabs/massa-as-sdk';
 import { Args, boolToByte, stringToBytes } from '@massalabs/as-types';
 import {
   OWNER_KEY,
@@ -33,6 +33,10 @@ export function ownerAddress(_: StaticArray<u8>): StaticArray<u8> {
   }
 
   return stringToBytes(Storage.get(OWNER_KEY));
+}
+
+export function _ownerAddress(): Address {
+  return new Address(Storage.get(OWNER_KEY));
 }
 
 /**

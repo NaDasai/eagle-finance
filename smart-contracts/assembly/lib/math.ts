@@ -120,3 +120,8 @@ export function powerU256(x: u256, y: i64): u256 {
 
   return invert ? u256.div(u256.Max, result) : result;
 }
+
+// function to check beteen 0 and 1
+export function isBetweenZeroAndOne(value: f64): bool {
+  return value >= 0 && value <= 1;
+}
