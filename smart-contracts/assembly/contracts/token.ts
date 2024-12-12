@@ -9,7 +9,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   const tokenName = args.nextString().expect('Invalid token name');
   const tokenSymbol = args.nextString().expect('Invalid token symbol');
-  const decimals: u8 = args.nextU8().expect('Invalid decimals');
+  const decimals = args.nextU8().expect('Invalid decimals');
   const totalSupply = args.nextU256().expect('Invalid total supply');
 
   mrc20Constructor(tokenName, tokenSymbol, decimals, u256.from(totalSupply));
