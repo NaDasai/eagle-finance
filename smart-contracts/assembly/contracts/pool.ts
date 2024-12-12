@@ -1,13 +1,7 @@
-// The entry file of your WebAssembly module.
 import {
-  call,
   Context,
-  createSC,
   generateEvent,
   Storage,
-  fileToByteArray,
-  getBytecode,
-  getBytecodeOf,
   Address,
 } from '@massalabs/massa-as-sdk';
 import {
@@ -21,7 +15,6 @@ import {
 import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';
 import { IMRC20 } from '../interfaces/IMRC20';
-import { setOwner } from '../utils/ownership';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getInputAmountNet } from '../lib/poolMath';
@@ -30,7 +23,6 @@ import { powerU256 } from '../lib/math';
 export const reserves = new PersistentMap<Address, u256>('reserves');
 export const protocolFees = new PersistentMap<Address, u256>('protocolFees');
 
-export const lpManagerKey = stringToBytes('lpManager');
 export const tokenAAddressKey = stringToBytes('tokenA');
 export const tokenBAddressKey = stringToBytes('tokenB');
 export const feeRateKey = stringToBytes('feeRate');
