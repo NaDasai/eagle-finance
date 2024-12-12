@@ -8,8 +8,11 @@ jobs:
 
       - uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
+
+      - name: cd to smart-contracts
+        run: cd smart-contracts
 
       - name: Install
         run: npm ci
