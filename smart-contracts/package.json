@@ -9,6 +9,7 @@
         "clean": "rimraf build",
         "deploy": "npm run build && tsx src/deploy.ts",
         "deploy:token": "npm run build && tsx src/deployToken.ts",
+        "deploy:registry": "npm run build && tsx src/deployRegistry.ts",
         "hello": "tsx src/hello.ts",
         "prettier": "prettier '**/src/**/*.ts' --check && as-prettier --check assembly",
         "prettier:fix": "prettier '**/src/**/*.ts' --write && as-prettier --write assembly",
