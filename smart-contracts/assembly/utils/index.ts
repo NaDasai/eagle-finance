@@ -1,11 +1,11 @@
 // function to check teh address validity
 export function isValidAddress(address: string): bool {
-  return address.length == 53 && address.startsWith('AU');
+  return address.length > 50 && address.length < 54 && address.startsWith('AU');
 }
 
 // function to check teh address validity
 export function isValidSmartContractAddress(address: string): bool {
-  return address.length == 52 && address.startsWith('AS');
+  return address.length > 50 && address.length < 54 && address.startsWith('AS');
 }
 
 export function _buildPoolKey(
