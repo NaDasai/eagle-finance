@@ -3,6 +3,8 @@ import {
   Args,
   Mas,
   SmartContract,
+  U128,
+  U8,
   Web3Provider,
 } from '@massalabs/massa-web3';
 import { getScByteCode } from './utils';
@@ -12,15 +14,14 @@ const provider = Web3Provider.buildnet(account);
 
 console.log('Deploying contract...');
 
-const byteCode = getScByteCode('build', 'pool.wasm');
+const byteCode = getScByteCode('build', 'token.wasm');
 
 const constructorArgs = new Args()
-  .addString('AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA') // token a address
-  .addString('AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA') // token b address
-  .addF64(0.5)
-  .addF64(0.05)
-  .addString('AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA') // lp token address
-  .addString('AS12DTJdW6RB3peNQUE4V1T2RZHdxzraEWXdYdvyzejZodhHeDFGA') // registery address
+  .addString('BuoyaTest')
+  .addString('BTT')
+  .addU8(U8.fromNumber(18))
+  .addU256(U128.fromNumber(180000))
+  .addString('https://www.buoyatest.com') // token url
   .serialize();
 
 const contract = await SmartContract.deploy(

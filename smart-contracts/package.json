@@ -4,10 +4,12 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "test": "asp --summary",
+        "test": "asp --verbose",
         "build": "massa-as-compile",
         "clean": "rimraf build",
         "deploy": "npm run build && tsx src/deploy.ts",
+        "deploy:token": "npm run build && tsx src/deployToken.ts",
+        "deploy:registry": "npm run build && tsx src/deployRegistry.ts",
         "hello": "tsx src/hello.ts",
         "prettier": "prettier '**/src/**/*.ts' --check && as-prettier --check assembly",
         "prettier:fix": "prettier '**/src/**/*.ts' --write && as-prettier --write assembly",
@@ -21,6 +23,7 @@
     "license": "ISC",
     "devDependencies": {
         "@as-pect/cli": "^8.1.0",
+        "as-bignum": "github:massalabs/as-bignum#0105eb596b2fa707c00712e811a2efdfcb8a9848",
         "@assemblyscript/loader": "^0.27.29",
         "@massalabs/as-types": "^2.0.0",
         "@massalabs/eslint-config": "^0.0.11",
