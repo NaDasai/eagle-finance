@@ -1,4 +1,5 @@
 import { u256 } from 'as-bignum/assembly';
+import { SafeMath256 } from './safeMath';
 
 export function getInputAmountNet(inputAmount: u256, feeRate: f64): u256 {
   // Ensure feeRate is within a valid range [0, 1]
@@ -8,10 +9,10 @@ export function getInputAmountNet(inputAmount: u256, feeRate: f64): u256 {
   const feeRateScaled = u256.fromF64(feeRate);
 
   // Calculate the fee as: (inputAmount * feeRateScaled)
-  const fee = u256.mul(inputAmount, feeRateScaled);
+  const fee = SafeMath256.mul(inputAmount, feeRateScaled);
 
   // Subtract the fee from the input amount
-  const inputAmountNet = u256.sub(inputAmount, fee);
+  const inputAmountNet = SafeMath256.sub(inputAmount, fee);
 
   return inputAmountNet;
 }
@@ -22,10 +23,10 @@ export function getAmountOut(
   outputReserve: u256,
 ): u256 {
   // amountOut = (inputAmount * outputReserve) / (inputReserve + inputAmount)
-  const f = u256.mul(outputReserve, inputAmount);
-  const f2 = u256.add(inputReserve, inputAmount);
+  const f = SafeMath256.mul(outputReserve, inputAmount);
+  const f2 = SafeMath256.add(inputReserve, inputAmount);
 
-  const returnAmount = u256.div(f, f2);
+  const returnAmount = SafeMath256.div(f, f2);
 
   return returnAmount;
 }

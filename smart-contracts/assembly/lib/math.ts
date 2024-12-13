@@ -126,16 +126,3 @@ export function isBetweenZeroAndOne(value: f64): bool {
   return value >= 0 && value <= 1;
 }
 
-/**
- * @param a
- * @returns Returns the square root of an unsigned integer.
- * */
-export function sqrtU256(a: u256): u256 {
-  let x = a;
-  let y = u256.add(u256.div(x, u256.from(2)), u256.One);
-  while (u256.lt(y, x)) {
-    x = y;
-    y = u256.div(u256.add(u256.div(a, x), x), u256.from(2));
-  }
-  return x;
-}

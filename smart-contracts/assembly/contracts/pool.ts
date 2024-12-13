@@ -18,10 +18,11 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getInputAmountNet } from '../lib/poolMath';
-import { isBetweenZeroAndOne, powerU256, sqrtU256 } from '../lib/math';
+import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { isValidSmartContractAddress } from '../utils';
 import { _ownerAddress } from '../utils/ownership';
+import { SafeMath256 } from '../lib/safeMath';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -170,16 +171,22 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 
   if (reserveA == u256.Zero && reserveB == u256.Zero) {
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
-    const product = u256.mul(amountA, amountB);
+    const product = SafeMath256.mul(amountA, amountB);
     // TOTEST: sqrt is not implemented in u256 type so we use manual powerU256 instead
-    liquidity = sqrtU256(product);
+    liquidity = SafeMath256.sqrt(product);
   } else {
     // Add liquidity proportionally
     // Optimal amountB given amountA:
-    const amountBOptimal = u256.div(u256.mul(amountA, reserveB), reserveA);
+    const amountBOptimal = SafeMath256.div(
+      SafeMath256.mul(amountA, reserveB),
+      reserveA,
+    );
     if (amountBOptimal > amountB) {
       // User provided less B than optimal, adjust A
-      const amountAOptimal = u256.div(u256.mul(amountB, reserveA), reserveB);
+      const amountAOptimal = SafeMath256.div(
+        SafeMath256.mul(amountB, reserveA),
+        reserveB,
+      );
       finalAmountA = amountAOptimal;
     } else {
       // User provided more B than needed, adjust B
@@ -188,8 +195,14 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   }
 
   // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
-  const liqA = u256.div(u256.mul(finalAmountA, totalSupply), reserveA);
-  const liqB = u256.div(u256.mul(finalAmountB, totalSupply), reserveB);
+  const liqA = SafeMath256.div(
+    SafeMath256.mul(finalAmountA, totalSupply),
+    reserveA,
+  );
+  const liqB = SafeMath256.div(
+    SafeMath256.mul(finalAmountB, totalSupply),
+    reserveB,
+  );
   liquidity = liqA < liqB ? liqA : liqB;
 
   assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
@@ -213,8 +226,8 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   lpToken.mint(Context.caller(), liquidity);
 
   // Update reserves
-  _updateReserveA(u256.add(reserveA, finalAmountA));
-  _updateReserveB(u256.add(reserveB, finalAmountB));
+  _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
+  _updateReserveB(SafeMath256.add(reserveB, finalAmountB));
 
   generateEvent(
     `Liquidity added: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
@@ -258,10 +271,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const protocolFee = getInputAmountNet(totalFee, feeShareProtocol);
 
   // lpFee = totalFee - protocolFee
-  const lpFee = u256.sub(totalFee, protocolFee);
+  const lpFee = SafeMath256.sub(totalFee, protocolFee);
 
   // netInput = amountIn - totalFee
-  const netInput = u256.sub(amountIn, totalFee);
+  const netInput = SafeMath256.sub(amountIn, totalFee);
 
   // get the address of the other token in the pool
   const tokenOutAddress =
@@ -292,8 +305,11 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // Update reserves:
   // The input reserve increases by netInput + lpFee (the portion of fees that goes to the LPs).
   // The protocolFee is not added to reserves. Instead, we store it separately.
-  const newReserveIn = u256.add(reserveIn, u256.add(netInput, lpFee));
-  const newReserveOut = u256.sub(reserveOut, amountOut);
+  const newReserveIn = SafeMath256.add(
+    reserveIn,
+    SafeMath256.add(netInput, lpFee),
+  );
+  const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
 
   // update the pool reserves
   _updateReserve(tokenInAddress, newReserveIn);
@@ -377,9 +393,15 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const reserveB = _getLocalReserveB();
 
   // amountAOut = (lpTokenAmount * reserveA) / totalSupply
-  const amountAOut = u256.div(u256.mul(lpTokenAmount, reserveA), totalSupply);
+  const amountAOut = SafeMath256.div(
+    SafeMath256.mul(lpTokenAmount, reserveA),
+    totalSupply,
+  );
   // amountBOut = (lpTokenAmount * reserveB) / totalSupply
-  const amountBOut = u256.div(u256.mul(lpTokenAmount, reserveB), totalSupply);
+  const amountBOut = SafeMath256.div(
+    SafeMath256.mul(lpTokenAmount, reserveB),
+    totalSupply,
+  );
 
   // burn lp tokens
   lpToken.burn(lpTokenAmount);
@@ -397,8 +419,8 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Update reserves
-  _updateReserveA(u256.sub(reserveA, amountAOut));
-  _updateReserveB(u256.sub(reserveB, amountBOut));
+  _updateReserveA(SafeMath256.sub(reserveA, amountAOut));
+  _updateReserveB(SafeMath256.sub(reserveB, amountBOut));
 
   generateEvent(
     `Removed liquidity: ${lpTokenAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
@@ -574,7 +596,10 @@ function _addTokenAccumulatedProtocolFee(
   amount: u256,
 ): void {
   const current = _getTokenAccumulatedProtocolFee(tokenAddress);
-  _setTokenAccumulatedProtocolFee(tokenAddress, u256.add(current, amount));
+  _setTokenAccumulatedProtocolFee(
+    tokenAddress,
+    SafeMath256.add(current, amount),
+  );
 }
 
 /**
