@@ -8,23 +8,20 @@ import {
   Args,
   bytesToF64,
   bytesToString,
-  bytesToU16,
   bytesToU256,
   f64ToBytes,
   stringToBytes,
-  u16ToBytes,
   u256ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
-import { PersistentMap } from '../lib/PersistentMap';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getInputAmountNet } from '../lib/poolMath';
-import { isBetweenZeroAndOne, powerU256 } from '../lib/math';
+import { isBetweenZeroAndOne, powerU256, sqrtU256 } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { isValidSmartContractAddress } from '../utils';
-import { _ownerAddress, ownerAddress } from '../utils/ownership';
+import { _ownerAddress } from '../utils/ownership';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -59,7 +56,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
   // read the arguments
-
   const addressA = args.nextString().expect('Address A is missing or invalid');
   const addressB = args.nextString().expect('Address B is missing or invalid');
 
@@ -154,6 +150,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const amountA = args.nextU256().expect('Amount A is missing or invalid');
   const amountB = args.nextU256().expect('Amount B is missing or invalid');
 
+  // retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
   const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
@@ -162,7 +159,9 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
+  // wrap the LP token contract
   const lpToken = new IMRC20(new Address(lpTokenAddressStored));
+  // get the total supply of the LP token
   const totalSupply = lpToken.totalSupply();
 
   let finalAmountA = amountA;
@@ -173,7 +172,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = u256.mul(amountA, amountB);
     // TOTEST: sqrt is not implemented in u256 type so we use manual powerU256 instead
-    liquidity = powerU256(product, i64.parse(f64(0.5).toString()));
+    liquidity = sqrtU256(product);
   } else {
     // Add liquidity proportionally
     // Optimal amountB given amountA:
@@ -195,6 +194,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 
   assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
 
+  // address of the current contract
   const contractAddress = Context.callee();
 
   // Transfer tokens A from user to contract
@@ -229,10 +229,12 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 export function swap(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
+  // get the tokenIn address
   const tokenInAddress = args
     .nextString()
     .expect('TokenIn is missing or invalid');
 
+  // get the amount of tokenIn to swap
   const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
@@ -246,8 +248,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   );
 
   // Calculate fees
-  const feeRate = _getFeeRate(); // e.g., 3 => 3%
-  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 50 => 50%
+  const feeRate = _getFeeRate(); // e.g., 0.003
+  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
 
   // totalFee = (amountIn * feeRate) / 100
   const totalFee = getInputAmountNet(amountIn, feeRate);
@@ -315,8 +317,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
+  // get the token address from the arguments
   const tokenAddress = args.nextString().expect('No token address');
 
+  // get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
@@ -354,14 +358,17 @@ export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
 export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
+  // get the amount of LP tokens to remove from params
   const lpTokenAmount = args
     .nextU256()
     .expect('LpTokenAmount is missing or invalid');
 
+  // get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
   const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
 
+  // wrap the LP token contract on IMRC20
   const lpToken = new IMRC20(new Address(lpTokenAddressStored));
   const totalSupply = lpToken.totalSupply();
 
