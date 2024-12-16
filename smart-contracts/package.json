@@ -4,6 +4,7 @@
     "description": "",
     "main": "index.js",
     "scripts": {
+        "events": "tsx src/events.ts",
         "test": "asp --verbose",
         "buildnet": "npm run build && tsx src/builnet-tests/test.ts",
         "build": "massa-as-compile",
