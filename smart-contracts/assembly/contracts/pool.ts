@@ -7,6 +7,9 @@ import {
   fileToByteArray,
   print,
   call,
+  StoragePrefixManager,
+  LiquidityManager,
+  assertIsSmartContract,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -24,7 +27,6 @@ import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getInputAmountNet } from '../lib/poolMath';
 import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
-import { isValidSmartContractAddress } from '../utils';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
 import { mrc20Constructor } from './token';
@@ -45,10 +47,11 @@ export const bProtocolFee = stringToBytes('bProtocolFee');
 export const feeRate = stringToBytes('feeRate');
 // storage key containning the fee share protocol value of the pool. value is between 0 and 1
 export const feeShareProtocol = stringToBytes('feeShareProtocol');
-// storage key containning the address of the LP token inside the pool
-export const lpTokenAddress = stringToBytes('lpTokkenAddress');
 // storage key containning the address of the registry contract inside the pool
 export const registryContractAddress = stringToBytes('registry');
+// create new liquidity manager
+const storagePrefixManager = new StoragePrefixManager();
+const liquidityManager = new LiquidityManager<u8>(storagePrefixManager);
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -86,16 +89,13 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   );
 
   // ensure that the addressA is a valid smart contract address
-  assert(isValidSmartContractAddress(addressA), 'Invalid addressA');
+  assertIsSmartContract(addressA);
 
   // ensure that the addressB is a valid smart contract address
-  assert(isValidSmartContractAddress(addressB), 'Invalid addressB');
+  assertIsSmartContract(addressB);
 
   // ensure that the registryAddress is a valid smart contract address
-  assert(
-    isValidSmartContractAddress(registryAddress),
-    'Invalid RegistryAddress',
-  );
+  assertIsSmartContract(registryAddress);
 
   // store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
@@ -138,16 +138,14 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-  const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
+  // const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
 
   // get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
-  // wrap the LP token contract
-  const lpToken = new IMRC20(new Address(lpTokenAddressStored));
   // get the total supply of the LP token
-  const totalSupply = lpToken.totalSupply();
+  const totalSupply: u256 = u256.from(liquidityManager.getTotalSupply());
 
   let finalAmountA = amountA;
   let finalAmountB = amountB;
@@ -207,7 +205,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Mint LP tokens to user
-  lpToken.mint(Context.caller(), liquidity);
+  liquidityManager.mint(Context.caller(), u8.parse(liquidity.toString()));
 
   // Update reserves
   _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
@@ -366,11 +364,8 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-  const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
 
-  // wrap the LP token contract on IMRC20
-  const lpToken = new IMRC20(new Address(lpTokenAddressStored));
-  const totalSupply = lpToken.totalSupply();
+  const totalSupply = u256.from(liquidityManager.getTotalSupply());
 
   // Current reserves
   const reserveA = _getLocalReserveA();
@@ -388,7 +383,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // burn lp tokens
-  lpToken.burn(lpTokenAmount);
+  liquidityManager.burn(Context.caller(), u8.parse(lpTokenAmount.toString()));
 
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transferFrom(
