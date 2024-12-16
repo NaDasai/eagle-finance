@@ -6,8 +6,15 @@ import {
   resetStorage,
   setDeployContext,
 } from '@massalabs/massa-as-sdk';
-import { addLiquidity, constructor, getLPBalance } from '../contracts/pool';
-import { Args, bytesToU64 } from '@massalabs/as-types';
+import {
+  addLiquidity,
+  constructor,
+  getLocalReserveA,
+  getLocalReserveB,
+  getLPBalance,
+  swap,
+} from '../contracts/pool';
+import { Args, bytesToU256, bytesToU64 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 
 // addres of contract in @massalabs/massa-as-sdk/vm-mock/vm.js
@@ -38,11 +45,11 @@ beforeAll(() => {
   setDeployContext(user1Address);
 
   const args = new Args()
-    .add(aTokenAddress)
-    .add(bTokenAddress)
-    .add(0.5)
-    .add(0.05)
-    .add(registeryContractAddr);
+    .add(aTokenAddress) // token a address
+    .add(bTokenAddress) // token b address
+    .add(0.5) // fee rate
+    .add(0.05) // fee share protocol
+    .add(registeryContractAddr); // registery address
 
   mockScCall(new Args().add(user1Address).serialize());
 
@@ -50,7 +57,7 @@ beforeAll(() => {
 });
 
 describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
-  test('Liquidity Added the first time', () => {
+  test('add liquidity for first time', () => {
     const aAmount = u256.fromU64(100);
     const bAmount = u256.fromU64(100);
 
@@ -72,5 +79,58 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
       getLPBalance(new Args().add(user1Address).serialize()),
     );
     expect(lpBalance2).toStrictEqual(100);
+  });
+
+  test('add liquidity again', () => {
+    const aAmount = u256.fromU64(150);
+    const bAmount = u256.fromU64(200);
+
+    // get the LP balance of the user
+    const lpBalance = bytesToU64(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    expect(lpBalance).toStrictEqual(100);
+
+    print(`Adding liquidity again with 150 and 200...`);
+
+    mockScCall(new Args().serialize());
+    mockScCall(new Args().serialize());
+
+    addLiquidity(new Args().add(aAmount).add(bAmount).serialize());
+
+    const lpBalance2 = bytesToU64(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    expect(lpBalance2).toStrictEqual(250);
+  });
+
+  test('swap tokens', () => {
+    mockScCall(new Args().serialize());
+
+    switchUser(user2Address);
+
+    let resA = bytesToU256(getLocalReserveA());
+    let resB = bytesToU256(getLocalReserveB());
+
+    print(`Reserve A: ${resA.toString()}`);
+    print(`Reserve B: ${resB.toString()}`);
+
+    expect(resA).toStrictEqual(u256.from(250));
+    expect(resB).toStrictEqual(u256.from(250));
+
+    mockScCall(new Args().serialize());
+    mockScCall(new Args().serialize());
+
+    swap(new Args().add(aTokenAddress).add(u256.from(100)).serialize());
+
+    resA = bytesToU256(getLocalReserveA());
+    resB = bytesToU256(getLocalReserveB());
+
+    print(`Reserve A: ${resA.toString()}`);
+    print(`Reserve B: ${resB.toString()}`);
+    expect(resA).toStrictEqual(u256.from(350));
+    expect(resB).toStrictEqual(u256.from(179));
   });
 });
