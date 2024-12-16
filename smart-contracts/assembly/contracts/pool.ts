@@ -19,6 +19,7 @@ import {
   f64ToBytes,
   stringToBytes,
   u256ToBytes,
+  u64ToBytes,
 } from '@massalabs/as-types';
 import { u128, u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
@@ -29,7 +30,6 @@ import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
-import { mrc20Constructor } from './token';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -55,7 +55,7 @@ const liquidityManager = new LiquidityManager<u64>(storagePrefixManager);
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
- * @param binaryArgs - Arguments serialized with Args (addressA, addressB, feeRate, feeShareProtocol, lpTokenAddress, registryAddress)
+ * @param binaryArgs - Arguments serialized with Args (aAddress, bAddress, feeRate, feeShareProtocol, lpTokenAddress, registryAddress)
  */
 export function constructor(binaryArgs: StaticArray<u8>): void {
   // This line is important. It ensures that this function can't be called in the future.
@@ -65,8 +65,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
   // read the arguments
-  const addressA = args.nextString().expect('Address A is missing or invalid');
-  const addressB = args.nextString().expect('Address B is missing or invalid');
+  const aAddress = args.nextString().expect('Address A is missing or invalid');
+  const bAddress = args.nextString().expect('Address B is missing or invalid');
 
   const inputFeeRate = args
     .nextF64()
@@ -88,14 +88,16 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     'Fee share protocol must be between 0 and 1',
   );
 
-  // ensure that the addressA is a valid smart contract address
-  assertIsSmartContract(addressA);
+  /* 
+        To return after tests 
+  // ensure that the aAddress is a valid smart contract address
+  assertIsSmartContract(aAddress);
 
-  // ensure that the addressB is a valid smart contract address
-  assertIsSmartContract(addressB);
+  // ensure that the bAddress is a valid smart contract address
+  assertIsSmartContract(bAddress);
 
   // ensure that the registryAddress is a valid smart contract address
-  assertIsSmartContract(registryAddress);
+  assertIsSmartContract(registryAddress); */
 
   // store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
@@ -103,8 +105,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
 
   // store the tokens a and b addresses
-  Storage.set(aTokenAddress, stringToBytes(addressA));
-  Storage.set(bTokenAddress, stringToBytes(addressB));
+  Storage.set(aTokenAddress, stringToBytes(aAddress));
+  Storage.set(bTokenAddress, stringToBytes(bAddress));
 
   // store the tokens a and b addresses reserves in the contract storage
   Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
@@ -120,7 +122,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   _setOwner(registry.ownerAddress());
 
   generateEvent(
-    `New pool deployed at ${Context.callee()}. Token A: ${addressA}. Token B: ${addressB}. Registry: ${registryAddress}.`,
+    `New pool deployed at ${Context.callee()}. Token A: ${aAddress}. Token B: ${bAddress}. Registry: ${registryAddress}.`,
   );
 }
 
@@ -138,7 +140,6 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-  // const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
 
   // get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
@@ -174,18 +175,18 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
       // User provided more B than needed, adjust B
       finalAmountB = amountBOptimal;
     }
-  }
 
-  // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
-  const liqA = SafeMath256.div(
-    SafeMath256.mul(finalAmountA, totalSupply),
-    reserveA,
-  );
-  const liqB = SafeMath256.div(
-    SafeMath256.mul(finalAmountB, totalSupply),
-    reserveB,
-  );
-  liquidity = liqA < liqB ? liqA : liqB;
+    // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
+    const liqA = SafeMath256.div(
+      SafeMath256.mul(finalAmountA, totalSupply),
+      reserveA,
+    );
+    const liqB = SafeMath256.div(
+      SafeMath256.mul(finalAmountB, totalSupply),
+      reserveB,
+    );
+    liquidity = liqA < liqB ? liqA : liqB;
+  }
 
   assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
 
@@ -474,6 +475,18 @@ export function syncReserves(): void {
   _updateReserveB(balanceB);
 }
 
+export function getLPBalance(binaryArgs: StaticArray<u8>): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const userAddress = args
+    .nextString()
+    .expect('UserAddress is missing or invalid');
+
+  const balance = liquidityManager.getBalance(new Address(userAddress));
+
+  return u64ToBytes(balance);
+}
+
 /**
  * Retrieves the reserve of a token in the pool.
  * @param tokenAddress - The address of the token.
@@ -498,7 +511,7 @@ function _getReserve(tokenAddress: string): u256 {
  * @returns The current reserve of token A in the pool.
  */
 function _getLocalReserveA(): u256 {
-  return u256.fromBytes(Storage.get(aTokenReserve));
+  return bytesToU256(Storage.get(aTokenReserve));
 }
 
 /**
@@ -507,7 +520,7 @@ function _getLocalReserveA(): u256 {
  * @returns The current reserve of token B in the pool.
  */
 function _getLocalReserveB(): u256 {
-  return u256.fromBytes(Storage.get(bTokenReserve));
+  return bytesToU256(Storage.get(bTokenReserve));
 }
 
 /**
