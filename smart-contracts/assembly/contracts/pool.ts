@@ -25,7 +25,11 @@ import { u128, u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
-import { getAmountOut, getInputAmountNet } from '../lib/poolMath';
+import {
+  getAmountOut,
+  getFeeFromAmount,
+  getInputAmountNet,
+} from '../lib/poolMath';
 import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
@@ -248,10 +252,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
 
   // totalFee = (amountIn * feeRate) / 100
-  const totalFee = getInputAmountNet(amountIn, feeRate);
+  const totalFee = getFeeFromAmount(amountIn, feeRate);
 
   // protocolFee = (totalFee * feeShareProtocol) / 100
-  const protocolFee = getInputAmountNet(totalFee, feeShareProtocol);
+  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
 
   // lpFee = totalFee - protocolFee
   const lpFee = SafeMath256.sub(totalFee, protocolFee);
@@ -482,9 +486,17 @@ export function getLPBalance(binaryArgs: StaticArray<u8>): StaticArray<u8> {
     .nextString()
     .expect('UserAddress is missing or invalid');
 
-  const balance = liquidityManager.getBalance(new Address(userAddress));
+  const balance: u64 = liquidityManager.getBalance(new Address(userAddress));
 
   return u64ToBytes(balance);
+}
+
+export function getLocalReserveA(): StaticArray<u8> {
+  return Storage.get(aTokenReserve);
+}
+
+export function getLocalReserveB(): StaticArray<u8> {
+  return Storage.get(bTokenReserve);
 }
 
 /**
