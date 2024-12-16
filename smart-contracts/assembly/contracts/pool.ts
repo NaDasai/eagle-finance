@@ -3,6 +3,10 @@ import {
   generateEvent,
   Storage,
   Address,
+  createSC,
+  fileToByteArray,
+  print,
+  call,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -13,7 +17,7 @@ import {
   stringToBytes,
   u256ToBytes,
 } from '@massalabs/as-types';
-import { u256 } from 'as-bignum/assembly';
+import { u128, u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
@@ -23,6 +27,7 @@ import { IRegistery } from '../interfaces/IRegistry';
 import { isValidSmartContractAddress } from '../utils';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
+import { mrc20Constructor } from './token';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -67,10 +72,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('Fee share protocol is missing or invalid');
 
-  const lpTokenAddressInput = args
-    .nextString()
-    .expect('LpTTokenAddress is missing or invalid');
-
   const registryAddress = args
     .nextString()
     .expect('RegistryAddress is missing or invalid');
@@ -90,12 +91,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // ensure that the addressB is a valid smart contract address
   assert(isValidSmartContractAddress(addressB), 'Invalid addressB');
 
-  // ensure that the lpTokenAddressInput is a valid smart contract address
-  assert(
-    isValidSmartContractAddress(lpTokenAddressInput),
-    'Invalid LP Token Address ',
-  );
-
   // ensure that the registryAddress is a valid smart contract address
   assert(
     isValidSmartContractAddress(registryAddress),
@@ -106,8 +101,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
   // store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
-  // store the lpManager token address
-  Storage.set(lpTokenAddress, stringToBytes(lpTokenAddressInput));
 
   // store the tokens a and b addresses
   Storage.set(aTokenAddress, stringToBytes(addressA));
@@ -122,15 +115,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // get the registry contract instance
   const registry = new IRegistery(new Address(registryAddress));
-
-  // subscribe the pool address to the registry
-  registry.subscribePool(
-    Context.callee().toString(),
-    addressA,
-    addressB,
-    feeShareProtocolInput,
-    inputFeeRate,
-  );
 
   // set the owner of the pool contract to the same registry owner address
   _setOwner(registry.ownerAddress());
