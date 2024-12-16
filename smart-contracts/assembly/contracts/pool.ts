@@ -51,7 +51,7 @@ export const feeShareProtocol = stringToBytes('feeShareProtocol');
 export const registryContractAddress = stringToBytes('registry');
 // create new liquidity manager
 const storagePrefixManager = new StoragePrefixManager();
-const liquidityManager = new LiquidityManager<u8>(storagePrefixManager);
+const liquidityManager = new LiquidityManager<u64>(storagePrefixManager);
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -205,7 +205,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Mint LP tokens to user
-  liquidityManager.mint(Context.caller(), u8.parse(liquidity.toString()));
+  liquidityManager.mint(Context.caller(), liquidity.toU64());
 
   // Update reserves
   _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
@@ -383,7 +383,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // burn lp tokens
-  liquidityManager.burn(Context.caller(), u8.parse(lpTokenAmount.toString()));
+  liquidityManager.burn(Context.caller(), lpTokenAmount.toU64());
 
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transferFrom(
