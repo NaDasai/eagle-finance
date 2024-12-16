@@ -6,7 +6,7 @@ beforeEach(() => {
   resetStorage();
 });
 
-describe('test sqrt calculation', () => {
+describe('test calculations', () => {
   it('sqrt calculation', () => {
     const sqrt = SafeMath256.sqrt(u256.from(25));
     print(`sqrt of 25: ${sqrt.toString()}`);
