@@ -21,7 +21,7 @@ const constructorArgs = new Args()
   .addString('BTT')
   .addU8(U8.fromNumber(18))
   .addU256(U128.fromNumber(180000))
-  .addString('https://www.buoyatest.com') // token url
+  // .addString('https://www.buoyatest.com') // token url
   .serialize();
 
 const contract = await SmartContract.deploy(

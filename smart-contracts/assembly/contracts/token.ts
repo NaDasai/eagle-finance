@@ -14,7 +14,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const tokenSymbol = args.nextString().expect('Invalid token symbol');
   const decimals = args.nextU8().expect('Invalid decimals');
   const totalSupply = args.nextU256().expect('Invalid total supply');
-  const url = args.nextString().expect('Invalid url');
+  // optional parameter
+  const url = args.nextString().unwrapOrDefault();
   // optional parameter
   const description = args.nextString().unwrapOrDefault();
 
