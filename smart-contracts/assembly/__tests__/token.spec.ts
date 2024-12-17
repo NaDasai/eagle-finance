@@ -1,60 +1,78 @@
 import {
   Address,
   changeCallStack,
+  print,
   resetStorage,
   setDeployContext,
 } from '@massalabs/massa-as-sdk';
+import { u256 } from 'as-bignum/assembly';
 import {
-  Args,
-  stringToBytes,
-  u8toByte,
-  bytesToU256,
-  u256ToBytes,
-} from '@massalabs/as-types';
-import {
-  transfer,
+  allowance,
   balanceOf,
-  totalSupply,
+  decimals,
+  decreaseAllowance,
+  description,
+  increaseAllowance,
   name,
   symbol,
-  decimals,
-  version,
+  constructor as TokenConstructor,
+  totalSupply,
+  transfer,
   transferFrom,
-  allowance,
-  increaseAllowance,
-  decreaseAllowance,
-  mrc20Constructor,
+  url,
   VERSION,
-} from '../MRC20';
-import { u256 } from 'as-bignum/assembly';
+  version,
+} from '../contracts/token';
+import {
+  Args,
+  bytesToU256,
+  stringToBytes,
+  u256ToBytes,
+  u8toByte,
+} from '@massalabs/as-types';
 
-// address of the contract set in vm-mock. must match with contractAddr of @massalabs/massa-as-sdk/vm-mock/vm.js
+// addres of contract in @massalabs/massa-as-sdk/vm-mock/vm.js
 const contractAddr = 'AS12BqZEQ6sByhRLyEuf0YbQmcF2PsDdkNNG1akBJu9XcjZA1eT';
 
-const user1Address = 'AU12UBnqTHDQALpocVBnkPNy7y5CndUJQTLutaVDDFgMJcq5kQiKq';
-
-const user2Address = 'AU12BqZEQ6sByhRLyEuf0YbQmcF2PsDdkNNG1akBJu9XcjZA1e8';
-
-const user3Address = 'AUDeadBeefDeadBeefDeadBeefDeadBeefDeadBeefDeadBOObs';
-
-const TOKEN_NAME = 'TOKEN_NAME';
-const TOKEN_SYMBOL = 'TKN';
-const DECIMALS: u8 = 8;
-const TOTAL_SUPPLY = new u256(100, 100, 100, 100);
+// user 1 address
+const user1Address = 'AU12Yd4kCcsizeeTEK9AZyBnuJNZ1cpp99XfCZgzS77ZKnwTFMpVE';
+// user 2 address
+const user2Address = 'AU1aC6g4NpkLQrhp6mVC1ugaDrAEdPGUyVk57xPmEZgF6bh6dTUf';
+// user 3 address
+const user3Address = 'AU12jojWJf8LRGpWUZoA5CjSVEGHzNnpck1ktbnvP9Ttw7i16avMF';
 
 function switchUser(user: string): void {
   changeCallStack(user + ' , ' + contractAddr);
 }
 
+const TOKEN_NAME = 'Buoya Token';
+const TOKEN_SYMBOL = 'BKN';
+const DECIMALS: u8 = 9;
+const TOTAL_SUPPLY = new u256(100, 100, 100, 100);
+const TOKEN_URL =
+  'https://img-cdn.pixlr.com/image-generator/history/65bb506dcb310754719cf81f/ede935de-1138-4f66-8ed7-44bd16efc709/medium.webp';
+
+const TOKEN_DESCRIPTION = 'feedsfnsfnfsnfs';
+
 beforeAll(() => {
   resetStorage();
   setDeployContext(user1Address);
-  mrc20Constructor(TOKEN_NAME, TOKEN_SYMBOL, DECIMALS, TOTAL_SUPPLY);
+  TokenConstructor(
+    new Args()
+      .add(TOKEN_NAME)
+      .add(TOKEN_SYMBOL)
+      .add(DECIMALS)
+      .add(TOTAL_SUPPLY)
+      .add(TOKEN_URL)
+      .add(TOKEN_DESCRIPTION)
+      .serialize(),
+  );
 });
 
 describe('Initialization', () => {
-  test('total supply is properly initialized', () =>
-    expect(totalSupply([])).toStrictEqual(u256ToBytes(TOTAL_SUPPLY)));
+  test('total supply is properly initialized', () => {
+    expect(totalSupply([])).toStrictEqual(u256ToBytes(TOTAL_SUPPLY));
+  });
 
   test('token name is properly initialized', () =>
     expect(name([])).toStrictEqual(stringToBytes(TOKEN_NAME)));
@@ -67,6 +85,12 @@ describe('Initialization', () => {
 
   test('version is properly initialized', () =>
     expect(version([])).toStrictEqual(VERSION));
+
+  test('url is properly initialized', () =>
+    expect(url([])).toStrictEqual(stringToBytes(TOKEN_URL)));
+
+  test('description is properly initialized', () =>
+    expect(description([])).toStrictEqual(stringToBytes(TOKEN_DESCRIPTION)));
 });
 
 describe('BalanceOf', () => {

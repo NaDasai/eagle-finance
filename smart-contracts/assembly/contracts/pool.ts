@@ -3,6 +3,9 @@ import {
   generateEvent,
   Storage,
   Address,
+  StoragePrefixManager,
+  LiquidityManager,
+  assertIsSmartContract,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -12,15 +15,15 @@ import {
   f64ToBytes,
   stringToBytes,
   u256ToBytes,
+  u64ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
-import { getAmountOut, getInputAmountNet } from '../lib/poolMath';
+import { getAmountOut, getFeeFromAmount } from '../lib/poolMath';
 import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
-import { isValidSmartContractAddress } from '../utils';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
 
@@ -40,14 +43,15 @@ export const bProtocolFee = stringToBytes('bProtocolFee');
 export const feeRate = stringToBytes('feeRate');
 // storage key containning the fee share protocol value of the pool. value is between 0 and 1
 export const feeShareProtocol = stringToBytes('feeShareProtocol');
-// storage key containning the address of the LP token inside the pool
-export const lpTokenAddress = stringToBytes('lpTokkenAddress');
 // storage key containning the address of the registry contract inside the pool
 export const registryContractAddress = stringToBytes('registry');
+// create new liquidity manager
+const storagePrefixManager = new StoragePrefixManager();
+const liquidityManager = new LiquidityManager<u64>(storagePrefixManager);
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
- * @param binaryArgs - Arguments serialized with Args (addressA, addressB, feeRate, feeShareProtocol, lpTokenAddress, registryAddress)
+ * @param binaryArgs - Arguments serialized with Args (aAddress, bAddress, feeRate, feeShareProtocol, lpTokenAddress, registryAddress)
  */
 export function constructor(binaryArgs: StaticArray<u8>): void {
   // This line is important. It ensures that this function can't be called in the future.
@@ -57,8 +61,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
   // read the arguments
-  const addressA = args.nextString().expect('Address A is missing or invalid');
-  const addressB = args.nextString().expect('Address B is missing or invalid');
+  const aAddress = args.nextString().expect('Address A is missing or invalid');
+  const bAddress = args.nextString().expect('Address B is missing or invalid');
 
   const inputFeeRate = args
     .nextF64()
@@ -66,10 +70,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const feeShareProtocolInput = args
     .nextF64()
     .expect('Fee share protocol is missing or invalid');
-
-  const lpTokenAddressInput = args
-    .nextString()
-    .expect('LpTTokenAddress is missing or invalid');
 
   const registryAddress = args
     .nextString()
@@ -84,34 +84,25 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     'Fee share protocol must be between 0 and 1',
   );
 
-  // ensure that the addressA is a valid smart contract address
-  assert(isValidSmartContractAddress(addressA), 'Invalid addressA');
+  /* 
+        To return after tests 
+  // ensure that the aAddress is a valid smart contract address
+  assertIsSmartContract(aAddress);
 
-  // ensure that the addressB is a valid smart contract address
-  assert(isValidSmartContractAddress(addressB), 'Invalid addressB');
-
-  // ensure that the lpTokenAddressInput is a valid smart contract address
-  assert(
-    isValidSmartContractAddress(lpTokenAddressInput),
-    'Invalid LP Token Address ',
-  );
+  // ensure that the bAddress is a valid smart contract address
+  assertIsSmartContract(bAddress);
 
   // ensure that the registryAddress is a valid smart contract address
-  assert(
-    isValidSmartContractAddress(registryAddress),
-    'Invalid RegistryAddress',
-  );
+  assertIsSmartContract(registryAddress); */
 
   // store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
   // store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
-  // store the lpManager token address
-  Storage.set(lpTokenAddress, stringToBytes(lpTokenAddressInput));
 
   // store the tokens a and b addresses
-  Storage.set(aTokenAddress, stringToBytes(addressA));
-  Storage.set(bTokenAddress, stringToBytes(addressB));
+  Storage.set(aTokenAddress, stringToBytes(aAddress));
+  Storage.set(bTokenAddress, stringToBytes(bAddress));
 
   // store the tokens a and b addresses reserves in the contract storage
   Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
@@ -123,20 +114,11 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // get the registry contract instance
   const registry = new IRegistery(new Address(registryAddress));
 
-  // subscribe the pool address to the registry
-  registry.subscribePool(
-    Context.callee().toString(),
-    addressA,
-    addressB,
-    feeShareProtocolInput,
-    inputFeeRate,
-  );
-
   // set the owner of the pool contract to the same registry owner address
   _setOwner(registry.ownerAddress());
 
   generateEvent(
-    `New pool deployed at ${Context.callee()}. Token A: ${addressA}. Token B: ${addressB}. Registry: ${registryAddress}.`,
+    `New pool deployed at ${Context.callee()}. Token A: ${aAddress}. Token B: ${bAddress}. Registry: ${registryAddress}.`,
   );
 }
 
@@ -154,16 +136,13 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-  const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
 
   // get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
-  // wrap the LP token contract
-  const lpToken = new IMRC20(new Address(lpTokenAddressStored));
   // get the total supply of the LP token
-  const totalSupply = lpToken.totalSupply();
+  const totalSupply: u256 = u256.from(liquidityManager.getTotalSupply());
 
   let finalAmountA = amountA;
   let finalAmountB = amountB;
@@ -192,18 +171,18 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
       // User provided more B than needed, adjust B
       finalAmountB = amountBOptimal;
     }
-  }
 
-  // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
-  const liqA = SafeMath256.div(
-    SafeMath256.mul(finalAmountA, totalSupply),
-    reserveA,
-  );
-  const liqB = SafeMath256.div(
-    SafeMath256.mul(finalAmountB, totalSupply),
-    reserveB,
-  );
-  liquidity = liqA < liqB ? liqA : liqB;
+    // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
+    const liqA = SafeMath256.div(
+      SafeMath256.mul(finalAmountA, totalSupply),
+      reserveA,
+    );
+    const liqB = SafeMath256.div(
+      SafeMath256.mul(finalAmountB, totalSupply),
+      reserveB,
+    );
+    liquidity = liqA < liqB ? liqA : liqB;
+  }
 
   assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
 
@@ -223,7 +202,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Mint LP tokens to user
-  lpToken.mint(Context.caller(), liquidity);
+  liquidityManager.mint(Context.caller(), liquidity.toU64());
 
   // Update reserves
   _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
@@ -265,10 +244,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
 
   // totalFee = (amountIn * feeRate) / 100
-  const totalFee = getInputAmountNet(amountIn, feeRate);
+  const totalFee = getFeeFromAmount(amountIn, feeRate);
 
   // protocolFee = (totalFee * feeShareProtocol) / 100
-  const protocolFee = getInputAmountNet(totalFee, feeShareProtocol);
+  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
 
   // lpFee = totalFee - protocolFee
   const lpFee = SafeMath256.sub(totalFee, protocolFee);
@@ -379,14 +358,18 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     .nextU256()
     .expect('LpTokenAmount is missing or invalid');
 
+  // ensure that the user has enough LP tokens
+  assert(
+    u256.fromU64(liquidityManager.getBalance(Context.caller())) >=
+      lpTokenAmount,
+    'Not enough LP tokens',
+  );
+
   // get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-  const lpTokenAddressStored = bytesToString(Storage.get(lpTokenAddress));
 
-  // wrap the LP token contract on IMRC20
-  const lpToken = new IMRC20(new Address(lpTokenAddressStored));
-  const totalSupply = lpToken.totalSupply();
+  const totalSupply = u256.from(liquidityManager.getTotalSupply());
 
   // Current reserves
   const reserveA = _getLocalReserveA();
@@ -404,7 +387,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // burn lp tokens
-  lpToken.burn(lpTokenAmount);
+  liquidityManager.burn(Context.caller(), lpTokenAmount.toU64());
 
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transferFrom(
@@ -460,8 +443,21 @@ export function getSwapOutEstimation(
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
 
+  // Calculate fees
+  const feeRate = _getFeeRate(); // e.g., 0.003
+  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
+
+  // totalFee = (amountIn * feeRate) / 100
+  const totalFee = getFeeFromAmount(amountIn, feeRate);
+
+  // protocolFee = (totalFee * feeShareProtocol) / 100
+  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
+
+  // netInput = amountIn - totalFee
+  const netInput = SafeMath256.sub(amountIn, totalFee);
+
   // Calculate amountOut
-  const amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+  const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
 
   // For estimation, we simply emit an event or store in some state (here we choose event)
   generateEvent(
@@ -496,6 +492,79 @@ export function syncReserves(): void {
 }
 
 /**
+ * Retrieves the balance of the LP token for a given user.
+ * @param binaryArgs - Arguments serialized with Args (userAddress)
+ * @returns The balance of the LP token for the given user.
+ */
+export function getLPBalance(binaryArgs: StaticArray<u8>): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const userAddress = args
+    .nextString()
+    .expect('UserAddress is missing or invalid');
+
+  const balance: u64 = liquidityManager.getBalance(new Address(userAddress));
+
+  return u64ToBytes(balance);
+}
+
+/**
+ * Retrieves the local reserve of token A.
+ * @returns The current reserve of token A in the pool.
+ */
+export function getLocalReserveA(): StaticArray<u8> {
+  return Storage.get(aTokenReserve);
+}
+
+/**
+ * Retrieves the local reserve of token B.
+ * @returns The current reserve of token B in the pool.
+ */
+export function getLocalReserveB(): StaticArray<u8> {
+  return Storage.get(bTokenReserve);
+}
+
+/**
+ * Retrieves the price of Token A in terms of Token B.
+ * @returns The price of token A in terms of token B, as a u256 represented as a fraction.
+ * Returns zero if the b reserve is zero to avoid division by zero error.
+ */
+export function getPriceAInB(): StaticArray<u8> {
+  const reserveA = _getLocalReserveA();
+  const reserveB = _getLocalReserveB();
+
+  // If reserveB is zero return zero
+  if (reserveB == u256.Zero) {
+    return u256ToBytes(u256.Zero);
+  }
+
+  // priceAInB = reserveB / reserveA
+  const price = SafeMath256.div(reserveB, reserveA);
+
+  return u256ToBytes(price);
+}
+
+/**
+ * Retrieves the price of Token B in terms of Token A.
+ * @returns The price of token B in terms of token A, as a u256 represented as a fraction.
+ * Returns zero if the a reserve is zero to avoid division by zero error.
+ */
+export function getPriceBInA(): StaticArray<u8> {
+  const reserveA = _getLocalReserveA();
+  const reserveB = _getLocalReserveB();
+
+  // If reserveA is zero return zero
+  if (reserveA == u256.Zero) {
+    return u256ToBytes(u256.Zero);
+  }
+
+  // priceBInA = reserveA / reserveB
+  const price = SafeMath256.div(reserveA, reserveB);
+
+  return u256ToBytes(price);
+}
+
+/**
  * Retrieves the reserve of a token in the pool.
  * @param tokenAddress - The address of the token.
  * @returns The current reserve of the token in the pool.
@@ -519,7 +588,7 @@ function _getReserve(tokenAddress: string): u256 {
  * @returns The current reserve of token A in the pool.
  */
 function _getLocalReserveA(): u256 {
-  return u256.fromBytes(Storage.get(aTokenReserve));
+  return bytesToU256(Storage.get(aTokenReserve));
 }
 
 /**
@@ -528,7 +597,7 @@ function _getLocalReserveA(): u256 {
  * @returns The current reserve of token B in the pool.
  */
 function _getLocalReserveB(): u256 {
-  return u256.fromBytes(Storage.get(bTokenReserve));
+  return bytesToU256(Storage.get(bTokenReserve));
 }
 
 /**

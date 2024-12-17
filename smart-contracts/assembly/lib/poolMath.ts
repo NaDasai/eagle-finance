@@ -1,10 +1,13 @@
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
+import { print } from '@massalabs/massa-as-sdk';
 
 export function getInputAmountNet(inputAmount: u256, feeRate: f64): u256 {
   // Ensure feeRate is within a valid range [0, 1]
   assert(feeRate >= 0.0 && feeRate <= 1.0, 'feeRate should be between 0 and 1');
 
+  print('inputAmount : ' + inputAmount.toString());
+  print('Fee rate : ' + feeRate.toString());
   // Convert feeRate to a scaled integer (feeRate)
   const feeRateScaled = u256.fromF64(feeRate);
 
@@ -15,6 +18,26 @@ export function getInputAmountNet(inputAmount: u256, feeRate: f64): u256 {
   const inputAmountNet = SafeMath256.sub(inputAmount, fee);
 
   return inputAmountNet;
+}
+
+export function getFeeFromAmount(inputAmount: u256, feeRate: f64): u256 {
+  // Ensure feeRate is within a valid range [0, 1]
+  assert(feeRate >= 0.0 && feeRate <= 1.0, 'feeRate should be between 0 and 1');
+
+  print('inputAmount : ' + inputAmount.toString());
+
+  print('Fee rate : ' + feeRate.toString());
+  // Convert feeRate to a scaled integer (feeRate)
+  const feeRateScaled = u256.fromF64(feeRate);
+
+  print('Fee rate scaled : ' + feeRateScaled.toString());
+
+  // Calculate the fee as: (inputAmount * feeRateScaled)
+  const fee = SafeMath256.mul(inputAmount, feeRateScaled);
+
+  print('fee : ' + fee.toString());
+
+  return fee;
 }
 
 export function getAmountOut(
