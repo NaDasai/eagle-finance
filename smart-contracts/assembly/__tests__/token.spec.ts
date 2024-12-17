@@ -11,6 +11,7 @@ import {
   balanceOf,
   decimals,
   decreaseAllowance,
+  description,
   increaseAllowance,
   name,
   symbol,
@@ -51,6 +52,8 @@ const TOTAL_SUPPLY = new u256(100, 100, 100, 100);
 const TOKEN_URL =
   'https://img-cdn.pixlr.com/image-generator/history/65bb506dcb310754719cf81f/ede935de-1138-4f66-8ed7-44bd16efc709/medium.webp';
 
+const TOKEN_DESCRIPTION = 'feedsfnsfnfsnfs';
+
 beforeAll(() => {
   resetStorage();
   setDeployContext(user1Address);
@@ -61,6 +64,7 @@ beforeAll(() => {
       .add(DECIMALS)
       .add(TOTAL_SUPPLY)
       .add(TOKEN_URL)
+      .add(TOKEN_DESCRIPTION)
       .serialize(),
   );
 });
@@ -84,6 +88,9 @@ describe('Initialization', () => {
 
   test('url is properly initialized', () =>
     expect(url([])).toStrictEqual(stringToBytes(TOKEN_URL)));
+
+  test('description is properly initialized', () =>
+    expect(description([])).toStrictEqual(stringToBytes(TOKEN_DESCRIPTION)));
 });
 
 describe('BalanceOf', () => {
