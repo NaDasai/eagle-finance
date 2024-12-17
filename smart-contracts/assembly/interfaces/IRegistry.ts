@@ -1,4 +1,9 @@
-import { Args, bytesToString, byteToBool } from '@massalabs/as-types';
+import {
+  Args,
+  bytesToF64,
+  bytesToString,
+  byteToBool,
+} from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
 
 export class IRegistery {
@@ -53,6 +58,16 @@ export class IRegistery {
 
     const deserialized = new Args(result).nextStringArray().unwrap();
     return deserialized;
+  }
+
+  getFeeShareProtocol(): f64 {
+    return bytesToF64(call(this._origin, 'getFeeShareProtocol', new Args(), 0));
+  }
+
+  getFeeShareProtocolReceiver(): string {
+    return bytesToString(
+      call(this._origin, 'getFeeShareProtocolReceiver', new Args(), 0),
+    );
   }
 
   /**

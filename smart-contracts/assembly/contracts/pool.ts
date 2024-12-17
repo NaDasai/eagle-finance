@@ -41,8 +41,6 @@ export const aProtocolFee = stringToBytes('aProtocolFee');
 export const bProtocolFee = stringToBytes('bProtocolFee');
 // storage key containning the fee rate value of the pool. value is between 0 and 1
 export const feeRate = stringToBytes('feeRate');
-// storage key containning the fee share protocol value of the pool. value is between 0 and 1
-export const feeShareProtocol = stringToBytes('feeShareProtocol');
 // storage key containning the address of the registry contract inside the pool
 export const registryContractAddress = stringToBytes('registry');
 // create new liquidity manager
@@ -67,9 +65,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const inputFeeRate = args
     .nextF64()
     .expect('Input fee rate is missing or invalid');
-  const feeShareProtocolInput = args
-    .nextF64()
-    .expect('Fee share protocol is missing or invalid');
 
   const registryAddress = args
     .nextString()
@@ -77,12 +72,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // esnure that the fee rate is between 0 and 1
   assert(isBetweenZeroAndOne(inputFeeRate), 'Fee rate must be between 0 and 1');
-
-  // ensure that the fee share protocol is between 0 and 1
-  assert(
-    isBetweenZeroAndOne(feeShareProtocolInput),
-    'Fee share protocol must be between 0 and 1',
-  );
 
   /* 
         To return after tests 
@@ -97,8 +86,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
-  // store fee share protocol
-  Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
 
   // store the tokens a and b addresses
   Storage.set(aTokenAddress, stringToBytes(aAddress));
@@ -450,9 +437,6 @@ export function getSwapOutEstimation(
   // totalFee = (amountIn * feeRate) / 100
   const totalFee = getFeeFromAmount(amountIn, feeRate);
 
-  // protocolFee = (totalFee * feeShareProtocol) / 100
-  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
-
   // netInput = amountIn - totalFee
   const netInput = SafeMath256.sub(amountIn, totalFee);
 
@@ -652,7 +636,12 @@ function _getFeeRate(): f64 {
  * @returns The current fee share for the protocol.
  */
 function _getFeeShareProtocol(): f64 {
-  return bytesToF64(Storage.get(feeShareProtocol));
+  const registryAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+  const registery = new IRegistery(new Address(registryAddressStored));
+
+  return registery.getFeeShareProtocol();
 }
 
 /**

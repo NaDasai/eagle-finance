@@ -13,6 +13,7 @@ import {
 import {
   Args,
   bytesToU16,
+  f64ToBytes,
   stringToBytes,
   u16ToBytes,
   u256ToBytes,
@@ -24,16 +25,18 @@ import { _setOwner } from '../utils/ownership-internal';
 import { _buildPoolKey } from '../utils';
 import { onlyOwner } from '../utils/ownership';
 import { IPool } from '../interfaces/IPool';
+import { isBetweenZeroAndOne } from '../lib/math';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
 // array of pool keys in the registery
 export const poolsKeys: StaticArray<u8> = stringToBytes('poolsKeys');
 // store the protocol fee
-export const protocolFee: StaticArray<u8> = stringToBytes('protocolFee');
+export const feeShareProtocol: StaticArray<u8> =
+  stringToBytes('feeShareProtocol');
 // store the protocol fee receiver
-export const protocolFeeReceiver: StaticArray<u8> = stringToBytes(
-  'protocolFeeReceiver',
+export const feeShareProtocolReceiver: StaticArray<u8> = stringToBytes(
+  'feeShareProtocolReceiver',
 );
 
 /**
@@ -71,16 +74,18 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('TokenAddress B is missing or invalid');
 
-  const feeShareProtocol = args
-    .nextF64()
-    .expect('ProtocolFee is missing or invalid');
-
   const inputFeeRate = args
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
 
+  // ensure that the fee share protocol is between 0 and 1
+  assert(
+    isBetweenZeroAndOne(inputFeeRate),
+    'Fee share protocol must be between 0 and 1',
+  );
+
   //  check if the pool is already in the registery
-  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, feeShareProtocol);
+  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
 
   assert(!pools.contains(poolKey), 'Pool already in the registery');
 
@@ -95,7 +100,6 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     aTokenAddress,
     bTokenAddress,
     inputFeeRate,
-    feeShareProtocol,
     Context.callee().toString(), // registry address
   );
 
@@ -105,7 +109,6 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     new Address(aTokenAddress),
     new Address(bTokenAddress),
     inputFeeRate,
-    feeShareProtocol,
   );
 
   // store the pool in the pools persistent map
@@ -148,24 +151,29 @@ export function getPools(): StaticArray<u8> {
   return new Args().addSerializableObjectArray(retPools).serialize();
 }
 
-export function getProtocolFee(): StaticArray<u8> {
-  return Storage.get(protocolFee);
+export function getFeeShareProtocol(): StaticArray<u8> {
+  return Storage.get(feeShareProtocol);
 }
 
-export function setProtocolFee(binaryArgs: StaticArray<u8>): void {
+export function setFeeShareProtocol(binaryArgs: StaticArray<u8>): void {
   onlyOwner(); // only owner of registery can set the protocol fee
   const args = new Args(binaryArgs);
 
-  const fee = args.nextU256().expect('Invalid protocol fee');
+  const fee = args.nextF64().expect('Invalid protocol fee');
 
-  Storage.set(protocolFee, u256ToBytes(fee));
+  assert(
+    isBetweenZeroAndOne(fee),
+    'Fee share protocol must be between 0 and 1',
+  );
+
+  Storage.set(feeShareProtocol, f64ToBytes(fee));
 }
 
-export function getProtocolFeeReceiver(): StaticArray<u8> {
-  return Storage.get(protocolFeeReceiver);
+export function getFeeShareProtocolReceiver(): StaticArray<u8> {
+  return Storage.get(feeShareProtocolReceiver);
 }
 
-export function setProtocolFeeReceiver(binaryArgs: StaticArray<u8>): void {
+export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
   onlyOwner(); // only owner of registery can set the protocol fee receiver
 
   const args = new Args(binaryArgs);
@@ -174,7 +182,7 @@ export function setProtocolFeeReceiver(binaryArgs: StaticArray<u8>): void {
 
   assert(validateAddress(receiver), 'Invalid protocol fee receiver');
 
-  Storage.set(protocolFeeReceiver, stringToBytes(receiver));
+  Storage.set(feeShareProtocolReceiver, stringToBytes(receiver));
 }
 
 // exprot all the functions from teh ownership file

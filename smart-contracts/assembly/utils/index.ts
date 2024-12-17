@@ -11,7 +11,7 @@ export function isValidSmartContractAddress(address: string): bool {
 export function _buildPoolKey(
   tokenA: string,
   tokenB: string,
-  feeShareProtocol: f64,
+  inputFeeRate: f64,
 ): string {
   // sort the addresses to ensure that the key of the pool is always the same
   if (tokenA > tokenB) {
@@ -19,6 +19,6 @@ export function _buildPoolKey(
     tokenA = tokenB;
     tokenB = temp;
   }
-  const key = `${tokenA}-${tokenB}-${feeShareProtocol.toString()}`;
+  const key = `${tokenA}-${tokenB}-${inputFeeRate.toString()}`;
   return key;
 }
