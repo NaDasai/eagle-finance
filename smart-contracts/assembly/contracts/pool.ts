@@ -479,6 +479,11 @@ export function syncReserves(): void {
   _updateReserveB(balanceB);
 }
 
+/**
+ * Retrieves the balance of the LP token for a given user.
+ * @param binaryArgs - Arguments serialized with Args (userAddress)
+ * @returns The balance of the LP token for the given user.
+ */
 export function getLPBalance(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const args = new Args(binaryArgs);
 
@@ -491,10 +496,18 @@ export function getLPBalance(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   return u64ToBytes(balance);
 }
 
+/**
+ * Retrieves the local reserve of token A.
+ * @returns The current reserve of token A in the pool.
+ */
 export function getLocalReserveA(): StaticArray<u8> {
   return Storage.get(aTokenReserve);
 }
 
+/**
+ * Retrieves the local reserve of token B.
+ * @returns The current reserve of token B in the pool.
+ */
 export function getLocalReserveB(): StaticArray<u8> {
   return Storage.get(bTokenReserve);
 }

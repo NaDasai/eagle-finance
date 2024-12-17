@@ -23,7 +23,9 @@ import { _buildPoolKey } from '../utils';
 import { ownerAddress } from '../utils/ownership';
 import { IPool } from '../interfaces/IPool';
 
+// pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
+// array of pool keys in the registery
 export const poolsKeys: StaticArray<u8> = stringToBytes('poolsKeys');
 
 /**
@@ -45,6 +47,11 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   generateEvent(`Registery Contract Deployed.`);
 }
 
+/**
+ *  Adds a new pool to the registery.
+ *  @param binaryArgs - Arguments serialized with Args (tokenA, tokenB, feeShareProtocol, inputFeeRate)
+ * @returns void
+ */
 export function createNewPool(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
@@ -111,6 +118,10 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
   generateEvent(`Pool ${poolAddress} added to the registery`);
 }
 
+/**
+ *  Retrieves all the pools in the registery.
+ *  @returns Array of Pools
+ */
 export function getPools(): StaticArray<u8> {
   const poolsKeysStored = Storage.get(poolsKeys);
 
