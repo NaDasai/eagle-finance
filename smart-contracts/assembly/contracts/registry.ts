@@ -8,25 +8,33 @@ import {
   getBytecode,
   getBytecodeOf,
   Address,
+  validateAddress,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
   bytesToU16,
   stringToBytes,
   u16ToBytes,
+  u256ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
 import { _buildPoolKey } from '../utils';
-import { ownerAddress } from '../utils/ownership';
+import { onlyOwner } from '../utils/ownership';
 import { IPool } from '../interfaces/IPool';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
 // array of pool keys in the registery
 export const poolsKeys: StaticArray<u8> = stringToBytes('poolsKeys');
+// store the protocol fee
+export const protocolFee: StaticArray<u8> = stringToBytes('protocolFee');
+// store the protocol fee receiver
+export const protocolFeeReceiver: StaticArray<u8> = stringToBytes(
+  'protocolFeeReceiver',
+);
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -138,6 +146,35 @@ export function getPools(): StaticArray<u8> {
   }
 
   return new Args().addSerializableObjectArray(retPools).serialize();
+}
+
+export function getProtocolFee(): StaticArray<u8> {
+  return Storage.get(protocolFee);
+}
+
+export function setProtocolFee(binaryArgs: StaticArray<u8>): void {
+  onlyOwner(); // only owner of registery can set the protocol fee
+  const args = new Args(binaryArgs);
+
+  const fee = args.nextU256().expect('Invalid protocol fee');
+
+  Storage.set(protocolFee, u256ToBytes(fee));
+}
+
+export function getProtocolFeeReceiver(): StaticArray<u8> {
+  return Storage.get(protocolFeeReceiver);
+}
+
+export function setProtocolFeeReceiver(binaryArgs: StaticArray<u8>): void {
+  onlyOwner(); // only owner of registery can set the protocol fee receiver
+
+  const args = new Args(binaryArgs);
+
+  const receiver = args.nextString().expect('Invalid protocol fee receiver');
+
+  assert(validateAddress(receiver), 'Invalid protocol fee receiver');
+
+  Storage.set(protocolFeeReceiver, stringToBytes(receiver));
 }
 
 // exprot all the functions from teh ownership file
