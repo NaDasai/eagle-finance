@@ -443,8 +443,21 @@ export function getSwapOutEstimation(
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
 
+  // Calculate fees
+  const feeRate = _getFeeRate(); // e.g., 0.003
+  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
+
+  // totalFee = (amountIn * feeRate) / 100
+  const totalFee = getFeeFromAmount(amountIn, feeRate);
+
+  // protocolFee = (totalFee * feeShareProtocol) / 100
+  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
+
+  // netInput = amountIn - totalFee
+  const netInput = SafeMath256.sub(amountIn, totalFee);
+
   // Calculate amountOut
-  const amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+  const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
 
   // For estimation, we simply emit an event or store in some state (here we choose event)
   generateEvent(
@@ -509,6 +522,46 @@ export function getLocalReserveA(): StaticArray<u8> {
  */
 export function getLocalReserveB(): StaticArray<u8> {
   return Storage.get(bTokenReserve);
+}
+
+/**
+ * Retrieves the price of Token A in terms of Token B.
+ * @returns The price of token A in terms of token B, as a u256 represented as a fraction.
+ * Returns zero if the b reserve is zero to avoid division by zero error.
+ */
+export function getPriceAInB(): StaticArray<u8> {
+  const reserveA = _getLocalReserveA();
+  const reserveB = _getLocalReserveB();
+
+  // If reserveB is zero return zero
+  if (reserveB == u256.Zero) {
+    return u256ToBytes(u256.Zero);
+  }
+
+  // priceAInB = reserveB / reserveA
+  const price = SafeMath256.div(reserveB, reserveA);
+
+  return u256ToBytes(price);
+}
+
+/**
+ * Retrieves the price of Token B in terms of Token A.
+ * @returns The price of token B in terms of token A, as a u256 represented as a fraction.
+ * Returns zero if the a reserve is zero to avoid division by zero error.
+ */
+export function getPriceBInA(): StaticArray<u8> {
+  const reserveA = _getLocalReserveA();
+  const reserveB = _getLocalReserveB();
+
+  // If reserveA is zero return zero
+  if (reserveA == u256.Zero) {
+    return u256ToBytes(u256.Zero);
+  }
+
+  // priceBInA = reserveA / reserveB
+  const price = SafeMath256.div(reserveA, reserveB);
+
+  return u256ToBytes(price);
 }
 
 /**
