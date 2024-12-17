@@ -71,16 +71,16 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
 
-  // TODO: check if the pool is already in the registery
+  //  check if the pool is already in the registery
   const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, feeShareProtocol);
 
   assert(!pools.contains(poolKey), 'Pool already in the registery');
 
-  // TODO: deploy the pool contract
+  //  deploy the pool contract
   const poolByteCode: StaticArray<u8> = fileToByteArray('build/pool.wasm');
   const poolAddress = createSC(poolByteCode);
 
-  // TODO: init the pool contract
+  //  init the pool contract
   const poolContract = new IPool(poolAddress);
 
   poolContract.init(
@@ -91,7 +91,7 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     Context.callee().toString(), // registry address
   );
 
-  // TODO: add the pool to the registery
+  //  add the pool to the registery
   const pool = new Pool(
     poolAddress,
     new Address(aTokenAddress),
@@ -114,7 +114,7 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
 
   Storage.set(poolsKeys, new Args().add(deserializedPoolsKeys).serialize());
 
-  // TODO: emit an event
+  //  emit an event
   generateEvent(`Pool ${poolAddress} added to the registery`);
 }
 
