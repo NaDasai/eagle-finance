@@ -1,8 +1,8 @@
 import { Args, stringToBytes } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
-import { mrc20Constructor } from '../lib/MRC20';
 import { generateEvent, Storage } from '@massalabs/massa-as-sdk';
-export * from '../lib/MRC20';
+import { mrc20Constructor } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20';
+export * from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20';
 
 export const TOKEN_URL = stringToBytes('TOKEN_URL');
 

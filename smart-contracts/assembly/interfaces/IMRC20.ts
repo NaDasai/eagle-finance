@@ -1,7 +1,7 @@
 import { Args, Result, Serializable } from '@massalabs/as-types';
 import { Address, Context, call } from '@massalabs/massa-as-sdk';
-import { MRC20Wrapper } from '../lib/MRC20';
 import { u256 } from 'as-bignum/assembly';
+import { MRC20Wrapper } from '@massalabs/sc-standards/assembly/contracts/MRC20/wrapper';
 
 export class IMRC20 extends MRC20Wrapper implements Serializable {
   constructor(origin: Address = new Address()) {
