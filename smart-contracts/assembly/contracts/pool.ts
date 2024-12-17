@@ -3,10 +3,6 @@ import {
   generateEvent,
   Storage,
   Address,
-  createSC,
-  fileToByteArray,
-  print,
-  call,
   StoragePrefixManager,
   LiquidityManager,
   assertIsSmartContract,
@@ -21,15 +17,11 @@ import {
   u256ToBytes,
   u64ToBytes,
 } from '@massalabs/as-types';
-import { u128, u256 } from 'as-bignum/assembly';
+import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
-import {
-  getAmountOut,
-  getFeeFromAmount,
-  getInputAmountNet,
-} from '../lib/poolMath';
+import { getAmountOut, getFeeFromAmount } from '../lib/poolMath';
 import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
@@ -365,6 +357,13 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const lpTokenAmount = args
     .nextU256()
     .expect('LpTokenAmount is missing or invalid');
+
+  // ensure that the user has enough LP tokens
+  assert(
+    u256.fromU64(liquidityManager.getBalance(Context.caller())) >=
+      lpTokenAmount,
+    'Not enough LP tokens',
+  );
 
   // get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
