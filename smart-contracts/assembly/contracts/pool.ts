@@ -4,6 +4,7 @@ import {
   Storage,
   Address,
   assertIsSmartContract,
+  print,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,

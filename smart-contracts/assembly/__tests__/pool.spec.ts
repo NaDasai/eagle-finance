@@ -48,7 +48,6 @@ beforeAll(() => {
     .add(aTokenAddress) // token a address
     .add(bTokenAddress) // token b address
     .add(0.5) // fee rate
-    .add(0.05) // fee share protocol
     .add(registeryContractAddr); // registery address
 
   mockScCall(new Args().add(user1Address).serialize());
@@ -62,11 +61,11 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     const bAmount = u256.fromU64(100);
 
     // get the LP balance of the user
-    const lpBalance = bytesToU64(
+    const lpBalance = bytesToU256(
       getLPBalance(new Args().add(user1Address).serialize()),
     );
 
-    expect(lpBalance).toStrictEqual(0);
+    expect(lpBalance).toStrictEqual(u256.from(0));
 
     print(`Adding liquidity...`);
 
@@ -75,10 +74,11 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
 
     addLiquidity(new Args().add(aAmount).add(bAmount).serialize());
 
-    const lpBalance2 = bytesToU64(
+    const lpBalance2 = bytesToU256(
       getLPBalance(new Args().add(user1Address).serialize()),
     );
-    expect(lpBalance2).toStrictEqual(100);
+
+    expect(lpBalance2).toStrictEqual(u256.from(100));
   });
 
   test('add liquidity again', () => {
@@ -86,11 +86,11 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     const bAmount = u256.fromU64(200);
 
     // get the LP balance of the user
-    const lpBalance = bytesToU64(
+    const lpBalance = bytesToU256(
       getLPBalance(new Args().add(user1Address).serialize()),
     );
 
-    expect(lpBalance).toStrictEqual(100);
+    expect(lpBalance).toStrictEqual(u256.from(100));
 
     print(`Adding liquidity again with 150 and 200...`);
 
@@ -99,11 +99,11 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
 
     addLiquidity(new Args().add(aAmount).add(bAmount).serialize());
 
-    const lpBalance2 = bytesToU64(
+    const lpBalance2 = bytesToU256(
       getLPBalance(new Args().add(user1Address).serialize()),
     );
 
-    expect(lpBalance2).toStrictEqual(250);
+    expect(lpBalance2).toStrictEqual(u256.from(250));
   });
 
   test('swap tokens', () => {
