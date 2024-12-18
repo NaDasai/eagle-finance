@@ -63,7 +63,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   const args = new Args(binaryArgs);
 
-  // read the arguments
+  // Read the arguments
   const aAddress = args.nextString().expect('Address A is missing or invalid');
   const bAddress = args.nextString().expect('Address B is missing or invalid');
 
@@ -79,10 +79,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('RegistryAddress is missing or invalid');
 
-  // esnure that the fee rate is between 0 and 1
+  // Esnure that the fee rate is between 0 and 1
   assert(isBetweenZeroAndOne(inputFeeRate), 'Fee rate must be between 0 and 1');
 
-  // ensure that the fee share protocol is between 0 and 1
+  // Ensure that the fee share protocol is between 0 and 1
   assert(
     isBetweenZeroAndOne(feeShareProtocolInput),
     'Fee share protocol must be between 0 and 1',
@@ -99,27 +99,27 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // ensure that the registryAddress is a valid smart contract address
   assertIsSmartContract(registryAddress); */
 
-  // store fee rate
+  // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
 
-  // store fee share protocol
+  // Store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
 
-  // store the tokens a and b addresses
+  // Store the tokens a and b addresses
   Storage.set(aTokenAddress, stringToBytes(aAddress));
   Storage.set(bTokenAddress, stringToBytes(bAddress));
 
-  // store the tokens a and b addresses reserves in the contract storage
+  // Store the tokens a and b addresses reserves in the contract storage
   Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
   Storage.set(bTokenReserve, u256ToBytes(u256.Zero));
 
-  // store the registry address
+  // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
 
-  // get the registry contract instance
+  // Get the registry contract instance
   const registry = new IRegistery(new Address(registryAddress));
 
-  // set the owner of the pool contract to the same registry owner address
+  // Set the owner of the pool contract to the same registry owner address
   _setOwner(registry.ownerAddress());
 
   generateEvent(
@@ -138,15 +138,15 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const amountA = args.nextU256().expect('Amount A is missing or invalid');
   const amountB = args.nextU256().expect('Amount B is missing or invalid');
 
-  // retrieve the token addresses from storage
+  // Retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  // get the reserves of the two tokens in the pool
+  // Get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
-  // get the total supply of the LP token
+  // Get the total supply of the LP token
   const totalSupply: u256 = liquidityManager.getTotalSupply();
 
   let finalAmountA = amountA;
@@ -156,7 +156,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   if (reserveA == u256.Zero && reserveB == u256.Zero) {
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = SafeMath256.mul(amountA, amountB);
-    // TOTEST: sqrt is not implemented in u256 type so we use manual powerU256 instead
+    // liquidity = sqrt(product)
     liquidity = SafeMath256.sqrt(product);
   } else {
     // Add liquidity proportionally
@@ -191,7 +191,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 
   assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
 
-  // address of the current contract
+  // Address of the current contract
   const contractAddress = Context.callee();
 
   // Transfer tokens A from user to contract
@@ -226,12 +226,12 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 export function swap(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  // get the tokenIn address
+  // Get the tokenIn address
   const tokenInAddress = args
     .nextString()
     .expect('TokenIn is missing or invalid');
 
-  // get the amount of tokenIn to swap
+  // Get the amount of tokenIn to swap
   const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
@@ -260,26 +260,26 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // netInput = amountIn - totalFee
   const netInput = SafeMath256.sub(amountIn, totalFee);
 
-  // get the address of the other token in the pool
+  // Get the address of the other token in the pool
   const tokenOutAddress =
     tokenInAddress == aTokenAddressStored
       ? bTokenAddressStored
       : aTokenAddressStored;
 
-  // get the reserves of the two tokens in the pool
+  // Get the reserves of the two tokens in the pool
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
 
-  // calculate the amount of tokens to be swapped
+  // Calculate the amount of tokens to be swapped
   const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
 
-  // esnure that the amountOut is greater than zero
+  // Esnure that the amountOut is greater than zero
   assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
 
-  // transfer the amountIn to the contract
+  // Transfer the amountIn to the contract
   new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
 
-  // transfer the amountOut to the caller
+  // Transfer the amountOut to the caller
   new IMRC20(new Address(tokenOutAddress)).transferFrom(
     Context.callee(),
     Context.caller(),
@@ -295,7 +295,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   );
   const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
 
-  // update the pool reserves
+  // Update the pool reserves
   _updateReserve(tokenInAddress, newReserveIn);
   _updateReserve(tokenOutAddress, newReserveOut);
 
@@ -317,14 +317,14 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  // get the token address from the arguments
+  // Get the token address from the arguments
   const tokenAddress = args.nextString().expect('No token address');
 
-  // get the token addresses from storage
+  // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  // ensure tokenAddress is either tokenA or tokenB
+  // Ensure tokenAddress is either tokenA or tokenB
   assert(
     tokenAddress == aTokenAddressStored || tokenAddress == bTokenAddressStored,
     'Invalid token address',
@@ -355,24 +355,24 @@ export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
 
 /**
  *  Removes liquidity from the pool.
- *  @param binaryArgs - Arguments serialized with Args (lpTokenAmount)
+ *  @param binaryArgs - Arguments serialized with Args (lpAmount)
  *  @returns void
  */
 export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  // get the amount of LP tokens to remove from params
-  const lpTokenAmount = args
+  // Get the amount of LP tokens to remove from params
+  const lpAmount = args
     .nextU256()
     .expect('LpTokenAmount is missing or invalid');
 
-  // ensure that the user has enough LP tokens
+  // Ensure that the user has enough LP tokens
   assert(
-    liquidityManager.getBalance(Context.caller()) >= lpTokenAmount,
+    liquidityManager.getBalance(Context.caller()) >= lpAmount,
     'Not enough LP tokens',
   );
 
-  // get the token addresses from storage
+  // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
@@ -382,19 +382,19 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
-  // amountAOut = (lpTokenAmount * reserveA) / totalSupply
+  // amountAOut = (lpAmount * reserveA) / totalSupply
   const amountAOut = SafeMath256.div(
-    SafeMath256.mul(lpTokenAmount, reserveA),
+    SafeMath256.mul(lpAmount, reserveA),
     totalSupply,
   );
-  // amountBOut = (lpTokenAmount * reserveB) / totalSupply
+  // amountBOut = (lpAmount * reserveB) / totalSupply
   const amountBOut = SafeMath256.div(
-    SafeMath256.mul(lpTokenAmount, reserveB),
+    SafeMath256.mul(lpAmount, reserveB),
     totalSupply,
   );
 
-  // burn lp tokens
-  liquidityManager.burn(Context.caller(), lpTokenAmount);
+  // Burn lp tokens
+  liquidityManager.burn(Context.caller(), lpAmount);
 
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transferFrom(
@@ -413,7 +413,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   _updateReserveB(SafeMath256.sub(reserveB, amountBOut));
 
   generateEvent(
-    `Removed liquidity: ${lpTokenAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
+    `Removed liquidity: ${lpAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
   );
 }
 
