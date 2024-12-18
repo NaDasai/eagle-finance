@@ -44,6 +44,8 @@ export const aProtocolFee = stringToBytes('aProtocolFee');
 export const bProtocolFee = stringToBytes('bProtocolFee');
 // storage key containning the fee rate value of the pool. value is between 0 and 1
 export const feeRate = stringToBytes('feeRate');
+// storage key containning the fee share protocol value of the pool. value is between 0 and 1
+export const feeShareProtocol = stringToBytes('feeShareProtocol');
 // storage key containning the address of the registry contract inside the pool
 export const registryContractAddress = stringToBytes('registry');
 // create new liquidity manager
@@ -69,12 +71,22 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('Input fee rate is missing or invalid');
 
+  const feeShareProtocolInput = args
+    .nextF64()
+    .expect('Fee share protocol is missing or invalid');
+
   const registryAddress = args
     .nextString()
     .expect('RegistryAddress is missing or invalid');
 
   // esnure that the fee rate is between 0 and 1
   assert(isBetweenZeroAndOne(inputFeeRate), 'Fee rate must be between 0 and 1');
+
+  // ensure that the fee share protocol is between 0 and 1
+  assert(
+    isBetweenZeroAndOne(feeShareProtocolInput),
+    'Fee share protocol must be between 0 and 1',
+  );
 
   /* 
         To return after tests 
@@ -89,6 +101,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
+
+  // store fee share protocol
+  Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
 
   // store the tokens a and b addresses
   Storage.set(aTokenAddress, stringToBytes(aAddress));
@@ -222,7 +237,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  // check if the token address is one of the two tokens in the pool
+  // Check if the token address is one of the two tokens in the pool
   assert(
     tokenInAddress == aTokenAddressStored ||
       tokenInAddress == bTokenAddressStored,
@@ -233,10 +248,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const feeRate = _getFeeRate(); // e.g., 0.003
   const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
 
-  // totalFee = (amountIn * feeRate) / 100
+  // totalFee = amountIn * feeRate
   const totalFee = getFeeFromAmount(amountIn, feeRate);
 
-  // protocolFee = (totalFee * feeShareProtocol) / 100
+  // protocolFee = totalFee * feeShareProtocol
   const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
 
   // lpFee = totalFee - protocolFee
@@ -315,15 +330,18 @@ export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
     'Invalid token address',
   );
 
-  // get accumulated fees of the token
+  // Get accumulated fees of the token
   const accumulatedFeesStored = _getTokenAccumulatedProtocolFee(tokenAddress);
 
   assert(accumulatedFeesStored > u256.Zero, 'No accumulated fees');
 
-  // Transfer accumulated protocol fees to the owner
+  // Get the protocol fee receiver from the registry
+  const protocolFeeReceiver = _getProtocolFeeReceiver();
+
+  // Transfer accumulated protocol fees to the protocol fee receiver (retreived from the registry contarct)
   new IMRC20(new Address(tokenAddress)).transferFrom(
     Context.callee(),
-    _ownerAddress(), // the owner of the registry contract
+    protocolFeeReceiver,
     accumulatedFeesStored,
   );
 
@@ -338,7 +356,7 @@ export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
 /**
  *  Removes liquidity from the pool.
  *  @param binaryArgs - Arguments serialized with Args (lpTokenAmount)
- * @returns void
+ *  @returns void
  */
 export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
@@ -434,9 +452,8 @@ export function getSwapOutEstimation(
 
   // Calculate fees
   const feeRate = _getFeeRate(); // e.g., 0.003
-  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
 
-  // totalFee = (amountIn * feeRate) / 100
+  // totalFee = amountIn * feeRate
   const totalFee = getFeeFromAmount(amountIn, feeRate);
 
   // netInput = amountIn - totalFee
@@ -585,6 +602,22 @@ function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
 }
 
 /**
+ * Adds the accumulated protocol fee for a token.
+ * @param tokenAddress The address of the token for which to add the accumulated protocol fee.
+ * @param amount The amount of accumulated protocol fee to add.
+ */
+function _addTokenAccumulatedProtocolFee(
+  tokenAddress: string,
+  amount: u256,
+): void {
+  const current = _getTokenAccumulatedProtocolFee(tokenAddress);
+  _setTokenAccumulatedProtocolFee(
+    tokenAddress,
+    SafeMath256.add(current, amount),
+  );
+}
+
+/**
  * Sets the accumulated protocol fee for a given token address.
  * @param tokenAddress - The address of the token.
  * @param amount - The new amount of accumulated protocol fee for the token.
@@ -618,28 +651,23 @@ function _getFeeRate(): f64 {
  * @returns The current fee share for the protocol.
  */
 function _getFeeShareProtocol(): f64 {
-  const registryAddressStored = bytesToString(
-    Storage.get(registryContractAddress),
-  );
-  const registery = new IRegistery(new Address(registryAddressStored));
-
-  return registery.getFeeShareProtocol();
+  return bytesToF64(Storage.get(feeShareProtocol));
 }
 
 /**
- * Adds the accumulated protocol fee for a token.
- * @param tokenAddress The address of the token for which to add the accumulated protocol fee.
- * @param amount The amount of accumulated protocol fee to add.
+ * Retrieves the protocol fee receiver from the registry contract
+ * @returns The protocol fee receiver address
  */
-function _addTokenAccumulatedProtocolFee(
-  tokenAddress: string,
-  amount: u256,
-): void {
-  const current = _getTokenAccumulatedProtocolFee(tokenAddress);
-  _setTokenAccumulatedProtocolFee(
-    tokenAddress,
-    SafeMath256.add(current, amount),
+function _getProtocolFeeReceiver(): Address {
+  // Get the registry contract address from storage
+  const registeryAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
   );
+
+  // Wrap the registry contract address in an IRegistery interface
+  const registery = new IRegistery(new Address(registeryAddressStored));
+
+  return new Address(registery.getFeeShareProtocolReceiver());
 }
 
 /**

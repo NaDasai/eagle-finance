@@ -1,6 +1,7 @@
 import { Args, bytesToU256, u256ToBytes } from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
 import { u256 } from 'as-bignum/assembly';
+import { feeShareProtocol } from '../contracts/registry';
 
 export class IPool {
   _origin: Address;
@@ -20,21 +21,25 @@ export class IPool {
    * @param {string} aTokenAddress - Address of Token A.
    * @param {string} bTokenAddress - Address of Token B.
    * @param {f64} feeRate - Fee rate for the pool.
+   * @param {f64} feeShareProtocol - Protocol fee share.
    * @param {string} registryAddress - Address of the registry contract.
    */
   init(
     aTokenAddress: string,
     bTokenAddress: string,
     feeRate: f64,
+    feeShareProtocol: f64,
     registryAddress: string,
   ): void {
     const args = new Args()
       .add(aTokenAddress)
       .add(bTokenAddress)
       .add(feeRate)
+      .add(feeShareProtocol)
       .add(registryAddress);
     call(this._origin, 'constructor', args, u64(500000000));
   }
+  
   /**
    * Adds liquidity to the pool.
    *

@@ -9,9 +9,11 @@ import {
   getBytecodeOf,
   Address,
   validateAddress,
+  assertIsSmartContract,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
+  bytesToF64,
   bytesToU16,
   f64ToBytes,
   stringToBytes,
@@ -94,32 +96,40 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
 
-  // ensure that the fee share protocol is between 0 and 1
+  // Ensure that the fee share protocol is between 0 and 1
   assert(
     isBetweenZeroAndOne(inputFeeRate),
     'Fee share protocol must be between 0 and 1',
   );
+
+  // Ensure taht the aTokenAddress and bTokenAddress are smart contract addresses
+  assertIsSmartContract(aTokenAddress);
+  assertIsSmartContract(bTokenAddress);
 
   //  check if the pool is already in the registery
   const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
 
   assert(!pools.contains(poolKey), 'Pool already in the registery');
 
+  // Get the fee share protocol stored in the registry
+  const feeShareProtocolStored = _getFeeShareProtocol();
+
   //  deploy the pool contract
   const poolByteCode: StaticArray<u8> = fileToByteArray('build/pool.wasm');
   const poolAddress = createSC(poolByteCode);
 
-  //  init the pool contract
+  //  Init the pool contract
   const poolContract = new IPool(poolAddress);
 
   poolContract.init(
     aTokenAddress,
     bTokenAddress,
     inputFeeRate,
+    feeShareProtocolStored,
     Context.callee().toString(), // registry address
   );
 
-  //  add the pool to the registery
+  // Add the pool to the registery
   const pool = new Pool(
     poolAddress,
     new Address(aTokenAddress),
@@ -127,21 +137,24 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     inputFeeRate,
   );
 
-  // store the pool in the pools persistent map
+  // Store the pool in the pools persistent map
   pools.set(poolKey, pool);
 
-  // store the pool key in the poolsKeys array
+  // Store the pool key in the poolsKeys array
   const poolsKeysStored = Storage.get(poolsKeys);
 
+  // Deserialize the poolsKeys array
   const deserializedPoolsKeys = new Args(poolsKeysStored)
     .nextStringArray()
     .unwrap();
 
+  // Add the pool key to the poolsKeys array
   deserializedPoolsKeys.push(poolKey);
 
+  // Serialize the deserialized poolsKeys array
   Storage.set(poolsKeys, new Args().add(deserializedPoolsKeys).serialize());
 
-  //  emit an event
+  // Emit an event
   generateEvent(`Pool ${poolAddress} added to the registery`);
 }
 
@@ -176,25 +189,6 @@ export function getFeeShareProtocol(): StaticArray<u8> {
 }
 
 /**
- * Set the fee share protocol
- * @param binaryArgs  The fee share protocol (fee)
- * @returns  void
- */
-export function setFeeShareProtocol(binaryArgs: StaticArray<u8>): void {
-  onlyOwner(); // only owner of registery can set the protocol fee
-  const args = new Args(binaryArgs);
-
-  const fee = args.nextF64().expect('Invalid protocol fee');
-
-  assert(
-    isBetweenZeroAndOne(fee),
-    'Fee share protocol must be between 0 and 1',
-  );
-
-  Storage.set(feeShareProtocol, f64ToBytes(fee));
-}
-
-/**
  * Get the fee share protocol receiver
  * @returns  The fee share protocol receiver
  */
@@ -217,6 +211,10 @@ export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
   assert(validateAddress(receiver), 'Invalid protocol fee receiver');
 
   Storage.set(feeShareProtocolReceiver, stringToBytes(receiver));
+}
+
+function _getFeeShareProtocol(): f64 {
+  return bytesToF64(Storage.get(feeShareProtocol));
 }
 
 // exprot all the functions from teh ownership file
