@@ -1,6 +1,7 @@
 import {
   Account,
   Args,
+  bytesToF64,
   Mas,
   OperationStatus,
   SmartContract,
@@ -16,7 +17,8 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'registry.wasm');
 
-const constructorArgs = new Args().serialize();
+// constructr takes fee share protocol as a parameter
+const constructorArgs = new Args().addF64(0.5).serialize();
 
 let contract = await SmartContract.deploy(provider, byteCode, constructorArgs, {
   coins: Mas.fromString('10'),
@@ -28,7 +30,6 @@ async function createNewPool(
   aTokenAddress: string,
   bTokenAddress: string,
   inputFeeRate: number,
-  feeShareProtocol: number,
 ) {
   console.log('Creating new poool.....');
 
@@ -38,7 +39,6 @@ async function createNewPool(
       .addString(aTokenAddress)
       .addString(bTokenAddress)
       .addF64(inputFeeRate)
-      .addF64(feeShareProtocol)
       .serialize(),
     { coins: Mas.fromString('0.1') },
   );
@@ -61,12 +61,24 @@ async function getPools() {
   console.log('Pools:', pools);
 }
 
+async function getRegistryFeeShareProtocol() {
+  const result = await contract.read(
+    'getFeeShareProtocol',
+    new Args().serialize(),
+  );
+
+  const feeShareProtocol = bytesToF64(result.value);
+
+  console.log('Fee share protocol:', feeShareProtocol);
+}
+
 async function test1() {
+  await getRegistryFeeShareProtocol();
+
   await createNewPool(
     'AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA',
     'AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA',
     0.5,
-    0.05,
   );
 
   await getPools();

@@ -6,7 +6,7 @@
     "scripts": {
         "events": "tsx src/events.ts",
         "test": "asp --verbose",
-        "buildnet": "npm run build && tsx src/builnet-tests/test.ts",
+        "buildnet:registry": "npm run build && tsx src/builnet-tests/registry.ts",
         "build": "massa-as-compile",
         "clean": "rimraf build",
         "deploy": "npm run build && tsx src/deploy.ts",

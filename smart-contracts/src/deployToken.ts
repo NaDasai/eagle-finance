@@ -17,11 +17,12 @@ console.log('Deploying contract...');
 const byteCode = getScByteCode('build', 'token.wasm');
 
 const constructorArgs = new Args()
-  .addString('BuoyaTest')
-  .addString('BTT')
-  .addU8(U8.fromNumber(18))
-  .addU256(U128.fromNumber(180000))
-  .addString('https://www.buoyatest.com') // token url
+  .addString('Eagle Finance') // token name
+  .addString('EGL') // token symbol
+  .addU8(U8.fromNumber(18)) // token decimals
+  .addU256(U128.fromNumber(1000000000000)) // token total supply
+  .addString('https://eagle.finance/logo.png') // token url (optional)
+  .addString('Dex on Massa') // token description (optional)
   .serialize();
 
 const contract = await SmartContract.deploy(

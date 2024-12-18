@@ -3,9 +3,8 @@ import {
   generateEvent,
   Storage,
   Address,
-  StoragePrefixManager,
-  LiquidityManager,
   assertIsSmartContract,
+  print,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -26,6 +25,10 @@ import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
+import {
+  LiquidityManager,
+  StoragePrefixManager,
+} from '../lib/liquidityManager';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -47,7 +50,7 @@ export const feeShareProtocol = stringToBytes('feeShareProtocol');
 export const registryContractAddress = stringToBytes('registry');
 // create new liquidity manager
 const storagePrefixManager = new StoragePrefixManager();
-const liquidityManager = new LiquidityManager<u64>(storagePrefixManager);
+const liquidityManager = new LiquidityManager<u256>(storagePrefixManager);
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -60,13 +63,14 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   const args = new Args(binaryArgs);
 
-  // read the arguments
+  // Read the arguments
   const aAddress = args.nextString().expect('Address A is missing or invalid');
   const bAddress = args.nextString().expect('Address B is missing or invalid');
 
   const inputFeeRate = args
     .nextF64()
     .expect('Input fee rate is missing or invalid');
+
   const feeShareProtocolInput = args
     .nextF64()
     .expect('Fee share protocol is missing or invalid');
@@ -75,46 +79,32 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('RegistryAddress is missing or invalid');
 
-  // esnure that the fee rate is between 0 and 1
-  assert(isBetweenZeroAndOne(inputFeeRate), 'Fee rate must be between 0 and 1');
-
-  // ensure that the fee share protocol is between 0 and 1
-  assert(
-    isBetweenZeroAndOne(feeShareProtocolInput),
-    'Fee share protocol must be between 0 and 1',
-  );
-
-  /* 
-        To return after tests 
-  // ensure that the aAddress is a valid smart contract address
-  assertIsSmartContract(aAddress);
-
-  // ensure that the bAddress is a valid smart contract address
-  assertIsSmartContract(bAddress);
+  // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  assertIsSmartContract(registryAddress); */
+  assertIsSmartContract(registryAddress);
 
-  // store fee rate
+  // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
-  // store fee share protocol
+
+  // Store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
 
-  // store the tokens a and b addresses
+  // Store the tokens a and b addresses
   Storage.set(aTokenAddress, stringToBytes(aAddress));
   Storage.set(bTokenAddress, stringToBytes(bAddress));
 
-  // store the tokens a and b addresses reserves in the contract storage
+  // Store the tokens a and b addresses reserves in the contract storage
   Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
   Storage.set(bTokenReserve, u256ToBytes(u256.Zero));
 
-  // store the registry address
+  // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
 
-  // get the registry contract instance
+  // Get the registry contract instance
   const registry = new IRegistery(new Address(registryAddress));
 
-  // set the owner of the pool contract to the same registry owner address
+  // Set the owner of the pool contract to the same registry owner address
   _setOwner(registry.ownerAddress());
 
   generateEvent(
@@ -133,16 +123,16 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const amountA = args.nextU256().expect('Amount A is missing or invalid');
   const amountB = args.nextU256().expect('Amount B is missing or invalid');
 
-  // retrieve the token addresses from storage
+  // Retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  // get the reserves of the two tokens in the pool
+  // Get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
-  // get the total supply of the LP token
-  const totalSupply: u256 = u256.from(liquidityManager.getTotalSupply());
+  // Get the total supply of the LP token
+  const totalSupply: u256 = liquidityManager.getTotalSupply();
 
   let finalAmountA = amountA;
   let finalAmountB = amountB;
@@ -151,7 +141,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   if (reserveA == u256.Zero && reserveB == u256.Zero) {
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = SafeMath256.mul(amountA, amountB);
-    // TOTEST: sqrt is not implemented in u256 type so we use manual powerU256 instead
+    // liquidity = sqrt(product)
     liquidity = SafeMath256.sqrt(product);
   } else {
     // Add liquidity proportionally
@@ -186,7 +176,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 
   assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
 
-  // address of the current contract
+  // Address of the current contract
   const contractAddress = Context.callee();
 
   // Transfer tokens A from user to contract
@@ -202,7 +192,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Mint LP tokens to user
-  liquidityManager.mint(Context.caller(), liquidity.toU64());
+  liquidityManager.mint(Context.caller(), liquidity);
 
   // Update reserves
   _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
@@ -221,18 +211,18 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 export function swap(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  // get the tokenIn address
+  // Get the tokenIn address
   const tokenInAddress = args
     .nextString()
     .expect('TokenIn is missing or invalid');
 
-  // get the amount of tokenIn to swap
+  // Get the amount of tokenIn to swap
   const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  // check if the token address is one of the two tokens in the pool
+  // Check if the token address is one of the two tokens in the pool
   assert(
     tokenInAddress == aTokenAddressStored ||
       tokenInAddress == bTokenAddressStored,
@@ -243,10 +233,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const feeRate = _getFeeRate(); // e.g., 0.003
   const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
 
-  // totalFee = (amountIn * feeRate) / 100
+  // totalFee = amountIn * feeRate
   const totalFee = getFeeFromAmount(amountIn, feeRate);
 
-  // protocolFee = (totalFee * feeShareProtocol) / 100
+  // protocolFee = totalFee * feeShareProtocol
   const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
 
   // lpFee = totalFee - protocolFee
@@ -255,26 +245,26 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // netInput = amountIn - totalFee
   const netInput = SafeMath256.sub(amountIn, totalFee);
 
-  // get the address of the other token in the pool
+  // Get the address of the other token in the pool
   const tokenOutAddress =
     tokenInAddress == aTokenAddressStored
       ? bTokenAddressStored
       : aTokenAddressStored;
 
-  // get the reserves of the two tokens in the pool
+  // Get the reserves of the two tokens in the pool
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
 
-  // calculate the amount of tokens to be swapped
+  // Calculate the amount of tokens to be swapped
   const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
 
-  // esnure that the amountOut is greater than zero
+  // Esnure that the amountOut is greater than zero
   assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
 
-  // transfer the amountIn to the contract
+  // Transfer the amountIn to the contract
   new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
 
-  // transfer the amountOut to the caller
+  // Transfer the amountOut to the caller
   new IMRC20(new Address(tokenOutAddress)).transferFrom(
     Context.callee(),
     Context.caller(),
@@ -290,7 +280,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   );
   const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
 
-  // update the pool reserves
+  // Update the pool reserves
   _updateReserve(tokenInAddress, newReserveIn);
   _updateReserve(tokenOutAddress, newReserveOut);
 
@@ -306,88 +296,97 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
 /**
  * Claims accumulated protocol fees for a given token.
- * @param tokenAddress - Address of the token to claim fees for.
  * @returns void
  */
-export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
-  const args = new Args(binaryArgs);
-
-  // get the token address from the arguments
-  const tokenAddress = args.nextString().expect('No token address');
-
-  // get the token addresses from storage
+export function claimProtocolFees(): void {
+  // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  // ensure tokenAddress is either tokenA or tokenB
+  // Get accumulated fees of the token A
+  const aAccumulatedFeesStored =
+    _getTokenAccumulatedProtocolFee(aTokenAddressStored);
+
+  // Get accumulated fees of the token B
+  const bAccumulatedFeesStored =
+    _getTokenAccumulatedProtocolFee(bTokenAddressStored);
+
   assert(
-    tokenAddress == aTokenAddressStored || tokenAddress == bTokenAddressStored,
-    'Invalid token address',
+    aAccumulatedFeesStored > u256.Zero || bAccumulatedFeesStored > u256.Zero,
+    'No accumulated fees',
   );
 
-  // get accumulated fees of the token
-  const accumulatedFeesStored = _getTokenAccumulatedProtocolFee(tokenAddress);
+  // Get the protocol fee receiver from the registry
+  const protocolFeeReceiver = _getProtocolFeeReceiver();
 
-  assert(accumulatedFeesStored > u256.Zero, 'No accumulated fees');
+  if (aAccumulatedFeesStored > u256.Zero) {
+    // Transfer accumulated protocol fees to the protocol fee receiver (retreived from the registry contarct)
+    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
+      Context.callee(),
+      protocolFeeReceiver,
+      aAccumulatedFeesStored,
+    );
 
-  // Transfer accumulated protocol fees to the owner
-  new IMRC20(new Address(tokenAddress)).transferFrom(
-    Context.callee(),
-    _ownerAddress(), // the owner of the registry contract
-    accumulatedFeesStored,
-  );
+    // Reset protocol fees for that token
+    _setTokenAccumulatedProtocolFee(aTokenAddressStored, u256.Zero);
+  }
 
-  // Reset protocol fees for that token
-  _setTokenAccumulatedProtocolFee(tokenAddress, u256.Zero);
+  if (bAccumulatedFeesStored > u256.Zero) {
+    new IMRC20(new Address(bTokenAddressStored)).transferFrom(
+      Context.callee(),
+      protocolFeeReceiver,
+      bAccumulatedFeesStored,
+    );
 
-  generateEvent(
-    `Protocol fees claimed: ${accumulatedFeesStored.toString()} of ${tokenAddress} by ${Context.caller().toString()}`,
-  );
+    // Reset protocol fees for that token
+    _setTokenAccumulatedProtocolFee(bTokenAddressStored, u256.Zero);
+  }
+
+  generateEvent(`Protocol fees claimed by ${Context.caller().toString()}`);
 }
 
 /**
  *  Removes liquidity from the pool.
- *  @param binaryArgs - Arguments serialized with Args (lpTokenAmount)
- * @returns void
+ *  @param binaryArgs - Arguments serialized with Args (lpAmount)
+ *  @returns void
  */
 export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  // get the amount of LP tokens to remove from params
-  const lpTokenAmount = args
+  // Get the amount of LP tokens to remove from params
+  const lpAmount = args
     .nextU256()
     .expect('LpTokenAmount is missing or invalid');
 
-  // ensure that the user has enough LP tokens
+  // Ensure that the user has enough LP tokens
   assert(
-    u256.fromU64(liquidityManager.getBalance(Context.caller())) >=
-      lpTokenAmount,
+    liquidityManager.getBalance(Context.caller()) >= lpAmount,
     'Not enough LP tokens',
   );
 
-  // get the token addresses from storage
+  // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  const totalSupply = u256.from(liquidityManager.getTotalSupply());
+  const totalSupply = liquidityManager.getTotalSupply();
 
   // Current reserves
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
-  // amountAOut = (lpTokenAmount * reserveA) / totalSupply
+  // amountAOut = (lpAmount * reserveA) / totalSupply
   const amountAOut = SafeMath256.div(
-    SafeMath256.mul(lpTokenAmount, reserveA),
+    SafeMath256.mul(lpAmount, reserveA),
     totalSupply,
   );
-  // amountBOut = (lpTokenAmount * reserveB) / totalSupply
+  // amountBOut = (lpAmount * reserveB) / totalSupply
   const amountBOut = SafeMath256.div(
-    SafeMath256.mul(lpTokenAmount, reserveB),
+    SafeMath256.mul(lpAmount, reserveB),
     totalSupply,
   );
 
-  // burn lp tokens
-  liquidityManager.burn(Context.caller(), lpTokenAmount.toU64());
+  // Burn lp tokens
+  liquidityManager.burn(Context.caller(), lpAmount);
 
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transferFrom(
@@ -406,7 +405,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   _updateReserveB(SafeMath256.sub(reserveB, amountBOut));
 
   generateEvent(
-    `Removed liquidity: ${lpTokenAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
+    `Removed liquidity: ${lpAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
   );
 }
 
@@ -445,13 +444,9 @@ export function getSwapOutEstimation(
 
   // Calculate fees
   const feeRate = _getFeeRate(); // e.g., 0.003
-  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
 
-  // totalFee = (amountIn * feeRate) / 100
+  // totalFee = amountIn * feeRate
   const totalFee = getFeeFromAmount(amountIn, feeRate);
-
-  // protocolFee = (totalFee * feeShareProtocol) / 100
-  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
 
   // netInput = amountIn - totalFee
   const netInput = SafeMath256.sub(amountIn, totalFee);
@@ -503,9 +498,9 @@ export function getLPBalance(binaryArgs: StaticArray<u8>): StaticArray<u8> {
     .nextString()
     .expect('UserAddress is missing or invalid');
 
-  const balance: u64 = liquidityManager.getBalance(new Address(userAddress));
+  const balance: u256 = liquidityManager.getBalance(new Address(userAddress));
 
-  return u64ToBytes(balance);
+  return u256ToBytes(balance);
 }
 
 /**
@@ -529,7 +524,7 @@ export function getLocalReserveB(): StaticArray<u8> {
  * @returns The price of token A in terms of token B, as a u256 represented as a fraction.
  * Returns zero if the b reserve is zero to avoid division by zero error.
  */
-export function getPriceAInB(): StaticArray<u8> {
+export function getPrice(): StaticArray<u8> {
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
@@ -540,26 +535,6 @@ export function getPriceAInB(): StaticArray<u8> {
 
   // priceAInB = reserveB / reserveA
   const price = SafeMath256.div(reserveB, reserveA);
-
-  return u256ToBytes(price);
-}
-
-/**
- * Retrieves the price of Token B in terms of Token A.
- * @returns The price of token B in terms of token A, as a u256 represented as a fraction.
- * Returns zero if the a reserve is zero to avoid division by zero error.
- */
-export function getPriceBInA(): StaticArray<u8> {
-  const reserveA = _getLocalReserveA();
-  const reserveB = _getLocalReserveB();
-
-  // If reserveA is zero return zero
-  if (reserveA == u256.Zero) {
-    return u256ToBytes(u256.Zero);
-  }
-
-  // priceBInA = reserveA / reserveB
-  const price = SafeMath256.div(reserveA, reserveB);
 
   return u256ToBytes(price);
 }
@@ -619,6 +594,22 @@ function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
 }
 
 /**
+ * Adds the accumulated protocol fee for a token.
+ * @param tokenAddress The address of the token for which to add the accumulated protocol fee.
+ * @param amount The amount of accumulated protocol fee to add.
+ */
+function _addTokenAccumulatedProtocolFee(
+  tokenAddress: string,
+  amount: u256,
+): void {
+  const current = _getTokenAccumulatedProtocolFee(tokenAddress);
+  _setTokenAccumulatedProtocolFee(
+    tokenAddress,
+    SafeMath256.add(current, amount),
+  );
+}
+
+/**
  * Sets the accumulated protocol fee for a given token address.
  * @param tokenAddress - The address of the token.
  * @param amount - The new amount of accumulated protocol fee for the token.
@@ -656,19 +647,19 @@ function _getFeeShareProtocol(): f64 {
 }
 
 /**
- * Adds the accumulated protocol fee for a token.
- * @param tokenAddress The address of the token for which to add the accumulated protocol fee.
- * @param amount The amount of accumulated protocol fee to add.
+ * Retrieves the protocol fee receiver from the registry contract
+ * @returns The protocol fee receiver address
  */
-function _addTokenAccumulatedProtocolFee(
-  tokenAddress: string,
-  amount: u256,
-): void {
-  const current = _getTokenAccumulatedProtocolFee(tokenAddress);
-  _setTokenAccumulatedProtocolFee(
-    tokenAddress,
-    SafeMath256.add(current, amount),
+function _getProtocolFeeReceiver(): Address {
+  // Get the registry contract address from storage
+  const registeryAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
   );
+
+  // Wrap the registry contract address in an IRegistery interface
+  const registery = new IRegistery(new Address(registeryAddressStored));
+
+  return new Address(registery.getFeeShareProtocolReceiver());
 }
 
 /**
