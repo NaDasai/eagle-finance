@@ -1,4 +1,9 @@
-import { fromBytes, toBytes, u256ToBytes } from '@massalabs/as-types';
+import {
+  bytesToU256,
+  fromBytes,
+  toBytes,
+  u256ToBytes,
+} from '@massalabs/as-types';
 import { Storage, Address } from '@massalabs/massa-as-sdk';
 import { u256 } from 'as-bignum/assembly';
 
@@ -50,7 +55,8 @@ export class LiquidityManager<T> {
       return <T>fromBytes<T>(bytes);
     } else if (idof<T>() == idof<u256>()) {
       // we handle the u256
-      return <T>u256.fromBytes(bytes);
+      // return <T>u256.fromBytes(bytes);
+      return bytesToU256(bytes);
     } else {
       ERROR('Unsupported type for deserialization');
       return <T>0;
@@ -77,7 +83,7 @@ export class LiquidityManager<T> {
       return <T>0;
     } else if (idof<T>() == idof<u256>()) {
       // we handle the u256
-      return <T>new u256(0);
+      return <T>u256.Zero;
     } else {
       ERROR('Unsupported type for zeroValue');
       return <T>0;
