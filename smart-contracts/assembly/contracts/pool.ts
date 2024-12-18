@@ -311,46 +311,53 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
 /**
  * Claims accumulated protocol fees for a given token.
- * @param tokenAddress - Address of the token to claim fees for.
  * @returns void
  */
-export function claimProtocolFees(binaryArgs: StaticArray<u8>): void {
-  const args = new Args(binaryArgs);
-
-  // Get the token address from the arguments
-  const tokenAddress = args.nextString().expect('No token address');
-
+export function claimProtocolFees(): void {
   // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  // Ensure tokenAddress is either tokenA or tokenB
+  // Get accumulated fees of the token A
+  const aAccumulatedFeesStored =
+    _getTokenAccumulatedProtocolFee(aTokenAddressStored);
+
+  // Get accumulated fees of the token B
+  const bAccumulatedFeesStored =
+    _getTokenAccumulatedProtocolFee(bTokenAddressStored);
+
   assert(
-    tokenAddress == aTokenAddressStored || tokenAddress == bTokenAddressStored,
-    'Invalid token address',
+    aAccumulatedFeesStored > u256.Zero || bAccumulatedFeesStored > u256.Zero,
+    'No accumulated fees',
   );
-
-  // Get accumulated fees of the token
-  const accumulatedFeesStored = _getTokenAccumulatedProtocolFee(tokenAddress);
-
-  assert(accumulatedFeesStored > u256.Zero, 'No accumulated fees');
 
   // Get the protocol fee receiver from the registry
   const protocolFeeReceiver = _getProtocolFeeReceiver();
 
-  // Transfer accumulated protocol fees to the protocol fee receiver (retreived from the registry contarct)
-  new IMRC20(new Address(tokenAddress)).transferFrom(
-    Context.callee(),
-    protocolFeeReceiver,
-    accumulatedFeesStored,
-  );
+  if (aAccumulatedFeesStored > u256.Zero) {
+    // Transfer accumulated protocol fees to the protocol fee receiver (retreived from the registry contarct)
+    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
+      Context.callee(),
+      protocolFeeReceiver,
+      aAccumulatedFeesStored,
+    );
 
-  // Reset protocol fees for that token
-  _setTokenAccumulatedProtocolFee(tokenAddress, u256.Zero);
+    // Reset protocol fees for that token
+    _setTokenAccumulatedProtocolFee(aTokenAddressStored, u256.Zero);
+  }
 
-  generateEvent(
-    `Protocol fees claimed: ${accumulatedFeesStored.toString()} of ${tokenAddress} by ${Context.caller().toString()}`,
-  );
+  if (bAccumulatedFeesStored > u256.Zero) {
+    new IMRC20(new Address(bTokenAddressStored)).transferFrom(
+      Context.callee(),
+      protocolFeeReceiver,
+      bAccumulatedFeesStored,
+    );
+
+    // Reset protocol fees for that token
+    _setTokenAccumulatedProtocolFee(bTokenAddressStored, u256.Zero);
+  }
+
+  generateEvent(`Protocol fees claimed by ${Context.caller().toString()}`);
 }
 
 /**
