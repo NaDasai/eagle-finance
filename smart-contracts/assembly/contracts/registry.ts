@@ -49,6 +49,22 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // If you remove this check, someone could call your constructor function and reset your smart contract.
   assert(Context.isDeployingContract());
 
+  const args = new Args(binaryArgs);
+
+  // read the arguments
+  const feeShareProtocolInput = args
+    .nextF64()
+    .expect('FeeShareProtocol is missing or invalid');
+
+  // ensure that the fee share protocol is between 0 and 1
+  assert(
+    isBetweenZeroAndOne(feeShareProtocolInput),
+    'Fee share protocol must be between 0 and 1',
+  );
+
+  // store fee share protocol
+  Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
+
   // set the owner of the registry contract to the caller of the constructor
   _setOwner(Context.caller().toString());
 
@@ -151,10 +167,19 @@ export function getPools(): StaticArray<u8> {
   return new Args().addSerializableObjectArray(retPools).serialize();
 }
 
+/**
+ * Get the fee share protocol
+ * @returns  The fee share protocol
+ */
 export function getFeeShareProtocol(): StaticArray<u8> {
   return Storage.get(feeShareProtocol);
 }
 
+/**
+ * Set the fee share protocol
+ * @param binaryArgs  The fee share protocol (fee)
+ * @returns  void
+ */
 export function setFeeShareProtocol(binaryArgs: StaticArray<u8>): void {
   onlyOwner(); // only owner of registery can set the protocol fee
   const args = new Args(binaryArgs);
@@ -169,10 +194,19 @@ export function setFeeShareProtocol(binaryArgs: StaticArray<u8>): void {
   Storage.set(feeShareProtocol, f64ToBytes(fee));
 }
 
+/**
+ * Get the fee share protocol receiver
+ * @returns  The fee share protocol receiver
+ */
 export function getFeeShareProtocolReceiver(): StaticArray<u8> {
   return Storage.get(feeShareProtocolReceiver);
 }
 
+/**
+ * Set the fee share protocol receiver
+ * @param binaryArgs  The fee share protocol receiver
+ * @returns  void
+ */
 export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
   onlyOwner(); // only owner of registery can set the protocol fee receiver
 

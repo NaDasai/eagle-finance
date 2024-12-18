@@ -60,10 +60,18 @@ export class IRegistery {
     return deserialized;
   }
 
+  /**
+   * calls the `getPool` function of the registry contract.
+   * @returns {string} The pool address.
+   */
   getFeeShareProtocol(): f64 {
     return bytesToF64(call(this._origin, 'getFeeShareProtocol', new Args(), 0));
   }
 
+  /**
+   *  calls the `getFeeShareProtocolReceiver` function of the registry contract.
+   * @returns {string} The address of the protocol fee receiver.
+   */
   getFeeShareProtocolReceiver(): string {
     return bytesToString(
       call(this._origin, 'getFeeShareProtocolReceiver', new Args(), 0),
