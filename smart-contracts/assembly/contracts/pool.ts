@@ -515,7 +515,7 @@ export function getLocalReserveB(): StaticArray<u8> {
  * @returns The price of token A in terms of token B, as a u256 represented as a fraction.
  * Returns zero if the b reserve is zero to avoid division by zero error.
  */
-export function getPriceAInB(): StaticArray<u8> {
+export function getPrice(): StaticArray<u8> {
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
@@ -526,26 +526,6 @@ export function getPriceAInB(): StaticArray<u8> {
 
   // priceAInB = reserveB / reserveA
   const price = SafeMath256.div(reserveB, reserveA);
-
-  return u256ToBytes(price);
-}
-
-/**
- * Retrieves the price of Token B in terms of Token A.
- * @returns The price of token B in terms of token A, as a u256 represented as a fraction.
- * Returns zero if the a reserve is zero to avoid division by zero error.
- */
-export function getPriceBInA(): StaticArray<u8> {
-  const reserveA = _getLocalReserveA();
-  const reserveB = _getLocalReserveB();
-
-  // If reserveA is zero return zero
-  if (reserveA == u256.Zero) {
-    return u256ToBytes(u256.Zero);
-  }
-
-  // priceBInA = reserveA / reserveB
-  const price = SafeMath256.div(reserveA, reserveB);
 
   return u256ToBytes(price);
 }
