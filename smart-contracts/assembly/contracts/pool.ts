@@ -79,25 +79,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('RegistryAddress is missing or invalid');
 
-  // Esnure that the fee rate is between 0 and 1
-  assert(isBetweenZeroAndOne(inputFeeRate), 'Fee rate must be between 0 and 1');
-
-  // Ensure that the fee share protocol is between 0 and 1
-  assert(
-    isBetweenZeroAndOne(feeShareProtocolInput),
-    'Fee share protocol must be between 0 and 1',
-  );
-
-  /* 
-        To return after tests 
-  // ensure that the aAddress is a valid smart contract address
-  assertIsSmartContract(aAddress);
-
-  // ensure that the bAddress is a valid smart contract address
-  assertIsSmartContract(bAddress);
+  // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  assertIsSmartContract(registryAddress); */
+  assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
