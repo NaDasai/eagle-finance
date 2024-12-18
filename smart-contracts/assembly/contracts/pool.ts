@@ -3,8 +3,6 @@ import {
   generateEvent,
   Storage,
   Address,
-  StoragePrefixManager,
-  LiquidityManager,
   assertIsSmartContract,
 } from '@massalabs/massa-as-sdk';
 import {
@@ -26,6 +24,10 @@ import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
+import {
+  LiquidityManager,
+  StoragePrefixManager,
+} from '../lib/liquidityManager';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -45,7 +47,7 @@ export const feeRate = stringToBytes('feeRate');
 export const registryContractAddress = stringToBytes('registry');
 // create new liquidity manager
 const storagePrefixManager = new StoragePrefixManager();
-const liquidityManager = new LiquidityManager<u64>(storagePrefixManager);
+const liquidityManager = new LiquidityManager<u256>(storagePrefixManager);
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -129,7 +131,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const reserveB = _getLocalReserveB();
 
   // get the total supply of the LP token
-  const totalSupply: u256 = u256.from(liquidityManager.getTotalSupply());
+  const totalSupply: u256 = liquidityManager.getTotalSupply();
 
   let finalAmountA = amountA;
   let finalAmountB = amountB;
@@ -189,7 +191,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Mint LP tokens to user
-  liquidityManager.mint(Context.caller(), liquidity.toU64());
+  liquidityManager.mint(Context.caller(), liquidity);
 
   // Update reserves
   _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
@@ -347,8 +349,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
 
   // ensure that the user has enough LP tokens
   assert(
-    u256.fromU64(liquidityManager.getBalance(Context.caller())) >=
-      lpTokenAmount,
+    liquidityManager.getBalance(Context.caller()) >= lpTokenAmount,
     'Not enough LP tokens',
   );
 
@@ -356,7 +357,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
-  const totalSupply = u256.from(liquidityManager.getTotalSupply());
+  const totalSupply = liquidityManager.getTotalSupply();
 
   // Current reserves
   const reserveA = _getLocalReserveA();
@@ -374,7 +375,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // burn lp tokens
-  liquidityManager.burn(Context.caller(), lpTokenAmount.toU64());
+  liquidityManager.burn(Context.caller(), lpTokenAmount);
 
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transferFrom(
@@ -487,9 +488,9 @@ export function getLPBalance(binaryArgs: StaticArray<u8>): StaticArray<u8> {
     .nextString()
     .expect('UserAddress is missing or invalid');
 
-  const balance: u64 = liquidityManager.getBalance(new Address(userAddress));
+  const balance: u256 = liquidityManager.getBalance(new Address(userAddress));
 
-  return u64ToBytes(balance);
+  return u256ToBytes(balance);
 }
 
 /**
