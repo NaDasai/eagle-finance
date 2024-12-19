@@ -17,14 +17,20 @@ export function f64ToU256(value: f64, decimals: i32 = 18): u256 {
 }
 
 // Utility: Normalize a number with fewer decimals to 18 decimals
-export function normalizeToDecimals(value: u256, currentDecimals: i32): u256 {
+export function normalizeToDecimals(
+  value: u256,
+  currentDecimals: i32,
+  toDecimals: i32 = 18,
+): u256 {
   assert(currentDecimals >= 0, 'Current decimals must be non-negative.');
+  assert(toDecimals >= 0, 'To decimals must be non-negative.');
   assert(
     currentDecimals <= 18,
     'Current decimals must be less than or equal to 18.',
   );
+  assert(toDecimals <= 18, 'To decimals must be less than or equal to 18.');
 
-  const decimalDifference = 18 - currentDecimals;
+  const decimalDifference = toDecimals - currentDecimals;
 
   // Multiply value by 10^(decimalDifference) to normalize
   if (decimalDifference > 0) {
@@ -32,6 +38,12 @@ export function normalizeToDecimals(value: u256, currentDecimals: i32): u256 {
     const multiplier = u256.fromU64(u64(10 ** decimalDifference));
     print('Multiplier: ' + multiplier.toString());
     return SafeMath256.mul(value, multiplier);
+  } else if (decimalDifference < 0) {
+    // Divide value by 10^(decimalDifference) to normalize
+    print('Decimal Difference: ' + decimalDifference.toString());
+    const divisor = u256.fromU64(u64(10 ** -decimalDifference));
+    print('Divisor: ' + divisor.toString());
+    return SafeMath256.div(value, divisor);
   }
 
   return value; // Already 18 decimals
