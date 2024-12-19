@@ -14,7 +14,7 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'registry.wasm');
 
-const constructorArgs = new Args().serialize();
+const constructorArgs = new Args().addF64(0.05).serialize();
 
 const contract = await SmartContract.deploy(
   provider,
