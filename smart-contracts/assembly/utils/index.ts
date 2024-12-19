@@ -22,3 +22,5 @@ export function _buildPoolKey(
   const key = `${tokenA}-${tokenB}-${inputFeeRate.toString()}`;
   return key;
 }
+
+export const DEFAULT_DECIMALS = 9;

@@ -1,9 +1,10 @@
 import { print } from '@massalabs/massa-as-sdk';
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
+import { DEFAULT_DECIMALS } from '../utils';
 
 // Utility: Converts f64 to u256 with 18 decimals precision
-export function f64ToU256(value: f64, decimals: i32 = 18): u256 {
+export function f64ToU256(value: f64, decimals: i32 = DEFAULT_DECIMALS): u256 {
   // Scale the value to 18 decimals
   const scale = Math.pow(10, decimals) as f64; // 10^18
   const scaledValue = value * scale; // Scale the value
@@ -20,7 +21,7 @@ export function f64ToU256(value: f64, decimals: i32 = 18): u256 {
 export function normalizeToDecimals(
   value: u256,
   currentDecimals: i32,
-  toDecimals: i32 = 18,
+  toDecimals: i32 = DEFAULT_DECIMALS,
 ): u256 {
   assert(currentDecimals >= 0, 'Current decimals must be non-negative.');
   assert(toDecimals >= 0, 'To decimals must be non-negative.');
