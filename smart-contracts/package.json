@@ -7,6 +7,7 @@
         "events": "tsx src/events.ts",
         "test": "asp --verbose",
         "buildnet:registry": "npm run build && tsx src/builnet-tests/registry.ts",
+        "buildnet:wrapMas": "tsx src/builnet-tests/WrapMas.ts",
         "build": "massa-as-compile",
         "clean": "rimraf build",
         "deploy": "npm run build && tsx src/deploy.ts",
