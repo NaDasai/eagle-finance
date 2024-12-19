@@ -1,3 +1,6 @@
+// This smart contract implements a liquidity pool for trading two MRC-20 tokens on the Massa blockchain.
+// **IMPORTANT**: This pool **only accepts MRC-20 tokens**. To use the native MAS coin, it must be **wrapped to WMAS** first.
+//  (MAS -> WMAS: native MAS must be wrapped into MRC-20 WMAS via a wrapping contract to be used in this pool).
 import {
   Context,
   generateEvent,
