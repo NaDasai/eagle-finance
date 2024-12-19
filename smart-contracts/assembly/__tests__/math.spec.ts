@@ -1,7 +1,7 @@
 import { print, resetStorage } from '@massalabs/massa-as-sdk';
 import { SafeMath256 } from '../lib/safeMath';
 import { u256 } from 'as-bignum/assembly';
-import { f64ToU256, normalizeTo18Decimals } from '../lib/math';
+import { f64ToU256, normalizeToDecimals } from '../lib/math';
 
 beforeEach(() => {
   resetStorage();
@@ -56,11 +56,11 @@ describe('test convertU256To18Decimals', () => {
   it('normalize 9 decimals to 18 decimals', () => {
     const input = u256.from(1000000000); // 1e9 (with 9 decimals)
     const currentDecimals = 9;
-    const result = normalizeTo18Decimals(input, currentDecimals);
+    const result = normalizeToDecimals(input, currentDecimals);
     const expected = u256.from(1000000000000000000); // 1e18
 
     print(
-      `normalizeTo18Decimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
+      `normalizeToDecimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
     );
     expect(result).toStrictEqual(expected);
   });
@@ -68,11 +68,11 @@ describe('test convertU256To18Decimals', () => {
   it('already normalized to 18 decimals', () => {
     const input = u256.from(1000000000000000000); // 1e18
     const currentDecimals = 18;
-    const result = normalizeTo18Decimals(input, currentDecimals);
+    const result = normalizeToDecimals(input, currentDecimals);
     const expected = u256.from(1000000000000000000); // No change
 
     print(
-      `normalizeTo18Decimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
+      `normalizeToDecimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
     );
     expect(result).toStrictEqual(expected);
   });
@@ -80,11 +80,11 @@ describe('test convertU256To18Decimals', () => {
   it('normalize 6 decimals to 18 decimals', () => {
     const input = u256.from(234567); // 234567 (with 6 decimals)
     const currentDecimals = 6;
-    const result = normalizeTo18Decimals(input, currentDecimals);
+    const result = normalizeToDecimals(input, currentDecimals);
     const expected = u256.from(234567000000000000); // 234567 * 10^12
 
     print(
-      `normalizeTo18Decimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
+      `normalizeToDecimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
     );
     expect(result).toStrictEqual(expected);
   });
@@ -92,11 +92,11 @@ describe('test convertU256To18Decimals', () => {
   it('handle 0 value with any decimals', () => {
     const input = u256.from(0); // Zero
     const currentDecimals = 9;
-    const result = normalizeTo18Decimals(input, currentDecimals);
+    const result = normalizeToDecimals(input, currentDecimals);
     const expected = u256.from(0); // Still zero
 
     print(
-      `normalizeTo18Decimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
+      `normalizeToDecimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
     );
     expect(result).toStrictEqual(expected);
   });
@@ -106,7 +106,7 @@ describe('test convertU256To18Decimals', () => {
       const input = u256.from(123456); // Example value
       const currentDecimals = 20; // Invalid decimals (>18)
 
-      normalizeTo18Decimals(input, currentDecimals); // Should throw
+      normalizeToDecimals(input, currentDecimals); // Should throw
     }).toThrow('Decimals greater than 18 are not supported.');
   });
 });

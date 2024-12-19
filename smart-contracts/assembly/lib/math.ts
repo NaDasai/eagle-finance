@@ -17,7 +17,7 @@ export function f64ToU256(value: f64, decimals: i32 = 18): u256 {
 }
 
 // Utility: Normalize a number with fewer decimals to 18 decimals
-export function normalizeTo18Decimals(value: u256, currentDecimals: i32): u256 {
+export function normalizeToDecimals(value: u256, currentDecimals: i32): u256 {
   assert(currentDecimals >= 0, 'Current decimals must be non-negative.');
   assert(
     currentDecimals <= 18,
