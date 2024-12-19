@@ -82,13 +82,17 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  assertIsSmartContract(registryAddress);
+  // assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
 
   // Store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
+
+  // store the a and b protocol fees
+  Storage.set(aProtocolFee, u256ToBytes(u256.Zero));
+  Storage.set(bProtocolFee, u256ToBytes(u256.Zero));
 
   // Store the tokens a and b addresses
   Storage.set(aTokenAddress, stringToBytes(aAddress));
@@ -245,6 +249,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // netInput = amountIn - totalFee
   const netInput = SafeMath256.sub(amountIn, totalFee);
 
+  print(`netInput: ${netInput.toString()}`);
+
   // Get the address of the other token in the pool
   const tokenOutAddress =
     tokenInAddress == aTokenAddressStored
@@ -261,10 +267,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // Esnure that the amountOut is greater than zero
   assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
 
-  // Transfer the amountIn to the contract
+  // // Transfer the amountIn to the contract
   new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
 
-  // Transfer the amountOut to the caller
+  // // Transfer the amountOut to the caller
   new IMRC20(new Address(tokenOutAddress)).transferFrom(
     Context.callee(),
     Context.caller(),
