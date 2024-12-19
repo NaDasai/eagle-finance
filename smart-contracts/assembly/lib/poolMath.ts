@@ -1,7 +1,7 @@
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
 import { print } from '@massalabs/massa-as-sdk';
-import { f64ToU256, normalizeToDecimals } from './math';
+import { f64ToU256 } from './math';
 import { DEFAULT_DECIMALS } from '../utils';
 
 const ONE_HUNDRED_PERCENT = 100 * 10 ** DEFAULT_DECIMALS;
@@ -13,10 +13,13 @@ export function getInputAmountNet(inputAmount: u256, feeRate: f64): u256 {
   print('inputAmount : ' + inputAmount.toString());
   print('Fee rate : ' + feeRate.toString());
   // Convert feeRate to a scaled integer (feeRate)
-  const feeRateScaled = u256.fromF64(feeRate);
+  const feeRateScaled = f64ToU256(feeRate);
 
-  // Calculate the fee as: (inputAmount * feeRateScaled)
-  const fee = SafeMath256.mul(inputAmount, feeRateScaled);
+  // Calculate the fee as: (inputAmount * feeRateScaled) / 100
+  const fee = SafeMath256.div(
+    SafeMath256.mul(inputAmount, feeRateScaled),
+    ONE_HUNDRED_PERCENT,
+  );
 
   // Subtract the fee from the input amount
   const inputAmountNet = SafeMath256.sub(inputAmount, fee);
