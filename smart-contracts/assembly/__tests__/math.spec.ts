@@ -56,7 +56,7 @@ describe('test convertU256To18Decimals', () => {
   it('normalize 9 decimals to 18 decimals', () => {
     const input = u256.from(1000000000); // 1e9 (with 9 decimals)
     const currentDecimals = 9;
-    const result = normalizeToDecimals(input, currentDecimals);
+    const result = normalizeToDecimals(input, currentDecimals, 18);
     const expected = u256.from(1000000000000000000); // 1e18
 
     print(
@@ -68,7 +68,7 @@ describe('test convertU256To18Decimals', () => {
   it('already normalized to 18 decimals', () => {
     const input = u256.from(1000000000000000000); // 1e18
     const currentDecimals = 18;
-    const result = normalizeToDecimals(input, currentDecimals);
+    const result = normalizeToDecimals(input, currentDecimals, 18);
     const expected = u256.from(1000000000000000000); // No change
 
     print(
@@ -80,7 +80,7 @@ describe('test convertU256To18Decimals', () => {
   it('normalize 6 decimals to 18 decimals', () => {
     const input = u256.from(234567); // 234567 (with 6 decimals)
     const currentDecimals = 6;
-    const result = normalizeToDecimals(input, currentDecimals);
+    const result = normalizeToDecimals(input, currentDecimals, 18);
     const expected = u256.from(234567000000000000); // 234567 * 10^12
 
     print(
@@ -92,7 +92,7 @@ describe('test convertU256To18Decimals', () => {
   it('handle 0 value with any decimals', () => {
     const input = u256.from(0); // Zero
     const currentDecimals = 9;
-    const result = normalizeToDecimals(input, currentDecimals);
+    const result = normalizeToDecimals(input, currentDecimals, 18);
     const expected = u256.from(0); // Still zero
 
     print(
@@ -106,7 +106,7 @@ describe('test convertU256To18Decimals', () => {
       const input = u256.from(123456); // Example value
       const currentDecimals = 20; // Invalid decimals (>18)
 
-      normalizeToDecimals(input, currentDecimals); // Should throw
+      normalizeToDecimals(input, currentDecimals, 18); // Should throw
     }).toThrow('Decimals greater than 18 are not supported.');
   });
 
