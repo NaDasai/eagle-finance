@@ -1,6 +1,6 @@
 import { print, resetStorage } from '@massalabs/massa-as-sdk';
 import { SafeMath256 } from '../lib/safeMath';
-import { u256 } from 'as-bignum/assembly';
+import { u128, u256 } from 'as-bignum/assembly';
 import { f64ToU256, normalizeToDecimals } from '../lib/math';
 
 beforeEach(() => {
@@ -108,5 +108,29 @@ describe('test convertU256To18Decimals', () => {
 
       normalizeToDecimals(input, currentDecimals); // Should throw
     }).toThrow('Decimals greater than 18 are not supported.');
+  });
+
+  it('normalize 18 decimals to 9 decimals', () => {
+    const input = u256.from(1000000000000000000); // 1e18
+    const currentDecimals = 18;
+    const result = normalizeToDecimals(input, currentDecimals, 9);
+    const expected = u256.from(1000000000); // 1e9
+
+    print(
+      `normalizeToDecimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
+    );
+    expect(result).toStrictEqual(expected);
+  });
+
+  it('normalize 18 decimals to 6 decimals', () => {
+    const input = u256.fromU128(u128.fromString('123456000000000000000')); // 123.456 * 10^18
+    const currentDecimals = 18;
+    const result = normalizeToDecimals(input, 18, 6);
+    const expected = u256.from(123456000); // 123.456 * 10^6
+
+    print(
+      `normalizeTo18Decimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
+    );
+    expect(result).toStrictEqual(expected);
   });
 });
