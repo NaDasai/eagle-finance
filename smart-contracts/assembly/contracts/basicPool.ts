@@ -14,6 +14,7 @@ import {
   bytesToF64,
   bytesToString,
   bytesToU256,
+  byteToU8,
   f64ToBytes,
   stringToBytes,
   u256ToBytes,
@@ -24,7 +25,7 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
-import { isBetweenZeroAndOne } from '../lib/math';
+import { isBetweenZeroAndOne, normalizeToDecimals } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
@@ -32,6 +33,7 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
+import { DEFAULT_DECIMALS } from '../utils';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -138,8 +140,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  const amountA = args.nextU256().expect('Amount A is missing or invalid');
-  const amountB = args.nextU256().expect('Amount B is missing or invalid');
+  let amountA = args.nextU256().expect('Amount A is missing or invalid');
+  let amountB = args.nextU256().expect('Amount B is missing or invalid');
 
   // Retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
@@ -148,6 +150,24 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // Get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
+
+  // Get the Decimals of the two tokens in the pool
+  const aTokenDecimalsStored = _getATokenDecimals();
+  const bTokenDecimalsStored = _getBTokenDecimals();
+
+  // normalize the amount of token A to default decimals
+  amountA = normalizeToDecimals(
+    amountA,
+    aTokenDecimalsStored,
+    DEFAULT_DECIMALS,
+  );
+
+  // normalize the amount of token B to default decimals
+  amountB = normalizeToDecimals(
+    amountB,
+    bTokenDecimalsStored,
+    DEFAULT_DECIMALS,
+  );
 
   // Get the total supply of the LP token
   const totalSupply: u256 = liquidityManager.getTotalSupply();
@@ -235,7 +255,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     .expect('TokenIn is missing or invalid');
 
   // Get the amount of tokenIn to swap
-  const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -245,6 +265,18 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     tokenInAddress == aTokenAddressStored ||
       tokenInAddress == bTokenAddressStored,
     'Invalid token address',
+  );
+
+  const tokenInDecimalsStored =
+    tokenInAddress == aTokenAddressStored
+      ? _getATokenDecimals()
+      : _getBTokenDecimals();
+
+  // Normalize the amount of tokenIn to default decimals
+  amountIn = normalizeToDecimals(
+    amountIn,
+    tokenInDecimalsStored,
+    DEFAULT_DECIMALS,
   );
 
   // Calculate fees
@@ -441,7 +473,7 @@ export function getSwapOutEstimation(
   const tokenInAddress = args
     .nextString()
     .expect('TokenInAddress is missing or invalid');
-  const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -457,6 +489,16 @@ export function getSwapOutEstimation(
     tokenInAddress == aTokenAddressStored
       ? bTokenAddressStored
       : aTokenAddressStored;
+
+  // Get the decimals of the token in
+  const tokenInDecimalsStored = _getTokenDecimals(tokenInAddress);
+
+  // Normalize the amount of tokenIn to default decimals
+  amountIn = normalizeToDecimals(
+    amountIn,
+    tokenInDecimalsStored,
+    DEFAULT_DECIMALS,
+  );
 
   // Get current reserves
   const reserveIn = _getReserve(tokenInAddress);
@@ -713,4 +755,25 @@ function _updateReserveA(amount: u256): void {
  */
 function _updateReserveB(amount: u256): void {
   Storage.set(bTokenReserve, u256ToBytes(amount));
+}
+
+function _getTokenDecimals(tokenAddress: string): u8 {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  if (tokenAddress == aTokenAddressStored) {
+    return _getATokenDecimals();
+  } else if (tokenAddress == bTokenAddressStored) {
+    return _getBTokenDecimals();
+  } else {
+    throw new Error('Invalid token address');
+  }
+}
+
+function _getATokenDecimals(): u8 {
+  return byteToU8(Storage.get(aTokenDecimals));
+}
+
+function _getBTokenDecimals(): u8 {
+  return byteToU8(Storage.get(bTokenDecimals));
 }

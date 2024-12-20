@@ -24,3 +24,10 @@ export function _buildPoolKey(
 }
 
 export const DEFAULT_DECIMALS = 9;
+
+export function assertIsValidTokenDecimals(decimals: u8): void {
+  assert(
+    decimals == 9 || decimals == 18,
+    'Invalid token decimals. Must be 9 or 18.',
+  );
+}

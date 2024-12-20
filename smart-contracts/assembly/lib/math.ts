@@ -47,7 +47,7 @@ export function normalizeToDecimals(
     return SafeMath256.div(value, divisor);
   }
 
-  return value; // Already 18 decimals
+  return value; // Already default decimals
 }
 
 // function to check beteen 0 and 1

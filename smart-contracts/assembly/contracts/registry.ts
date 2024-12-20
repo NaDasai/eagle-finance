@@ -24,7 +24,7 @@ import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
-import { _buildPoolKey } from '../utils';
+import { _buildPoolKey, assertIsValidTokenDecimals } from '../utils';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { isBetweenZeroAndOne } from '../lib/math';
@@ -114,6 +114,10 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
 
   const aTokenDecimals = new IMRC20(new Address(aTokenAddress)).decimals();
   const bTokenDecimals = new IMRC20(new Address(bTokenAddress)).decimals();
+
+  // ensure that the token decimals are either 9 or 18
+  assertIsValidTokenDecimals(aTokenDecimals);
+  assertIsValidTokenDecimals(bTokenDecimals);
 
   // Get the fee share protocol stored in the registry
   const feeShareProtocolStored = _getFeeShareProtocol();
