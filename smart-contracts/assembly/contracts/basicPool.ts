@@ -41,6 +41,10 @@ export const bTokenReserve = stringToBytes('bTokenReserve');
 export const aTokenAddress = stringToBytes('tokenA');
 // storage key containning address of the token B inside the pool
 export const bTokenAddress = stringToBytes('tokenB');
+// storage key containning the decimals of the token A inside the pool
+export const aTokenDecimals = stringToBytes('aTokenDecimals');
+// storage key containning the decimals of the token B inside the pool
+export const bTokenDecimals = stringToBytes('bTokenDecimals');
 // storage key containning the accumulated fee protocol of the token A inside the pool
 export const aProtocolFee = stringToBytes('aProtocolFee');
 // storage key containning the accumulated fee protocol of the token B inside the pool
@@ -69,6 +73,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Read the arguments
   const aAddress = args.nextString().expect('Address A is missing or invalid');
   const bAddress = args.nextString().expect('Address B is missing or invalid');
+
+  const aDecimals = args.nextU8().expect('Decimals A is missing or invalid');
+  const bDecimals = args.nextU8().expect('Decimals B is missing or invalid');
 
   const inputFeeRate = args
     .nextF64()
@@ -104,6 +111,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Store the tokens a and b addresses reserves in the contract storage
   Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
   Storage.set(bTokenReserve, u256ToBytes(u256.Zero));
+
+  // Store the tokens a and b decimals in the contract storage
+  Storage.set(aTokenDecimals, u64ToBytes(aDecimals));
+  Storage.set(bTokenDecimals, u64ToBytes(bDecimals));
 
   // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));

@@ -19,6 +19,8 @@ export class IBasicPool {
    *
    * @param {string} aTokenAddress - Address of Token A.
    * @param {string} bTokenAddress - Address of Token B.
+   * @param {u8} aTokenDecimals - Decimals of Token A.
+   * @param {u8} bTokenDecimals - Decimals of Token B.
    * @param {f64} feeRate - Fee rate for the pool.
    * @param {f64} feeShareProtocol - Protocol fee share.
    * @param {string} registryAddress - Address of the registry contract.
@@ -26,6 +28,8 @@ export class IBasicPool {
   init(
     aTokenAddress: string,
     bTokenAddress: string,
+    aTokenDecimals: u8,
+    bTokenDecimals: u8,
     feeRate: f64,
     feeShareProtocol: f64,
     registryAddress: string,
@@ -33,6 +37,8 @@ export class IBasicPool {
     const args = new Args()
       .add(aTokenAddress)
       .add(bTokenAddress)
+      .add(aTokenDecimals)
+      .add(bTokenDecimals)
       .add(feeRate)
       .add(feeShareProtocol)
       .add(registryAddress);

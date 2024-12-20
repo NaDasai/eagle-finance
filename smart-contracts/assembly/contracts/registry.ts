@@ -28,6 +28,7 @@ import { _buildPoolKey } from '../utils';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { isBetweenZeroAndOne } from '../lib/math';
+import { IMRC20 } from '../interfaces/IMRC20';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
@@ -111,6 +112,9 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
 
   assert(!pools.contains(poolKey), 'Pool already in the registery');
 
+  const aTokenDecimals = new IMRC20(new Address(aTokenAddress)).decimals();
+  const bTokenDecimals = new IMRC20(new Address(bTokenAddress)).decimals();
+
   // Get the fee share protocol stored in the registry
   const feeShareProtocolStored = _getFeeShareProtocol();
 
@@ -124,6 +128,8 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
   poolContract.init(
     aTokenAddress,
     bTokenAddress,
+    aTokenDecimals,
+    bTokenDecimals,
     inputFeeRate,
     feeShareProtocolStored,
     Context.callee().toString(), // registry address
