@@ -757,6 +757,11 @@ function _updateReserveB(amount: u256): void {
   Storage.set(bTokenReserve, u256ToBytes(amount));
 }
 
+/**
+ * Retrieves the decimals of a token in the pool.
+ * @param tokenAddress - The address of the token.
+ * @returns The decimals of the token.
+ */
 function _getTokenDecimals(tokenAddress: string): u8 {
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -770,10 +775,18 @@ function _getTokenDecimals(tokenAddress: string): u8 {
   }
 }
 
+/**
+ * Retrieves the decimals of token A in the pool.
+ * @returns The decimals of token A.
+ */
 function _getATokenDecimals(): u8 {
   return byteToU8(Storage.get(aTokenDecimals));
 }
 
+/**
+ * Retrieves the decimals of token B in the pool.
+ * @returns The decimals of token B.
+ */
 function _getBTokenDecimals(): u8 {
   return byteToU8(Storage.get(bTokenDecimals));
 }
