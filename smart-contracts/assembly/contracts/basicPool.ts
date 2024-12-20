@@ -346,6 +346,12 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   );
 }
 
+export function swapWithMas(binaryArgs: StaticArray<u8>): void {
+  // TODO: wrap mas to wmas
+  
+  // TODO: call swap function with wmas and the other token
+}
+
 /**
  * Claims accumulated protocol fees for a given token.
  * @returns void
