@@ -19,9 +19,11 @@ export function _buildPoolKey(
   tokenA: string,
   tokenB: string,
   inputFeeRate: f64,
+  wmasAddress: string = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU',
 ): string {
   // sort the addresses to ensure that the key of the pool is always the same
-  if (tokenA > tokenB) {
+  // Ensure WMAS is always tokenB
+  if (tokenA === wmasAddress || (tokenB !== wmasAddress && tokenA > tokenB)) {
     const temp = tokenA;
     tokenA = tokenB;
     tokenB = temp;
