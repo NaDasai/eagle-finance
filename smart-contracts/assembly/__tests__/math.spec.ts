@@ -19,7 +19,7 @@ describe('test f64ToU256', () => {
   it('test f64ToU256', () => {
     const input = 0.001; // f64 input
     const result = f64ToU256(input); // Call the function to test
-    const expected = u256.from(1000000000000000); // 0.001 * 10^18
+    const expected = u256.from(1000000); // 0.001 * 10^9
 
     print(`f64ToU256(${input}): ${result.toString()}`);
     expect(result).toStrictEqual(expected); // Validate the result
@@ -28,7 +28,7 @@ describe('test f64ToU256', () => {
   it('test f64ToU256 with larget number 1', () => {
     const input = 1; // f64 input
     const result = f64ToU256(input);
-    const expected = u256.from(1000000000000000000); // 1 * 10^18
+    const expected = u256.from(1000000000); // 1 * 10^9
 
     print(`f64ToU256(${input}): ${result.toString()}`);
     expect(result).toStrictEqual(expected);
@@ -37,7 +37,7 @@ describe('test f64ToU256', () => {
   it('test f64ToU256 with edge case (zero)', () => {
     const input = 0.0; // f64 input
     const result = f64ToU256(input);
-    const expected = u256.from(0); // 0 * 10^18
+    const expected = u256.from(0); // 0 * 10^9
 
     print(`f64ToU256(${input}): ${result.toString()}`);
     expect(result).toStrictEqual(expected);
@@ -57,7 +57,7 @@ describe('test convertU256To18Decimals', () => {
     const input = u256.from(1000000000); // 1e9 (with 9 decimals)
     const currentDecimals = 9;
     const result = normalizeToDecimals(input, currentDecimals, 18);
-    const expected = u256.from(1000000000000000000); // 1e18
+    const expected = u256.from(1000000000000000000); // 1e9
 
     print(
       `normalizeToDecimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
