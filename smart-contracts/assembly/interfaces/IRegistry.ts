@@ -5,6 +5,7 @@ import {
   byteToBool,
 } from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
+import { Pool } from '../structs/pool';
 
 export class IRegistery {
   _origin: Address;
@@ -20,9 +21,11 @@ export class IRegistery {
 
   /**
    * Calls the `constructor` function of the registry contract.
+   * @param {f64} feeShareProtocol - Protocol fee share.
    */
-  init(): void {
-    call(this._origin, 'constructor', new Args(), 0);
+  init(feeShareProtocol: f64): void {
+    const args = new Args().add(feeShareProtocol);
+    call(this._origin, 'constructor', args, 0);
   }
 
   /**
@@ -30,19 +33,16 @@ export class IRegistery {
    *
    * @param {string} aTokenAddress - Address of Token A.
    * @param {string} bTokenAddress - Address of Token B.
-   * @param {f64} feeShareProtocol - Protocol fee share.
    * @param {f64} inputFeeRate - Input fee rate.
    */
   createNewPool(
     aTokenAddress: string,
     bTokenAddress: string,
-    feeShareProtocol: f64,
     inputFeeRate: f64,
   ): void {
     const args = new Args()
       .add(aTokenAddress)
       .add(bTokenAddress)
-      .add(feeShareProtocol)
       .add(inputFeeRate);
 
     call(this._origin, 'createNewPool', args, 0);
@@ -51,18 +51,25 @@ export class IRegistery {
   /**
    * Calls the `getPools` function of the registry contract to retrieve all pools.
    *
-   * @returns {string[]} An array of pool keys.
+   * @returns {Pool[]} An array of Pool objects.
    */
-  getPools(): string[] {
+  getPools(): Pool[] {
     const result = call(this._origin, 'getPools', new Args(), 0);
+    const args = new Args(result);
+    const pools: Pool[] = [];
 
-    const deserialized = new Args(result).nextStringArray().unwrap();
-    return deserialized;
+    const poolsLength = args.getU32();
+    for (let i = 0; i < poolsLength; i++) {
+      const pool = args.nextSerializableObject<Pool>();
+      pools.push(pool);
+    }
+
+    return pools;
   }
 
   /**
-   * calls the `getPool` function of the registry contract.
-   * @returns {string} The pool address.
+   * calls the `getFeeShareProtocol` function of the registry contract.
+   * @returns {f64} The fee share protocol.
    */
   getFeeShareProtocol(): f64 {
     return bytesToF64(call(this._origin, 'getFeeShareProtocol', new Args(), 0));
@@ -105,6 +112,16 @@ export class IRegistery {
   isOwner(address: string): bool {
     const args = new Args().add(address);
     return byteToBool(call(this._origin, 'isOwner', args, 0));
+  }
+
+  /**
+   * Set the fee share protocol receiver
+   * @param {string} receiver  The fee share protocol receiver
+   * @returns  void
+   */
+  setFeeShareProtocolReceiver(receiver: string): void {
+    const args = new Args().add(receiver);
+    call(this._origin, 'setFeeShareProtocolReceiver', args, 0);
   }
 
   /**

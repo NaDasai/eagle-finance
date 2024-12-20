@@ -63,12 +63,9 @@ export class IBasicPool {
 
   /**
    * Claims accumulated protocol fees.
-   *
-   * @param {string} tokenAddress - Address of the token to claim fees for.
    */
-  claimProtocolFees(tokenAddress: string): void {
-    const args = new Args().add(tokenAddress);
-    call(this._origin, 'claimProtocolFees', args, 0);
+  claimProtocolFees(): void {
+    call(this._origin, 'claimProtocolFees', new Args(), 0);
   }
 
   /**
@@ -99,6 +96,44 @@ export class IBasicPool {
   getSwapOutEstimation(tokenInAddress: string, amountIn: u256): u256 {
     const args = new Args().add(tokenInAddress).add(u256ToBytes(amountIn));
     const result = call(this._origin, 'getSwapOutEstimation', args, 0);
+    return bytesToU256(result);
+  }
+
+  /**
+   * Retrieves the balance of the LP token for a given user.
+   * @param {string} userAddress - Address of the user.
+   * @returns {u256}  balance - The balance of the LP token for the given user.
+   */
+  getLPBalance(userAddress: string): u256 {
+    const args = new Args().add(userAddress);
+    const result = call(this._origin, 'getLPBalance', args, 0);
+    return bytesToU256(result);
+  }
+
+  /**
+   * Retrieves the local reserve of token A.
+   * @returns {u256} The current reserve of token A in the pool.
+   */
+  getLocalReserveA(): u256 {
+    const result = call(this._origin, 'getLocalReserveA', new Args(), 0);
+    return bytesToU256(result);
+  }
+
+  /**
+   * Retrieves the local reserve of token B.
+   * @returns {u256} The current reserve of token B in the pool.
+   */
+  getLocalReserveB(): u256 {
+    const result = call(this._origin, 'getLocalReserveB', new Args(), 0);
+    return bytesToU256(result);
+  }
+
+  /**
+   * Retrieves the price of Token A in terms of Token B.
+   * @returns {u256}  The price of token A in terms of token B, as a u256 represented as a fraction.
+   */
+  getPrice(): u256 {
+    const result = call(this._origin, 'getPrice', new Args(), 0);
     return bytesToU256(result);
   }
 }
