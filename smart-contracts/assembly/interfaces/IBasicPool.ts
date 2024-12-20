@@ -1,9 +1,8 @@
 import { Args, bytesToU256, u256ToBytes } from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
 import { u256 } from 'as-bignum/assembly';
-import { feeShareProtocol } from '../contracts/registry';
 
-export class IPool {
+export class IBasicPool {
   _origin: Address;
 
   /**
@@ -39,7 +38,7 @@ export class IPool {
       .add(registryAddress);
     call(this._origin, 'constructor', args, u64(500000000));
   }
-  
+
   /**
    * Adds liquidity to the pool.
    *

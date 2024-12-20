@@ -23,7 +23,7 @@ import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
-import { getAmountOut, getFeeFromAmount } from '../lib/poolMath';
+import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
 import { isBetweenZeroAndOne } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';

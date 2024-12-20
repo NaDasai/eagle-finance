@@ -13,7 +13,7 @@ import {
   getLocalReserveB,
   getLPBalance,
   swap,
-} from '../contracts/pool';
+} from '../contracts/basicPool';
 import { Args, bytesToU256, bytesToU64 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { DEFAULT_DECIMALS } from '../utils';

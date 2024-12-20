@@ -26,7 +26,7 @@ import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
 import { _buildPoolKey } from '../utils';
 import { onlyOwner } from '../utils/ownership';
-import { IPool } from '../interfaces/IPool';
+import { IBasicPool } from '../interfaces/IBasicPool';
 import { isBetweenZeroAndOne } from '../lib/math';
 
 // pools persistent map to store the pools in the registery
@@ -115,11 +115,11 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
   const feeShareProtocolStored = _getFeeShareProtocol();
 
   //  deploy the pool contract
-  const poolByteCode: StaticArray<u8> = fileToByteArray('build/pool.wasm');
+  const poolByteCode: StaticArray<u8> = fileToByteArray('build/basicPool.wasm');
   const poolAddress = createSC(poolByteCode);
 
   //  Init the pool contract
-  const poolContract = new IPool(poolAddress);
+  const poolContract = new IBasicPool(poolAddress);
 
   poolContract.init(
     aTokenAddress,
