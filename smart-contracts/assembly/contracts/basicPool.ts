@@ -1,3 +1,6 @@
+// This smart contract implements a liquidity pool for trading two MRC-20 tokens on the Massa blockchain.
+// **IMPORTANT**: This pool **only accepts MRC-20 tokens**. To use the native MAS coin, it must be **wrapped to WMAS** first.
+//  (MAS -> WMAS: native MAS must be wrapped into MRC-20 WMAS via a wrapping contract to be used in this pool).
 import {
   Context,
   generateEvent,
@@ -11,6 +14,7 @@ import {
   bytesToF64,
   bytesToString,
   bytesToU256,
+  byteToU8,
   f64ToBytes,
   stringToBytes,
   u256ToBytes,
@@ -20,8 +24,8 @@ import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
-import { getAmountOut, getFeeFromAmount } from '../lib/poolMath';
-import { isBetweenZeroAndOne } from '../lib/math';
+import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
+import { isBetweenZeroAndOne, normalizeToDecimals } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
@@ -29,6 +33,7 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
+import { DEFAULT_DECIMALS } from '../utils';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -38,6 +43,10 @@ export const bTokenReserve = stringToBytes('bTokenReserve');
 export const aTokenAddress = stringToBytes('tokenA');
 // storage key containning address of the token B inside the pool
 export const bTokenAddress = stringToBytes('tokenB');
+// storage key containning the decimals of the token A inside the pool
+export const aTokenDecimals = stringToBytes('aTokenDecimals');
+// storage key containning the decimals of the token B inside the pool
+export const bTokenDecimals = stringToBytes('bTokenDecimals');
 // storage key containning the accumulated fee protocol of the token A inside the pool
 export const aProtocolFee = stringToBytes('aProtocolFee');
 // storage key containning the accumulated fee protocol of the token B inside the pool
@@ -67,6 +76,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const aAddress = args.nextString().expect('Address A is missing or invalid');
   const bAddress = args.nextString().expect('Address B is missing or invalid');
 
+  const aDecimals = args.nextU8().expect('Decimals A is missing or invalid');
+  const bDecimals = args.nextU8().expect('Decimals B is missing or invalid');
+
   const inputFeeRate = args
     .nextF64()
     .expect('Input fee rate is missing or invalid');
@@ -82,13 +94,17 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  assertIsSmartContract(registryAddress);
+  // assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
 
   // Store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
+
+  // store the a and b protocol fees
+  Storage.set(aProtocolFee, u256ToBytes(u256.Zero));
+  Storage.set(bProtocolFee, u256ToBytes(u256.Zero));
 
   // Store the tokens a and b addresses
   Storage.set(aTokenAddress, stringToBytes(aAddress));
@@ -97,6 +113,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Store the tokens a and b addresses reserves in the contract storage
   Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
   Storage.set(bTokenReserve, u256ToBytes(u256.Zero));
+
+  // Store the tokens a and b decimals in the contract storage
+  Storage.set(aTokenDecimals, u64ToBytes(aDecimals));
+  Storage.set(bTokenDecimals, u64ToBytes(bDecimals));
 
   // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
@@ -120,8 +140,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  const amountA = args.nextU256().expect('Amount A is missing or invalid');
-  const amountB = args.nextU256().expect('Amount B is missing or invalid');
+  let amountA = args.nextU256().expect('Amount A is missing or invalid');
+  let amountB = args.nextU256().expect('Amount B is missing or invalid');
 
   // Retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
@@ -130,6 +150,24 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // Get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
+
+  // Get the Decimals of the two tokens in the pool
+  const aTokenDecimalsStored = _getATokenDecimals();
+  const bTokenDecimalsStored = _getBTokenDecimals();
+
+  // normalize the amount of token A to default decimals
+  amountA = normalizeToDecimals(
+    amountA,
+    aTokenDecimalsStored,
+    DEFAULT_DECIMALS,
+  );
+
+  // normalize the amount of token B to default decimals
+  amountB = normalizeToDecimals(
+    amountB,
+    bTokenDecimalsStored,
+    DEFAULT_DECIMALS,
+  );
 
   // Get the total supply of the LP token
   const totalSupply: u256 = liquidityManager.getTotalSupply();
@@ -217,7 +255,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     .expect('TokenIn is missing or invalid');
 
   // Get the amount of tokenIn to swap
-  const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -227,6 +265,18 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     tokenInAddress == aTokenAddressStored ||
       tokenInAddress == bTokenAddressStored,
     'Invalid token address',
+  );
+
+  const tokenInDecimalsStored =
+    tokenInAddress == aTokenAddressStored
+      ? _getATokenDecimals()
+      : _getBTokenDecimals();
+
+  // Normalize the amount of tokenIn to default decimals
+  amountIn = normalizeToDecimals(
+    amountIn,
+    tokenInDecimalsStored,
+    DEFAULT_DECIMALS,
   );
 
   // Calculate fees
@@ -244,6 +294,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // netInput = amountIn - totalFee
   const netInput = SafeMath256.sub(amountIn, totalFee);
+
+  print(`netInput: ${netInput.toString()}`);
 
   // Get the address of the other token in the pool
   const tokenOutAddress =
@@ -292,6 +344,12 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   generateEvent(
     `Swap: In=${amountIn.toString()} of ${tokenInAddress}, Out=${amountOut.toString()} of ${tokenOutAddress}, Fees: total=${totalFee.toString()}, protocol=${protocolFee.toString()}, lp=${lpFee.toString()}`,
   );
+}
+
+export function swapWithMas(binaryArgs: StaticArray<u8>): void {
+  // TODO: wrap mas to wmas
+  
+  // TODO: call swap function with wmas and the other token
 }
 
 /**
@@ -421,7 +479,7 @@ export function getSwapOutEstimation(
   const tokenInAddress = args
     .nextString()
     .expect('TokenInAddress is missing or invalid');
-  const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -437,6 +495,16 @@ export function getSwapOutEstimation(
     tokenInAddress == aTokenAddressStored
       ? bTokenAddressStored
       : aTokenAddressStored;
+
+  // Get the decimals of the token in
+  const tokenInDecimalsStored = _getTokenDecimals(tokenInAddress);
+
+  // Normalize the amount of tokenIn to default decimals
+  amountIn = normalizeToDecimals(
+    amountIn,
+    tokenInDecimalsStored,
+    DEFAULT_DECIMALS,
+  );
 
   // Get current reserves
   const reserveIn = _getReserve(tokenInAddress);
@@ -693,4 +761,38 @@ function _updateReserveA(amount: u256): void {
  */
 function _updateReserveB(amount: u256): void {
   Storage.set(bTokenReserve, u256ToBytes(amount));
+}
+
+/**
+ * Retrieves the decimals of a token in the pool.
+ * @param tokenAddress - The address of the token.
+ * @returns The decimals of the token.
+ */
+function _getTokenDecimals(tokenAddress: string): u8 {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  if (tokenAddress == aTokenAddressStored) {
+    return _getATokenDecimals();
+  } else if (tokenAddress == bTokenAddressStored) {
+    return _getBTokenDecimals();
+  } else {
+    throw new Error('Invalid token address');
+  }
+}
+
+/**
+ * Retrieves the decimals of token A in the pool.
+ * @returns The decimals of token A.
+ */
+function _getATokenDecimals(): u8 {
+  return byteToU8(Storage.get(aTokenDecimals));
+}
+
+/**
+ * Retrieves the decimals of token B in the pool.
+ * @returns The decimals of token B.
+ */
+function _getBTokenDecimals(): u8 {
+  return byteToU8(Storage.get(bTokenDecimals));
 }

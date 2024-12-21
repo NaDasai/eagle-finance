@@ -12,7 +12,7 @@ const provider = Web3Provider.buildnet(account);
 
 console.log('Deploying contract...');
 
-const byteCode = getScByteCode('build', 'pool.wasm');
+const byteCode = getScByteCode('build', 'basicPool.wasm');
 
 const constructorArgs = new Args()
   .addString('AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA') // token a address

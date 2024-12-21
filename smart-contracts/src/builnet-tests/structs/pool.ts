@@ -6,7 +6,6 @@ export class Pool implements Serializable<Pool> {
     public aTokenddress: string = '',
     public bTokenAddress: string = '',
     public inputFeeRate: number = 0,
-    public feeShareProtocol: number = 0,
   ) {}
 
   serialize(): Uint8Array {
@@ -15,7 +14,6 @@ export class Pool implements Serializable<Pool> {
       .addString(this.aTokenddress)
       .addString(this.bTokenAddress)
       .addF64(this.inputFeeRate)
-      .addF64(this.feeShareProtocol)
       .serialize();
 
     return new Uint8Array(args);
@@ -28,7 +26,6 @@ export class Pool implements Serializable<Pool> {
     this.aTokenddress = args.nextString();
     this.bTokenAddress = args.nextString();
     this.inputFeeRate = args.nextF64();
-    this.feeShareProtocol = args.nextF64();
 
     return { instance: this, offset: args.getOffset() };
   }

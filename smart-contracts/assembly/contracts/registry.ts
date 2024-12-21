@@ -24,10 +24,11 @@ import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
-import { _buildPoolKey } from '../utils';
+import { _buildPoolKey, assertIsValidTokenDecimals } from '../utils';
 import { onlyOwner } from '../utils/ownership';
-import { IPool } from '../interfaces/IPool';
+import { IBasicPool } from '../interfaces/IBasicPool';
 import { isBetweenZeroAndOne } from '../lib/math';
+import { IMRC20 } from '../interfaces/IMRC20';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
@@ -111,19 +112,28 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
 
   assert(!pools.contains(poolKey), 'Pool already in the registery');
 
+  const aTokenDecimals = new IMRC20(new Address(aTokenAddress)).decimals();
+  const bTokenDecimals = new IMRC20(new Address(bTokenAddress)).decimals();
+
+  // ensure that the token decimals are either 9 or 18
+  assertIsValidTokenDecimals(aTokenDecimals);
+  assertIsValidTokenDecimals(bTokenDecimals);
+
   // Get the fee share protocol stored in the registry
   const feeShareProtocolStored = _getFeeShareProtocol();
 
   //  deploy the pool contract
-  const poolByteCode: StaticArray<u8> = fileToByteArray('build/pool.wasm');
+  const poolByteCode: StaticArray<u8> = fileToByteArray('build/basicPool.wasm');
   const poolAddress = createSC(poolByteCode);
 
   //  Init the pool contract
-  const poolContract = new IPool(poolAddress);
+  const poolContract = new IBasicPool(poolAddress);
 
   poolContract.init(
     aTokenAddress,
     bTokenAddress,
+    aTokenDecimals,
+    bTokenDecimals,
     inputFeeRate,
     feeShareProtocolStored,
     Context.callee().toString(), // registry address
