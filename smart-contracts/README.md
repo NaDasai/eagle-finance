@@ -1,12 +1,12 @@
-# eagle-finance
+# Eagle Finance
 
 ## Introduction
 
-**eagle-finance** is a decentralized finance (DeFi) protocol built on the Massa blockchain, providing a platform for automated liquidity provision and token swapping. This project consists of smart contracts implemented using AssemblyScript, offering efficient and secure trading capabilities for MRC-20 tokens. The core components are:
+**Eagle Finance** is a decentralized exchange (dex) protocol built on the Massa blockchain, providing a platform for automated liquidity provision and token swapping. This project consists of smart contracts implemented using AssemblyScript, offering efficient and secure trading capabilities for MRC-20 tokens. The core components are:
 
 - **Basic Pool:** A smart contract that enables users to add liquidity and swap two MRC-20 tokens.
 - **Registry:** A smart contract that manages the deployment and storage of different liquidity pools.
-- **MRC-20 Token:** A standard token contract based on Massa's MRC-20 specification.
+- **MRC-20 Token:** A standard token contract based on Massa's MRC-20 specification with additional metadata functionalities like url image and description.
 
 **IMPORTANT:** This implementation **ONLY supports MRC-20 tokens**. To use native MAS coins, they must be wrapped into an MRC-20 token (e.g., WMAS) using a separate wrapping contract.
 
@@ -17,7 +17,7 @@ The project is structured as follows:
 - `contracts/`: Contains the source code for all smart contracts and related libraries.
   - `basicPool.ts`: Implements the core logic for a liquidity pool.
   - `registry.ts`: Manages pool deployments and configurations.
-  - `mrc20.ts`: Provides a basic MRC-20 token implementation.
+  - `mrc20.ts`: Provides a better MRC-20 token implementation.
   - `lib/`: Contains core libraries and logic for the contracts
     - `basicPoolMath.ts`: Implements mathematical functions for calculating swaps and fees in the basic pool.
     - `liquidityManager.ts`: Manages liquidity and token balances within the contracts.
@@ -49,7 +49,7 @@ This contract implements a liquidity pool for trading two MRC-20 tokens. It allo
 - **Swap:** Exchange tokens A for B or vice-versa based on the current pool reserves.
 - **Claim Protocol Fees:** Collect accumulated fees that are reserved for the protocol.
 - **Get Swap Estimation**: get the estimation for the swap before executing it.
-- **Synchronize Reserves**: syncs the reserves of the pool with the current balances of the tokens.
+- **Synchronize Reserves**: syncs the reserves of the pool with the current balances of the tokens. Only the owner can call this function.
 - **Get the LP Balance of a user**: Get the balance of LP tokens of a user in the contract.
 - **Get the local reserve of A**: returns the reserve of the token A in the pool.
 - **Get the local reserve of B**: returns the reserve of the token B in the pool.
@@ -142,6 +142,7 @@ This contract implements a standard MRC-20 token, providing functionalities to:
 - `constructor(binaryArgs: StaticArray<u8>): void`: Constructor for the MRC-20 token.
 - `url(_: StaticArray<u8>): StaticArray<u8>`: Returns the token URL.
 - `description(_: StaticArray<u8>): StaticArray<u8>`: Returns the token description.
+- other default MRC-20 functions like `transfer`, `approve`, `allowance`, `balanceOf`, `mint`, `burn`.
 
 ## Libraries
 
@@ -186,9 +187,10 @@ To start using or contributing to the project:
 
 1.  **Clone the Repository:** Clone this repository to your local machine.
 2.  **Install dependencies**: run `npm install` in the root folder
-3.  **Compile the Contracts:** Use the AssemblyScript compiler to compile the contracts into WASM files.
-4.  **Deploy:** Deploy the WASM contracts to the Massa blockchain.
-5.  **Interact:** Use Massa's SDK or CLI to interact with the deployed contracts.
+3.  **Compile the Contracts:** compile the contracts using `npm run build`
+4. **Add your private key to the `.env` file**: Take a look at the `.env.example` file and add your private key to the `.env` file.
+5.  **Deploy:** Deploy the WASM contracts to the Massa blockchain using `npm run deploy`
+5.  **Interact:** Use Massa's SDK to interact with the deployed contracts.
 
 ## License
 

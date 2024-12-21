@@ -59,8 +59,13 @@ beforeAll(() => {
 
 describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
   test('add liquidity for first time', () => {
-    const aAmount = u256.fromU64(100 * 10 ** DEFAULT_DECIMALS);
-    const bAmount = u256.fromU64(100 * 10 ** DEFAULT_DECIMALS);
+    // Initialize 100 tokens of A and B
+    // In blockchain smart contracts, token amounts are typically represented in their smallest units (also called "base units").
+    // To convert from human-readable token values (e.g., 100 tokens) to the base units that the smart contract expects,
+    // we multiply the value by 10^DEFAULT_DECIMALS, where DEFAULT_DECIMALS represents the number of decimal places
+    // the token supports. Commonly, DEFAULT_DECIMALS is 9 (e.g., for Massa Blockchain) or 18 (e.g., for most ERC-20 tokens).
+    const aAmount = u256.fromU64(100 * 10 ** DEFAULT_DECIMALS); // 100 tokens of A in base units
+    const bAmount = u256.fromU64(100 * 10 ** DEFAULT_DECIMALS); // 100 tokens of B in base units
 
     // get the LP balance of the user
     const lpBalance = bytesToU256(

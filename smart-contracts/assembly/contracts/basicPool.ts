@@ -313,10 +313,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // Esnure that the amountOut is greater than zero
   assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
 
-  // // Transfer the amountIn to the contract
+  // Transfer the amountIn to the contract
   new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
 
-  // // Transfer the amountOut to the caller
+  // Transfer the amountOut to the caller
   new IMRC20(new Address(tokenOutAddress)).transferFrom(
     Context.callee(),
     Context.caller(),
