@@ -9,7 +9,7 @@ import {
 import { IMRC20 } from '../interfaces/IMRC20';
 import { deserializeStringArray, serializeStringArray } from '../utils';
 
-// array of all tokens addresses deployed
+// Array of all tokens addresses deployed
 export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
 
 /**
@@ -33,14 +33,17 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   const tokenSymbol = args.nextString().expect('Invalid token symbol');
   const decimals = args.nextU8().expect('Invalid decimals');
   const totalSupply = args.nextU256().expect('Invalid total supply');
-  // optional parameter
+  // Optional parameter
   const url = args.nextString().unwrapOrDefault();
-  // optional parameter
+  // Optional parameter
   const description = args.nextString().unwrapOrDefault();
-  // optional parameter that specifies the coins to use on deploy the new token. Default value is 0.005 * 10 ** 6
+  // Optional parameter that specifies the coins to use on deploy the new token.
+  // Default value is 0.005 MAS, which is the minimum required to deploy a token contract.
+  // Check storage costs documentation for more details at https://docs.massa.net/docs/learn/storage-costs
   const coinsToUseOnDeployIn = args.nextU64();
   let coinsToUseOnDeploy: u64;
 
+  // IsErr() returns true, if coinsToUseOnDeployIn is not passed or some error occurs
   if (coinsToUseOnDeployIn.isErr()) {
     // default value
     coinsToUseOnDeploy = u64(5 * 10 ** 7);
@@ -48,13 +51,13 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     coinsToUseOnDeploy = coinsToUseOnDeployIn.unwrap();
   }
 
-  // get the token bytecode
+  // Get the token bytecode
   const tokenByteCode: StaticArray<u8> = fileToByteArray('build/token.wasm');
 
-  // deploy the token contract
+  // Deploy the token contract
   const tokenAddress = createSC(tokenByteCode);
 
-  // init the token contract
+  // Init the token contract
   new IMRC20(tokenAddress).initExtended(
     tokenName,
     tokenSymbol,
@@ -65,22 +68,22 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     coinsToUseOnDeploy,
   );
 
-  // get the tokens array stored in storage
+  // Get the tokens array stored in storage
   const tokensStored = Storage.get(tokenAddresses);
 
-  // deserialize the tokens array to string array
+  // Deserialize the tokens array to string array
   const deserializedTokens = deserializeStringArray(tokensStored);
 
-  // add the token address to the array of tokens
+  // Add the token address to the array of tokens
   deserializedTokens.push(tokenAddress.toString());
 
-  // serialize the array of tokens
+  // Serialize the array of tokens
   Storage.set(tokenAddresses, serializeStringArray(deserializedTokens));
 
-  // emit an event
+  // Emit an event
   generateEvent(`New Token ${tokenName} deployed at ${tokenAddress}.`);
 
-  // raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
+  // Raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
   generateRawEvent(new Args().add(tokenAddress).serialize());
 }
 
