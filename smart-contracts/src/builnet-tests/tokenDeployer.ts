@@ -21,7 +21,7 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'tokenDeployer.wasm');
 
-// constructr empty args
+// Constructr empty args
 const constructorArgs = new Args().serialize();
 
 let contract = await SmartContract.deploy(provider, byteCode, constructorArgs, {
@@ -70,13 +70,13 @@ async function getTokens() {
   console.log('Tokens:', tokens);
 }
 
-async function test1() {
+async function createNewTokenAndGetTokens() {
   await createNewToken();
 
   await getTokens();
 }
 
-await test1();
+await createNewTokenAndGetTokens();
 
 const events = await provider.getEvents({
   smartContractAddress: contract.address,
