@@ -1,18 +1,15 @@
 import { Args, stringToBytes } from '@massalabs/as-types';
 import {
-  Context,
   createSC,
   fileToByteArray,
   generateEvent,
   generateRawEvent,
-  print,
   Storage,
 } from '@massalabs/massa-as-sdk';
-import { PersistentMap } from '../lib/PersistentMap';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { deserializeStringArray, serializeStringArray } from '../utils';
 
-// array of token keys
+// array of all tokens addresses deployed
 export const TokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
 
 /**
@@ -57,9 +54,6 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   // deploy the token contract
   const tokenAddress = createSC(tokenByteCode);
 
-  // get transferred coins from the deployer to the token contract
-  print('Transferred Coins' + Context.transferredCoins().toString());
-
   // init the token contract
   new IMRC20(tokenAddress).initExtended(
     tokenName,
@@ -80,9 +74,12 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   // add the token address to the array of tokens
   deserializedTokens.push(tokenAddress.toString());
 
+  // serialize the array of tokens
   Storage.set(TokenAddresses, serializeStringArray(deserializedTokens));
 
+  // emit an event
   generateEvent(`New Token ${tokenName} deployed at ${tokenAddress}.`);
+
   // raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
   generateRawEvent(new Args().add(tokenAddress).serialize());
 }
