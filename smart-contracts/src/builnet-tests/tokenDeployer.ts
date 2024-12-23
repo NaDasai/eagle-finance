@@ -21,7 +21,7 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'tokenDeployer.wasm');
 
-// constructr takes fee share protocol as a parameter
+// constructr empty args
 const constructorArgs = new Args().serialize();
 
 let contract = await SmartContract.deploy(provider, byteCode, constructorArgs, {
@@ -33,6 +33,7 @@ console.log('Contract deployed at:', contract.address);
 async function createNewToken() {
   console.log('Creating new token.....');
 
+  // call createNewToken function from the contract
   const operation = await contract.call(
     'createNewToken',
     new Args()
@@ -46,9 +47,8 @@ async function createNewToken() {
     { coins: Mas.fromString('3') },
   );
 
+  // wait for the operation to be executed
   const status = await operation.waitFinalExecution();
-
-  console.log('Status:', status);
 
   if (status === OperationStatus.Success) {
     console.log('Token created successfully');
