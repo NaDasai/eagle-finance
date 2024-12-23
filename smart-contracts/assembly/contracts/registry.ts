@@ -41,6 +41,9 @@ export const feeShareProtocol: StaticArray<u8> =
 export const feeShareProtocolReceiver: StaticArray<u8> = stringToBytes(
   'feeShareProtocolReceiver',
 );
+// storage key containning the address of wrapped mas token inside the registry contract
+// we need this key to use on the basic poll contract on swap with Mas to unwrap the mas coin
+export const wmasTokenAddress = stringToBytes('wmasTokenAddress');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -59,11 +62,21 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('FeeShareProtocol is missing or invalid');
 
+  const wmasTokenAddressInput = args
+    .nextString()
+    .expect('WmasTokenAddress is missing or invalid');
+
   // ensure that the fee share protocol is between 0 and 1
   assert(
     isBetweenZeroAndOne(feeShareProtocolInput),
     'Fee share protocol must be between 0 and 1',
   );
+
+  // ensure taht the wmasTokenAddress is a smart contract address
+  assertIsSmartContract(wmasTokenAddressInput);
+
+  // store wmasTokenAddress
+  Storage.set(wmasTokenAddress, stringToBytes(wmasTokenAddressInput));
 
   // store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
@@ -221,6 +234,39 @@ export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
   assert(validateAddress(receiver), 'Invalid protocol fee receiver');
 
   Storage.set(feeShareProtocolReceiver, stringToBytes(receiver));
+}
+
+/**
+ * Get the wmas token address
+ * @returns  The wmas token address
+ */
+export function getWmasTokenAddress(): StaticArray<u8> {
+  return Storage.get(wmasTokenAddress);
+}
+
+/**
+ * Set the wmas token address
+ * @param binaryArgs  The wmas token address
+ * @returns  void
+ */
+export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
+  // Only owner of registery can set wmas token address
+  onlyOwner();
+
+  const args = new Args(binaryArgs);
+
+  const wmasTokenAddressInput = args
+    .nextString()
+    .expect('WmasTokenAddress is missing or invalid');
+
+  // Ensure taht the wmasTokenAddress is a smart contract address
+  assertIsSmartContract(wmasTokenAddressInput);
+
+  // Store wmasTokenAddress
+  Storage.set(wmasTokenAddress, stringToBytes(wmasTokenAddressInput));
+
+  // Emit an event
+  generateEvent(`WmasTokenAddress set to ${wmasTokenAddressInput}`);
 }
 
 function _getFeeShareProtocol(): f64 {
