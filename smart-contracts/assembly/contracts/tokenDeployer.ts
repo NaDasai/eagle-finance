@@ -10,14 +10,14 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { deserializeStringArray, serializeStringArray } from '../utils';
 
 // array of all tokens addresses deployed
-export const TokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
+export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
 
 /**
  * Constructor for the token deployer contract.
  * @returns void
  */
 export function constructor(_: StaticArray<u8>): void {
-  Storage.set(TokenAddresses, serializeStringArray([]));
+  Storage.set(tokenAddresses, serializeStringArray([]));
   generateEvent(`Token Deployer deployed.`);
 }
 
@@ -66,7 +66,7 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   );
 
   // get the tokens array stored in storage
-  const tokensStored = Storage.get(TokenAddresses);
+  const tokensStored = Storage.get(tokenAddresses);
 
   // deserialize the tokens array to string array
   const deserializedTokens = deserializeStringArray(tokensStored);
@@ -75,7 +75,7 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   deserializedTokens.push(tokenAddress.toString());
 
   // serialize the array of tokens
-  Storage.set(TokenAddresses, serializeStringArray(deserializedTokens));
+  Storage.set(tokenAddresses, serializeStringArray(deserializedTokens));
 
   // emit an event
   generateEvent(`New Token ${tokenName} deployed at ${tokenAddress}.`);
@@ -89,5 +89,5 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
  * @returns The array of tokens.
  */
 export function getTokens(): StaticArray<u8> {
-  return Storage.get(TokenAddresses);
+  return Storage.get(tokenAddresses);
 }
