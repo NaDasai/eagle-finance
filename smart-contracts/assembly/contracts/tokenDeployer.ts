@@ -1,4 +1,4 @@
-import { Args, stringToBytes } from '@massalabs/as-types';
+import { Args, Result, stringToBytes } from '@massalabs/as-types';
 import {
   createSC,
   fileToByteArray,
@@ -40,7 +40,7 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   // Optional parameter that specifies the coins to use on deploy the new token.
   // Default value is 0.005 MAS, which is the minimum required to deploy a token contract.
   // Check storage costs documentation for more details at https://docs.massa.net/docs/learn/storage-costs
-  const coinsToUseOnDeployIn = args.nextU64();
+  const coinsToUseOnDeployIn: Result<u64> = args.nextU64();
   let coinsToUseOnDeploy: u64;
 
   // IsErr() returns true, if coinsToUseOnDeployIn is not passed or some error occurs
