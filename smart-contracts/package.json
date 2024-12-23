@@ -8,6 +8,7 @@
         "test": "asp --verbose",
         "buildnet:registry": "npm run build && tsx src/builnet-tests/registry.ts",
         "buildnet:wrapMas": "tsx src/builnet-tests/WrapMas.ts",
+        "buildnet:tokenDeployer": "npm run build && tsx src/builnet-tests/tokenDeployer.ts",
         "build": "massa-as-compile",
         "clean": "rimraf build",
         "deploy": "npm run build && tsx src/deploy.ts",
