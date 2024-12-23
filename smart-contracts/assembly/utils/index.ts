@@ -1,3 +1,5 @@
+import { Args } from '@massalabs/as-types';
+
 // function to check teh address validity
 export function isValidAddress(address: string): bool {
   return address.length > 50 && address.length < 54 && address.startsWith('AU');
@@ -45,4 +47,22 @@ export function assertIsValidTokenDecimals(decimals: u8): void {
     decimals == 9 || decimals == 18,
     'Invalid token decimals. Must be 9 or 18.',
   );
+}
+
+/**
+ * Serializes an array of strings into a static array of bytes.
+ * @param arr - Array of strings to serialize.
+ * @returns StaticArray<u8> - Serialized array of bytes.
+ */
+export function serializeStringArray(arr: string[]): StaticArray<u8> {
+  return new Args().add(arr).serialize();
+}
+
+/**
+ * Deserializes a static array of bytes into an array of strings.
+ * @param arr - StaticArray<u8> to deserialize.
+ * @returns Array<string> - Deserialized array of strings.
+ */
+export function deserializeStringArray(arr: StaticArray<u8>): string[] {
+  return new Args(arr).nextStringArray().unwrapOrDefault();
 }
