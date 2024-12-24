@@ -34,7 +34,7 @@ import {
   StoragePrefixManager,
 } from '../lib/liquidityManager';
 import { DEFAULT_DECIMALS, NATIVE_MAS_COIN_ADDRESS } from '../utils';
-import { IWMAS } from '../interfaces/IWMAS';
+import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
