@@ -33,7 +33,8 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { DEFAULT_DECIMALS } from '../utils';
+import { DEFAULT_DECIMALS, NATIVE_MAS_COIN_ADDRESS } from '../utils';
+import { IWMAS } from '../interfaces/IWMAS';
 
 // storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -257,99 +258,76 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // Get the amount of tokenIn to swap
   let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-  // Check if the token address is one of the two tokens in the pool
-  assert(
-    tokenInAddress == aTokenAddressStored ||
-      tokenInAddress == bTokenAddressStored,
-    'Invalid token address',
-  );
-
-  const tokenInDecimalsStored =
-    tokenInAddress == aTokenAddressStored
-      ? _getATokenDecimals()
-      : _getBTokenDecimals();
-
-  // Normalize the amount of tokenIn to default decimals
-  amountIn = normalizeToDecimals(
-    amountIn,
-    tokenInDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
-
-  // Calculate fees
-  const feeRate = _getFeeRate(); // e.g., 0.003
-  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
-
-  // totalFee = amountIn * feeRate
-  const totalFee = getFeeFromAmount(amountIn, feeRate);
-
-  // protocolFee = totalFee * feeShareProtocol
-  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
-
-  // lpFee = totalFee - protocolFee
-  const lpFee = SafeMath256.sub(totalFee, protocolFee);
-
-  // netInput = amountIn - totalFee
-  const netInput = SafeMath256.sub(amountIn, totalFee);
-
-  print(`netInput: ${netInput.toString()}`);
-
-  // Get the address of the other token in the pool
-  const tokenOutAddress =
-    tokenInAddress == aTokenAddressStored
-      ? bTokenAddressStored
-      : aTokenAddressStored;
-
-  // Get the reserves of the two tokens in the pool
-  const reserveIn = _getReserve(tokenInAddress);
-  const reserveOut = _getReserve(tokenOutAddress);
-
-  // Calculate the amount of tokens to be swapped
-  const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
-
-  // Esnure that the amountOut is greater than zero
-  assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
-
-  // Transfer the amountIn to the contract
-  new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
-
-  // Transfer the amountOut to the caller
-  new IMRC20(new Address(tokenOutAddress)).transferFrom(
-    Context.callee(),
-    Context.caller(),
-    amountOut,
-  );
-
-  // Update reserves:
-  // The input reserve increases by netInput + lpFee (the portion of fees that goes to the LPs).
-  // The protocolFee is not added to reserves. Instead, we store it separately.
-  const newReserveIn = SafeMath256.add(
-    reserveIn,
-    SafeMath256.add(netInput, lpFee),
-  );
-  const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
-
-  // Update the pool reserves
-  _updateReserve(tokenInAddress, newReserveIn);
-  _updateReserve(tokenOutAddress, newReserveOut);
-
-  // Accumulate protocol fees
-  if (protocolFee > u256.Zero) {
-    _addTokenAccumulatedProtocolFee(tokenInAddress, protocolFee);
-  }
-
-  generateEvent(
-    `Swap: In=${amountIn.toString()} of ${tokenInAddress}, Out=${amountOut.toString()} of ${tokenOutAddress}, Fees: total=${totalFee.toString()}, protocol=${protocolFee.toString()}, lp=${lpFee.toString()}`,
-  );
+  // Call the internal swap function
+  _swap(tokenInAddress, amountIn);
 }
 
+/**
+ *  Swaps Mas with the other token in the pool.
+ * @returns void
+ */
 export function swapWithMas(binaryArgs: StaticArray<u8>): void {
-  // TODO: wrap mas to wmas
-  
-  // TODO: call swap function with wmas and the other token
+  // Get the tokenIn address and amountIn from the args
+  const args = new Args(binaryArgs);
+
+  const tokenInAddress = args
+    .nextString()
+    .expect('TokenIn is missing or invalid');
+
+  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+
+  // Get the registry contract address
+  const registryContractAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Get the wmas token address
+  const wmasTokenAddressStored = new IRegistery(
+    new Address(registryContractAddressStored),
+  ).getWmasTokenAddress();
+
+  // Check if the tokenIn or tokenOut is native Mas coin
+  if (tokenInAddress == NATIVE_MAS_COIN_ADDRESS) {
+    // Get the transferred coins from teh operation
+    const transferredCoins = Context.transferredCoins();
+
+    assert(
+      amountIn == u256.fromU64(transferredCoins),
+      'AmountIn is not equal to the transferred coins',
+    );
+
+    const wmasContract = new IWMAS(new Address(wmasTokenAddressStored));
+
+    // Wrap mas to wmas
+    wmasContract.deposit(transferredCoins);
+
+    // Call the swap internal function
+    _swap(wmasTokenAddressStored, u256.fromU64(transferredCoins));
+  } else {
+    // Get the token addresses from storage
+    const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+    const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+    // Get the other token address in the pool
+    const tokenOutAddress =
+      tokenInAddress == aTokenAddressStored
+        ? bTokenAddressStored
+        : aTokenAddressStored;
+
+    // Ensure that the tokenOut is wmas token
+    assert(
+      tokenOutAddress == wmasTokenAddressStored,
+      'TokenOut is not wrapped mas token',
+    );
+
+    // Call the swap internal function
+    const amountOut = _swap(tokenInAddress, amountIn);
+
+    const wmasContract = new IWMAS(new Address(wmasTokenAddressStored));
+
+    // Unwrap mas to wmas
+    wmasContract.withdraw(amountOut.toU64(), Context.caller());
+  }
 }
 
 /**
@@ -437,6 +415,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     SafeMath256.mul(lpAmount, reserveA),
     totalSupply,
   );
+
   // amountBOut = (lpAmount * reserveB) / totalSupply
   const amountBOut = SafeMath256.div(
     SafeMath256.mul(lpAmount, reserveB),
@@ -795,4 +774,102 @@ function _getATokenDecimals(): u8 {
  */
 function _getBTokenDecimals(): u8 {
   return byteToU8(Storage.get(bTokenDecimals));
+}
+
+/**
+ * Swaps tokens in the pool.
+ * @param tokenInAddress - The address of the token to swap in.
+ * @param amountIn - The amount of the token to swap in.
+ * @returns The amount of the token to swap out.
+ */
+function _swap(tokenInAddress: string, amountIn: u256): u256 {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  // Check if the token address is one of the two tokens in the pool
+  assert(
+    tokenInAddress == aTokenAddressStored ||
+      tokenInAddress == bTokenAddressStored,
+    'Invalid token address',
+  );
+
+  const tokenInDecimalsStored =
+    tokenInAddress == aTokenAddressStored
+      ? _getATokenDecimals()
+      : _getBTokenDecimals();
+
+  // Normalize the amount of tokenIn to default decimals
+  amountIn = normalizeToDecimals(
+    amountIn,
+    tokenInDecimalsStored,
+    DEFAULT_DECIMALS,
+  );
+
+  // Calculate fees
+  const feeRate = _getFeeRate(); // e.g., 0.003
+  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
+
+  // totalFee = amountIn * feeRate
+  const totalFee = getFeeFromAmount(amountIn, feeRate);
+
+  // protocolFee = totalFee * feeShareProtocol
+  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
+
+  // lpFee = totalFee - protocolFee
+  const lpFee = SafeMath256.sub(totalFee, protocolFee);
+
+  // netInput = amountIn - totalFee
+  const netInput = SafeMath256.sub(amountIn, totalFee);
+
+  print(`netInput: ${netInput.toString()}`);
+
+  // Get the address of the other token in the pool
+  const tokenOutAddress =
+    tokenInAddress == aTokenAddressStored
+      ? bTokenAddressStored
+      : aTokenAddressStored;
+
+  // Get the reserves of the two tokens in the pool
+  const reserveIn = _getReserve(tokenInAddress);
+  const reserveOut = _getReserve(tokenOutAddress);
+
+  // Calculate the amount of tokens to be swapped
+  const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
+
+  // Esnure that the amountOut is greater than zero
+  assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
+
+  // Transfer the amountIn to the contract
+  new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
+
+  // Transfer the amountOut to the caller
+  new IMRC20(new Address(tokenOutAddress)).transferFrom(
+    Context.callee(),
+    Context.caller(),
+    amountOut,
+  );
+
+  // Update reserves:
+  // The input reserve increases by netInput + lpFee (the portion of fees that goes to the LPs).
+  // The protocolFee is not added to reserves. Instead, we store it separately.
+  const newReserveIn = SafeMath256.add(
+    reserveIn,
+    SafeMath256.add(netInput, lpFee),
+  );
+  const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
+
+  // Update the pool reserves
+  _updateReserve(tokenInAddress, newReserveIn);
+  _updateReserve(tokenOutAddress, newReserveOut);
+
+  // Accumulate protocol fees
+  if (protocolFee > u256.Zero) {
+    _addTokenAccumulatedProtocolFee(tokenInAddress, protocolFee);
+  }
+
+  generateEvent(
+    `Swap: In=${amountIn.toString()} of ${tokenInAddress}, Out=${amountOut.toString()} of ${tokenOutAddress}, Fees: total=${totalFee.toString()}, protocol=${protocolFee.toString()}, lp=${lpFee.toString()}`,
+  );
+
+  return amountOut;
 }

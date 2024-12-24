@@ -34,7 +34,11 @@ export function _buildPoolKey(
   return key;
 }
 
+// Default decimals to be used (9 or 18)
 export const DEFAULT_DECIMALS = 9;
+
+// Native MAS coin address to determine if the token address is the native Mas coin
+export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
 
 /**
  * Asserts that the token decimals are either 9 or 18.
