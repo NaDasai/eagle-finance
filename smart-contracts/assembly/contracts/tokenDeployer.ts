@@ -1,5 +1,6 @@
 import { Args, Result, stringToBytes } from '@massalabs/as-types';
 import {
+  Context,
   createSC,
   fileToByteArray,
   generateEvent,
@@ -58,7 +59,10 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   const tokenAddress = createSC(tokenByteCode);
 
   // Init the token contract
-  new IMRC20(tokenAddress).initExtended(
+  const tokenContract = new IMRC20(tokenAddress);
+
+  tokenContract.initExtended(
+    Context.caller(),
     tokenName,
     tokenSymbol,
     decimals,
@@ -67,6 +71,7 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     description,
     coinsToUseOnDeploy,
   );
+
 
   // Get the tokens array stored in storage
   const tokensStored = Storage.get(tokenAddresses);
