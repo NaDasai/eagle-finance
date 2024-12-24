@@ -32,7 +32,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   assert(isDeployingContract());
 
   const args = new Args(binaryArgs);
-
+  
+  // Admin arg passed by the token deployer to specify the owner of the token 
   const admin = args.nextString().expect('Invalid admin');
   const tokenName = args.nextString().expect('Invalid token name');
   const tokenSymbol = args.nextString().expect('Invalid token symbol');
