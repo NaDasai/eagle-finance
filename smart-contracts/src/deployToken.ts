@@ -17,6 +17,7 @@ console.log('Deploying contract...');
 const byteCode = getScByteCode('build', 'token.wasm');
 
 const constructorArgs = new Args()
+  .addString(account.address.toString()) // owner
   .addString('Eagle Finance') // token name
   .addString('EGL') // token symbol
   .addU8(U8.fromNumber(18)) // token decimals
