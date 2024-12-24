@@ -16,7 +16,7 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
 
   /**
    * Initializes the smart contract.
-   *
+   * @param owner - Address of the owner.
    * @param name - Name of the token.
    * @param symbol - Symbol of the token.
    * @param decimals - Number of decimals of the token.
@@ -26,6 +26,7 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
    * @param coins - Number of coins to send to the smart contract.
    */
   initExtended(
+    owner: Address,
     name: string,
     symbol: string,
     decimals: u8,
@@ -35,6 +36,7 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
     coins: u64 = 0,
   ): void {
     const args = new Args()
+      .add(owner)
       .add(name)
       .add(symbol)
       .add(decimals)
@@ -45,12 +47,12 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
     call(this._origin, 'constructor', args, coins);
   }
 
-  url(): StaticArray<u8> {
-    bytesToString(call(this._origin, 'url', NoArg, 0));
+  url(): string {
+    return bytesToString(call(this._origin, 'url', NoArg, 0));
   }
 
-  description(): StaticArray<u8> {
-    bytesToString(call(this._origin, 'description', new Args(), 0));
+  description(): string {
+    return bytesToString(call(this._origin, 'description', new Args(), 0));
   }
 
   serialize(): StaticArray<u8> {
