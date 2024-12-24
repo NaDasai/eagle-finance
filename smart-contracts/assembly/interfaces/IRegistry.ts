@@ -22,9 +22,10 @@ export class IRegistery {
   /**
    * Calls the `constructor` function of the registry contract.
    * @param {f64} feeShareProtocol - Protocol fee share.
+   * @param {string} wmasTokenAddress - Address of the WMAS token.
    */
-  init(feeShareProtocol: f64): void {
-    const args = new Args().add(feeShareProtocol);
+  init(feeShareProtocol: f64, wmasTokenAddress: string): void {
+    const args = new Args().add(feeShareProtocol).add(wmasTokenAddress);
     call(this._origin, 'constructor', args, 0);
   }
 
@@ -130,5 +131,24 @@ export class IRegistery {
    */
   onlyOwner(): void {
     call(this._origin, 'onlyOwner', new Args(), 0);
+  }
+
+  /**
+   * Calls the `getWmasTokenAddress` function of the registry contract.
+   * @returns {string} The address of the WMAS token.
+   */
+  getWmasTokenAddress(): string {
+    return bytesToString(
+      call(this._origin, 'getWmasTokenAddress', new Args(), 0),
+    );
+  }
+
+  /**
+   * Calls the `setWmasTokenAddress` function of the registry contract.
+   * @param {string} wmasTokenAddress - Address of the WMAS token.
+   */
+  setWmasTokenAddress(wmasTokenAddress: string): void {
+    const args = new Args().add(wmasTokenAddress);
+    call(this._origin, 'setWmasTokenAddress', args, 0);
   }
 }
