@@ -116,6 +116,9 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     'Fee share protocol must be between 0 and 1',
   );
 
+  // Ensure taht the aTokenAddress and bTokenAddress are different
+  assert(aTokenAddress !== bTokenAddress, 'Tokens must be different');
+
   // Ensure taht the aTokenAddress and bTokenAddress are smart contract addresses
   assertIsSmartContract(aTokenAddress);
   assertIsSmartContract(bTokenAddress);
