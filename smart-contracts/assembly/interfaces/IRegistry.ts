@@ -3,9 +3,11 @@ import {
   bytesToF64,
   bytesToString,
   byteToBool,
+  u256ToBytes,
 } from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
 import { Pool } from '../structs/pool';
+import { u256 } from 'as-bignum/assembly';
 
 export class IRegistery {
   _origin: Address;
@@ -49,6 +51,7 @@ export class IRegistery {
     call(this._origin, 'createNewPool', args, 0);
   }
 
+
   /**
    * Calls the `getPools` function of the registry contract to retrieve all pools.
    *
@@ -57,13 +60,7 @@ export class IRegistery {
   getPools(): Pool[] {
     const result = call(this._origin, 'getPools', new Args(), 0);
     const args = new Args(result);
-    const pools: Pool[] = [];
-
-    const poolsLength = args.getU32();
-    for (let i = 0; i < poolsLength; i++) {
-      const pool = args.nextSerializableObject<Pool>();
-      pools.push(pool);
-    }
+    const pools: Pool[] = args.nextSerializableObjectArray<Pool>().unwrap();
 
     return pools;
   }
