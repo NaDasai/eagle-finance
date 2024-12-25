@@ -138,6 +138,7 @@ async function increaseAllowance(tokenAddress: string, amount: number) {
   const operation = await mrc20.increaseAllowance(
     contract.address,
     Mas.fromString(amount.toString()),
+    { coins: Mas.fromString('0.1') },
   );
 
   const status = await operation.waitFinalExecution();
@@ -150,9 +151,17 @@ async function increaseAllowance(tokenAddress: string, amount: number) {
   }
 }
 
+async function getBalanceOf(tokenAddress: string, accountAddress: string) {
+  const mrc20 = new MRC20(provider, tokenAddress);
+
+  const balance = await mrc20.balanceOf(accountAddress);
+
+  console.log('Balance of ', accountAddress, ':', balance);
+}
+
 async function testCreateAndAddLiquidityAndGetPools() {
-  const aToken = 'AS12vNzXieYEbh4A49utzRRaTjPFCP1VR9xreETG1SjPLHRc9V6XP';
-  const bToken = 'AS123TVpzNG6HXs6v5a7PfNagRcbZjApU4xnijWhDW3TpnxF7XxFh';
+  const aToken = 'AS128szebpFEzt62KYEkRNxAxmNh5BM26WgeHR1gCEpCTcyWa1TcG';
+  const bToken = 'AS1zJmUg8Y8KbDgW7wEc2PuMjEt6RQHEBof6erC7SjwVFhUYT3Z8';
 
   await increaseAllowance(aToken, 100);
   await increaseAllowance(bToken, 100);
@@ -160,6 +169,8 @@ async function testCreateAndAddLiquidityAndGetPools() {
   await createNewPoolWithLiquidity(aToken, bToken, 0.5, 100, 100);
 
   const pools = await getPools();
+
+  console.log('Pools:', pools);
 
   if (pools.length <= 0) {
     console.warn('No pools found');
@@ -176,7 +187,11 @@ async function testCreateAndAddLiquidityAndGetPools() {
   await getPoolReserves(pool.poolAddress);
 }
 
-// await testCreateAndGetPools();
+await testCreateAndGetPools();
+// await getBalanceOf(
+//   'AS128szebpFEzt62KYEkRNxAxmNh5BM26WgeHR1gCEpCTcyWa1TcG',
+//   contract.address,
+// );
 await testCreateAndAddLiquidityAndGetPools();
 
 const events = await provider.getEvents({
