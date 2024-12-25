@@ -143,6 +143,10 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   let amountA = args.nextU256().expect('Amount A is missing or invalid');
   let amountB = args.nextU256().expect('Amount B is missing or invalid');
 
+  // ensure that amountA and amountB are greater than 0
+  assert(amountA > u256.Zero, 'Amount A must be greater than 0');
+  assert(amountB > u256.Zero, 'Amount B must be greater than 0');
+
   // Retrieve the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
