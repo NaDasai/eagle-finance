@@ -159,7 +159,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Call the addLiquidity function inside the pool contract
-  poolContract.addLiquidity(aAmount, bAmount);
+  poolContract.addLiquidityFromRegistry(aAmount, bAmount);
 }
 
 /**

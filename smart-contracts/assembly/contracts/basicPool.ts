@@ -143,6 +143,61 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   let amountA = args.nextU256().expect('Amount A is missing or invalid');
   let amountB = args.nextU256().expect('Amount B is missing or invalid');
 
+  _addLiquidity(amountA, amountB);
+}
+
+/**
+ * Adds liquidity to the pool by processing a request from the registry contract.
+ *
+ * @param binaryArgs - The serialized arguments containing the amounts of tokens A and B.
+ *
+ * @remarks
+ * This function ensures that it is called only by the registry contract by verifying the caller's address.
+ * It deserializes the token amounts from the provided binary arguments and calls the internal `_addLiquidity` function.
+ * The amounts of tokens A and B must be greater than zero.
+ */
+export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
+  // Get the registry contract address
+  const registeryAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Ensure that the caller is the registry contract
+  assert(
+    Context.caller().toString() == registeryAddressStored,
+    'Only the registry contract can call this function',
+  );
+
+  const args = new Args(binaryArgs);
+
+  // Ensure that the amounts are greater than 0
+  let amountA = args.nextU256().expect('Amount A is missing or invalid');
+  let amountB = args.nextU256().expect('Amount B is missing or invalid');
+
+  // Call the Internal function
+  _addLiquidity(amountA, amountB, true);
+}
+
+/**
+ * Adds liquidity to the pool by transferring specified amounts of tokens A and B
+ * from the user to the contract, and mints LP tokens to the user.
+ *
+ * @param amountA - The amount of token A to add to the pool.
+ * @param amountB - The amount of token B to add to the pool.
+ * @param isCalledByRegistry - Indicates if the function is called by the registry contract.
+ *
+ * @remarks
+ * - Ensures that both amountA and amountB are greater than zero.
+ * - Normalizes the token amounts to default decimals.
+ * - Calculates the optimal liquidity to mint based on current reserves.
+ * - Transfers tokens from the user to the contract unless called by the registry.
+ * - Updates the token reserves and generates a liquidity addition event.
+ */
+function _addLiquidity(
+  amountA: u256,
+  amountB: u256,
+  isCalledByRegistry = false,
+): void {
   // ensure that amountA and amountB are greater than 0
   assert(amountA > u256.Zero, 'Amount A must be greater than 0');
   assert(amountB > u256.Zero, 'Amount B must be greater than 0');
@@ -221,13 +276,10 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // Address of the current contract
   const contractAddress = Context.callee();
 
-  if (
-    Context.caller().toString() !=
-    bytesToString(Storage.get(registryContractAddress))
-  ) {
-    // On the first add liquidity call, the registry contract calls addLiquidity.
-    // In this case, we don't need to transfer tokens from the user to the contract.
-    // The amounts of tokens A and B are already transferred by the registry contract.
+  // check if it is called by the registry
+  if (!isCalledByRegistry) {
+    // When the registry contract creates a new pool and adds liquidity to it at the same time,
+    // it calls this `addLiquidityFromRegistry` function. In this case, we don't need to transfer tokens from the user to the contract because the amounts of tokens A and B are already transferred by the registry contract. We just need to set the local reserves of the pool and mint the corresponding amount of LP tokens to the user.
 
     // Transfer tokens A from user to contract
     new IMRC20(new Address(aTokenAddressStored)).transferFrom(
