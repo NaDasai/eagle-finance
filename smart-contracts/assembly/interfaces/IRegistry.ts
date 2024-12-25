@@ -3,9 +3,11 @@ import {
   bytesToF64,
   bytesToString,
   byteToBool,
+  u256ToBytes,
 } from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
 import { Pool } from '../structs/pool';
+import { u256 } from 'as-bignum/assembly';
 
 export class IRegistery {
   _origin: Address;
@@ -50,6 +52,32 @@ export class IRegistery {
   }
 
   /**
+   * Calls the `createNewPoolWithLiquidity` function of the registry contract.
+   *
+   * @param {string} aTokenAddress - Address of Token A.
+   * @param {string} bTokenAddress - Address of Token B.
+   * @param {f64} inputFeeRate - Input fee rate.
+   * @param {u256} aAmount - Amount of Token A.
+   * @param {u256} bAmount - Amount of Token B.
+   */
+  createNewPoolWithLiquidity(
+    aTokenAddress: string,
+    bTokenAddress: string,
+    inputFeeRate: f64,
+    aAmount: u256,
+    bAmount: u256,
+  ): void {
+    const args = new Args()
+      .add(aTokenAddress)
+      .add(bTokenAddress)
+      .add(inputFeeRate)
+      .add(u256ToBytes(aAmount))
+      .add(u256ToBytes(bAmount));
+
+    call(this._origin, 'createNewPoolWithLiquidity', args, 0);
+  }
+
+  /**
    * Calls the `getPools` function of the registry contract to retrieve all pools.
    *
    * @returns {Pool[]} An array of Pool objects.
@@ -57,13 +85,7 @@ export class IRegistery {
   getPools(): Pool[] {
     const result = call(this._origin, 'getPools', new Args(), 0);
     const args = new Args(result);
-    const pools: Pool[] = [];
-
-    const poolsLength = args.getU32();
-    for (let i = 0; i < poolsLength; i++) {
-      const pool = args.nextSerializableObject<Pool>();
-      pools.push(pool);
-    }
+    const pools: Pool[] = args.nextSerializableObjectArray<Pool>().unwrap();
 
     return pools;
   }

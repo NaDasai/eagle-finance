@@ -1,12 +1,9 @@
 import {
-  call,
   Context,
   createSC,
   generateEvent,
   Storage,
   fileToByteArray,
-  getBytecode,
-  getBytecodeOf,
   Address,
   validateAddress,
   assertIsSmartContract,
@@ -14,11 +11,8 @@ import {
 import {
   Args,
   bytesToF64,
-  bytesToU16,
   f64ToBytes,
   stringToBytes,
-  u16ToBytes,
-  u256ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';
@@ -110,13 +104,83 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
 
+  // Call the internal function
+  _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
+}
+
+/**
+ * Creates a new pool with initial liquidity using the provided binary arguments.
+ *
+ * @param {StaticArray<u8>} binaryArgs - The serialized arguments containing:
+ *   - aTokenAddress: The address of token A.
+ *   - bTokenAddress: The address of token B.
+ *   - aAmount: The initial amount of token A to add as liquidity.
+ *   - bAmount: The initial amount of token B to add as liquidity.
+ *   - inputFeeRate: The fee rate for the pool.
+ *
+ * @throws Will throw an error if any of the required arguments are missing or invalid.
+ */
+export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
+  const args = new Args(binaryArgs);
+
+  const aTokenAddress = args
+    .nextString()
+    .expect('TokenAddress A is missing or invalid');
+
+  const bTokenAddress = args
+    .nextString()
+    .expect('TokenAddress B is missing or invalid');
+
+  const aAmount = args.nextU256().expect('TokenAmount A is missing or invalid');
+  const bAmount = args.nextU256().expect('TokenAmount B is missing or invalid');
+
+  const inputFeeRate = args
+    .nextF64()
+    .expect('InputFeeRate is missing or invalid');
+
+  // Call the internal function
+  const poolContract = _createNewPool(
+    aTokenAddress,
+    bTokenAddress,
+    inputFeeRate,
+  );
+
+  // Transfer amounts to the pool contract
+  new IMRC20(new Address(aTokenAddress)).transferFrom(
+    Context.caller(),
+    poolContract._origin,
+    aAmount,
+  );
+
+  new IMRC20(new Address(bTokenAddress)).transferFrom(
+    Context.caller(),
+    poolContract._origin,
+    bAmount,
+  );
+
+  // Call the addLiquidity function inside the pool contract
+  poolContract.addLiquidityFromRegistry(aAmount, bAmount);
+}
+
+/**
+ *  Creates a new pool and adds it to the registery.
+ *  @param aTokenAddress - Address of Token A.
+ *  @param bTokenAddress - Address of Token B.
+ *  @param inputFeeRate - Input fee rate.
+ *  @returns IBasicPool
+ */
+function _createNewPool(
+  aTokenAddress: string,
+  bTokenAddress: string,
+  inputFeeRate: f64,
+): IBasicPool {
   // Ensure that the fee share protocol is between 0 and 1
   assert(
     isBetweenZeroAndOne(inputFeeRate),
     'Fee share protocol must be between 0 and 1',
   );
 
-  // Ensure taht the aTokenAddress and bTokenAddress are different
+  // Ensure that the aTokenAddress and bTokenAddress are different
   assert(aTokenAddress !== bTokenAddress, 'Tokens must be different');
 
   // Ensure taht the aTokenAddress and bTokenAddress are smart contract addresses
@@ -182,6 +246,8 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
 
   // Emit an event
   generateEvent(`Pool ${poolAddress} added to the registery`);
+
+  return poolContract;
 }
 
 /**

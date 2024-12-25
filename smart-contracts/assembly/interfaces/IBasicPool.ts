@@ -56,6 +56,11 @@ export class IBasicPool {
     call(this._origin, 'addLiquidity', args, 0);
   }
 
+  addLiquidityFromRegistry(amountA: u256, amountB: u256): void {
+    const args = new Args().add(u256ToBytes(amountA)).add(u256ToBytes(amountB));
+    call(this._origin, 'addLiquidityFromRegistry', args, 0);
+  }
+
   /**
    * Swaps tokens in the pool.
    *
