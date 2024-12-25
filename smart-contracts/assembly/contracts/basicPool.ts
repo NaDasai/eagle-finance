@@ -218,17 +218,28 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // Address of the current contract
   const contractAddress = Context.callee();
 
-  // Transfer tokens A from user to contract
-  new IMRC20(new Address(aTokenAddressStored)).transfer(
-    contractAddress,
-    finalAmountA,
-  );
+  if (
+    Context.caller().toString() !=
+    bytesToString(Storage.get(registryContractAddress))
+  ) {
+    // On the first add liquidity call, the registry contract calls addLiquidity.
+    // In this case, we don't need to transfer tokens from the user to the contract.
+    // The amounts of tokens A and B are already transferred by the registry contract.
 
-  // Transfer tokens B from user to contract
-  new IMRC20(new Address(bTokenAddressStored)).transfer(
-    contractAddress,
-    finalAmountB,
-  );
+    // Transfer tokens A from user to contract
+    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
+      Context.caller(),
+      contractAddress,
+      finalAmountA,
+    );
+
+    // Transfer tokens B from user to contract
+    new IMRC20(new Address(bTokenAddressStored)).transferFrom(
+      Context.caller(),
+      contractAddress,
+      finalAmountB,
+    );
+  }
 
   // Mint LP tokens to user
   liquidityManager.mint(Context.caller(), liquidity);
