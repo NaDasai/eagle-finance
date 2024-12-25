@@ -196,7 +196,7 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
 function _addLiquidity(
   amountA: u256,
   amountB: u256,
-  isCalledByRegistry = false,
+  isCalledByRegistry: bool = false,
 ): void {
   // ensure that amountA and amountB are greater than 0
   assert(amountA > u256.Zero, 'Amount A must be greater than 0');
