@@ -1,25 +1,18 @@
 import {
-  call,
   Context,
   createSC,
   generateEvent,
   Storage,
   fileToByteArray,
-  getBytecode,
-  getBytecodeOf,
   Address,
   validateAddress,
   assertIsSmartContract,
-  print,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
   bytesToF64,
-  bytesToU16,
   f64ToBytes,
   stringToBytes,
-  u16ToBytes,
-  u256ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { PersistentMap } from '../lib/PersistentMap';

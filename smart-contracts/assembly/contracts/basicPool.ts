@@ -6,7 +6,6 @@ import {
   generateEvent,
   Storage,
   Address,
-  assertIsSmartContract,
   print,
 } from '@massalabs/massa-as-sdk';
 import {
@@ -25,7 +24,7 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
-import { isBetweenZeroAndOne, normalizeToDecimals } from '../lib/math';
+import { normalizeToDecimals } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
