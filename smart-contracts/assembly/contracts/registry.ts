@@ -10,6 +10,7 @@ import {
   Address,
   validateAddress,
   assertIsSmartContract,
+  print,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -151,7 +152,20 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     inputFeeRate,
   );
 
-  // Add liquidity to the pool
+  // Transfer amounts to the pool contract
+  new IMRC20(new Address(aTokenAddress)).transferFrom(
+    Context.caller(),
+    poolContract._origin,
+    aAmount,
+  );
+
+  new IMRC20(new Address(bTokenAddress)).transferFrom(
+    Context.caller(),
+    poolContract._origin,
+    bAmount,
+  );
+
+  // Call the addLiquidity function inside the pool contract
   poolContract.addLiquidity(aAmount, bAmount);
 }
 
