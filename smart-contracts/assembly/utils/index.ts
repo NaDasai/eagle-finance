@@ -48,8 +48,8 @@ export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
  */
 export function assertIsValidTokenDecimals(decimals: u8): void {
   assert(
-    decimals == 9 || decimals == 18,
-    'Invalid token decimals. Must be 9 or 18.',
+    decimals == 9 || decimals == 18 || decimals == 6,
+    'Invalid token decimals. Must be 9 or 18 or 6.',
   );
 }
 
