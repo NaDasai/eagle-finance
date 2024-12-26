@@ -145,6 +145,15 @@ EagleX is always open to discuss future partnerships. Feel free to reach out to 
 
 <details>
 
+<summary><strong>Cameleon</strong></summary>
+
+**Cameleon** is the first evolvable NFT Marketplace.\
+\
+[Website](https://www.cameleon.art/)
+
+</details>
+<details>
+
 <summary><strong>Evobots</strong></summary>
 
 **Evobots** is a groundbreaking NFT game on Massa.\
