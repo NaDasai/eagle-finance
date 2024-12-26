@@ -53,5 +53,5 @@ export function normalizeToDecimals(
 
 // function to check beteen 0 and 10%
 export function isBetweenZeroAndTenPercent(value: f64): bool {
-  return value > 0 && value <= 10 * HUNDRED_PERCENT;
+  return value > 0 && value <= 10 * f64(HUNDRED_PERCENT);
 }
