@@ -131,6 +131,11 @@ EagleX was founded by **Dar Blockchain**, supported by a talented team:
 - **Optimus**: Smart Contract Developer.  
 - **Gandalf**: Frontend Developer.  
 - **Yos**: Backend Developer.  
+- **Noorey**: Designer.
+- **Youssef**: Unity Developer.
+- **Ranya**: HR.
+- **Hatem**: Advisor.
+- **Mnif**: Advisor.
 
 ---
 
