@@ -112,9 +112,9 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
 
   const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
 
-  // check if bTokenAddress is native mas
+  // Check if bTokenAddress is native mas
   if (bTokenAddress == NATIVE_MAS_COIN_ADDRESS) {
-    // change bTokenAddress to wmasTokenAddress
+    // Change bTokenAddress to wmasTokenAddress
     bTokenAddress = wmasTokenAddressStored;
   }
 
