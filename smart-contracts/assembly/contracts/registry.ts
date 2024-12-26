@@ -175,10 +175,10 @@ function _createNewPool(
   inputFeeRate: f64,
 ): IBasicPool {
   // Ensure that the fee share protocol is between 0 and 1
-  assert(
-    isBetweenZeroAndOne(inputFeeRate),
-    'Fee share protocol must be between 0 and 1',
-  );
+  // assert(
+  //   isBetweenZeroAndOne(inputFeeRate),
+  //   'Fee share protocol must be between 0 and 1',
+  // );
 
   // Ensure that the aTokenAddress and bTokenAddress are different
   assert(aTokenAddress !== bTokenAddress, 'Tokens must be different');
