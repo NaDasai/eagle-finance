@@ -166,9 +166,9 @@ async function getBalanceOf(tokenAddress: string, accountAddress: string) {
 }
 
 async function testCreateAndAddLiquidityAndGetPools() {
-  const aToken = 'AS128szebpFEzt62KYEkRNxAxmNh5BM26WgeHR1gCEpCTcyWa1TcG';
-  const bToken = 'AS1zJmUg8Y8KbDgW7wEc2PuMjEt6RQHEBof6erC7SjwVFhUYT3Z8';
-  const amount = parseUnits('100', 9);
+  const aToken = 'AS12iCU3KNvPCoxCFiPnXbRAqN128hXGwQ2tDhkqfM4EKsU9xqXvb';
+  const bToken = 'AS1f8dKz2ZLVyTtfh7se6MCE8yQk1t3ZshRgJnmCNpRm8WL2WoFV';
+  const amount = parseUnits('1', 9);
 
   console.log('Amount:', amount);
 
