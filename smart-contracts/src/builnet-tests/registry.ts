@@ -2,9 +2,11 @@ import {
   Account,
   Args,
   bytesToF64,
+  formatUnits,
   Mas,
   MRC20,
   OperationStatus,
+  parseUnits,
   SmartContract,
   Web3Provider,
 } from '@massalabs/massa-web3';
@@ -20,8 +22,8 @@ const byteCode = getScByteCode('build', 'registry.wasm');
 
 // constructr takes fee share protocol as a parameter
 const constructorArgs = new Args()
-  .addF64(0.5)
-  .addString('AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU')
+  .addF64(25) // 25% fee share protocol
+  .addString('AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU') // WMAS address
   .serialize();
 
 let contract = await SmartContract.deploy(provider, byteCode, constructorArgs, {
@@ -61,8 +63,8 @@ async function createNewPoolWithLiquidity(
   aTokenAddress: string,
   bTokenAddress: string,
   inputFeeRate: number,
-  amountA: number,
-  amountB: number,
+  amountA: bigint,
+  amountB: bigint,
 ) {
   console.log('Creating new poool and add liquidity.....');
 
@@ -71,8 +73,8 @@ async function createNewPoolWithLiquidity(
     new Args()
       .addString(aTokenAddress)
       .addString(bTokenAddress)
-      .addU256(BigInt(amountA))
-      .addU256(BigInt(amountB))
+      .addU256(amountA)
+      .addU256(amountB)
       .addF64(inputFeeRate)
       .serialize(),
     { coins: Mas.fromString('0.1') },
@@ -127,19 +129,23 @@ async function getPoolReserves(poolAddress: string) {
 
   const bReserve = await poolContract.read('getLocalReserveB');
 
-  console.log('A reserve:', new Args(aReserve.value).nextU256());
-  console.log('B reserve:', new Args(bReserve.value).nextU256());
+  console.log(
+    'A reserve:',
+    formatUnits(new Args(aReserve.value).nextU256(), 9),
+  );
+  console.log(
+    'B reserve:',
+    formatUnits(new Args(bReserve.value).nextU256(), 9),
+  );
 }
 
-async function increaseAllowance(tokenAddress: string, amount: number) {
+async function increaseAllowance(tokenAddress: string, amount: bigint) {
   const mrc20 = new MRC20(provider, tokenAddress);
 
   // increase allowance of the token
-  const operation = await mrc20.increaseAllowance(
-    contract.address,
-    Mas.fromString(amount.toString()),
-    { coins: Mas.fromString('0.1') },
-  );
+  const operation = await mrc20.increaseAllowance(contract.address, amount, {
+    coins: Mas.fromString('0.1'),
+  });
 
   const status = await operation.waitFinalExecution();
 
@@ -160,13 +166,17 @@ async function getBalanceOf(tokenAddress: string, accountAddress: string) {
 }
 
 async function testCreateAndAddLiquidityAndGetPools() {
-  const aToken = 'AS128szebpFEzt62KYEkRNxAxmNh5BM26WgeHR1gCEpCTcyWa1TcG';
-  const bToken = 'AS1zJmUg8Y8KbDgW7wEc2PuMjEt6RQHEBof6erC7SjwVFhUYT3Z8';
+  const aToken = 'AS12iCU3KNvPCoxCFiPnXbRAqN128hXGwQ2tDhkqfM4EKsU9xqXvb';
+  const bToken = 'AS1f8dKz2ZLVyTtfh7se6MCE8yQk1t3ZshRgJnmCNpRm8WL2WoFV';
+  const amount = parseUnits('1', 9);
 
-  await increaseAllowance(aToken, 100);
-  await increaseAllowance(bToken, 100);
+  console.log('Amount:', amount);
 
-  await createNewPoolWithLiquidity(aToken, bToken, 0.5, 100, 100);
+  console.log('Increase allowance of the two tokens.....');
+  await increaseAllowance(aToken, amount);
+  await increaseAllowance(bToken, amount);
+
+  await createNewPoolWithLiquidity(aToken, bToken, 5, amount, amount);
 
   const pools = await getPools();
 
@@ -185,14 +195,27 @@ async function testCreateAndAddLiquidityAndGetPools() {
   console.log('Pool fee rate:', pool.inputFeeRate);
 
   await getPoolReserves(pool.poolAddress);
+
+  const events = await provider.getEvents({
+    smartContractAddress: pool.poolAddress,
+  });
+
+  console.log('Pool Events:');
+
+  for (const event of events) {
+    console.log('Event message:', event.data);
+  }
 }
 
-await testCreateAndGetPools();
+// await testCreateAndGetPools();
 // await getBalanceOf(
 //   'AS128szebpFEzt62KYEkRNxAxmNh5BM26WgeHR1gCEpCTcyWa1TcG',
 //   contract.address,
 // );
+
 await testCreateAndAddLiquidityAndGetPools();
+
+console.log('Registry Events:');
 
 const events = await provider.getEvents({
   smartContractAddress: contract.address,
@@ -201,3 +224,5 @@ const events = await provider.getEvents({
 for (const event of events) {
   console.log('Event message:', event.data);
 }
+
+console.log('Done');

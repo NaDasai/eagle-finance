@@ -214,20 +214,6 @@ function _addLiquidity(
   const aTokenDecimalsStored = _getATokenDecimals();
   const bTokenDecimalsStored = _getBTokenDecimals();
 
-  // normalize the amount of token A to default decimals
-  amountA = normalizeToDecimals(
-    amountA,
-    aTokenDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
-
-  // normalize the amount of token B to default decimals
-  amountB = normalizeToDecimals(
-    amountB,
-    bTokenDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
-
   // Get the total supply of the LP token
   const totalSupply: u256 = liquidityManager.getTotalSupply();
 
@@ -544,13 +530,6 @@ export function getSwapOutEstimation(
   // Get the decimals of the token in
   const tokenInDecimalsStored = _getTokenDecimals(tokenInAddress);
 
-  // Normalize the amount of tokenIn to default decimals
-  amountIn = normalizeToDecimals(
-    amountIn,
-    tokenInDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
-
   // Get current reserves
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
@@ -561,11 +540,11 @@ export function getSwapOutEstimation(
   // totalFee = amountIn * feeRate
   const totalFee = getFeeFromAmount(amountIn, feeRate);
 
-  // netInput = amountIn - totalFee
-  const netInput = SafeMath256.sub(amountIn, totalFee);
+  // amountInAfterFee = amountIn - totalFee
+  const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
 
   // Calculate amountOut
-  const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
+  const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
 
   // For estimation, we simply emit an event or store in some state (here we choose event)
   generateEvent(
@@ -864,13 +843,6 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
       ? _getATokenDecimals()
       : _getBTokenDecimals();
 
-  // Normalize the amount of tokenIn to default decimals
-  amountIn = normalizeToDecimals(
-    amountIn,
-    tokenInDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
-
   // Calculate fees
   const feeRate = _getFeeRate(); // e.g., 0.003
   const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
@@ -884,10 +856,11 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
   // lpFee = totalFee - protocolFee
   const lpFee = SafeMath256.sub(totalFee, protocolFee);
 
-  // netInput = amountIn - totalFee
-  const netInput = SafeMath256.sub(amountIn, totalFee);
+  // amountInAfterFee = amountIn - totalFee
+  const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
 
-  print(`netInput: ${netInput.toString()}`);
+  print(`amountInAfterFee: ${amountInAfterFee.toString()}`);
+  generateEvent(`amountInAfterFee: ${amountInAfterFee.toString()}`);
 
   // Get the address of the other token in the pool
   const tokenOutAddress =
@@ -900,7 +873,7 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
   const reserveOut = _getReserve(tokenOutAddress);
 
   // Calculate the amount of tokens to be swapped
-  const amountOut = getAmountOut(netInput, reserveIn, reserveOut);
+  const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
 
   // Esnure that the amountOut is greater than zero
   assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
@@ -916,11 +889,11 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
   );
 
   // Update reserves:
-  // The input reserve increases by netInput + lpFee (the portion of fees that goes to the LPs).
+  // The input reserve increases by amountInAfterFee + lpFee (the portion of fees that goes to the LPs).
   // The protocolFee is not added to reserves. Instead, we store it separately.
   const newReserveIn = SafeMath256.add(
     reserveIn,
-    SafeMath256.add(netInput, lpFee),
+    SafeMath256.add(amountInAfterFee, lpFee),
   );
   const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
 

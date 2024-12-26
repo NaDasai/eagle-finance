@@ -2,6 +2,7 @@ import {
   Account,
   Args,
   Mas,
+  parseUnits,
   SmartContract,
   U128,
   U8,
@@ -21,7 +22,7 @@ const constructorArgs = new Args()
   .addString('Eagle Finance') // token name
   .addString('EGL') // token symbol
   .addU8(U8.fromNumber(9)) // token decimals
-  .addU256(U128.fromNumber(1000000000000)) // token total supply
+  .addU256(parseUnits('100000000', 9)) // token total supply
   .addString('https://eagle.finance/logo.png') // token url (optional)
   .addString('Dex on Massa') // token description (optional)
   .serialize();

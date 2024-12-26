@@ -2,6 +2,7 @@ import { print } from '@massalabs/massa-as-sdk';
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
 import { DEFAULT_DECIMALS } from '../utils';
+import { HUNDRED_PERCENT } from './basicPoolMath';
 
 // Utility: Converts f64 to u256 with 18 decimals precision
 export function f64ToU256(value: f64, decimals: i32 = DEFAULT_DECIMALS): u256 {
@@ -50,7 +51,7 @@ export function normalizeToDecimals(
   return value; // Already default decimals
 }
 
-// function to check beteen 0 and 1
-export function isBetweenZeroAndOne(value: f64): bool {
-  return value >= 0 && value <= 1;
+// function to check beteen 0 and 10%
+export function isBetweenZeroAndTenPercent(value: f64): bool {
+  return value > 0 && value <= 10 * HUNDRED_PERCENT;
 }

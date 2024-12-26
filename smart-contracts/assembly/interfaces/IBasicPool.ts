@@ -52,12 +52,12 @@ export class IBasicPool {
    * @param {u256} amountB - Amount of Token B.
    */
   addLiquidity(amountA: u256, amountB: u256): void {
-    const args = new Args().add(u256ToBytes(amountA)).add(u256ToBytes(amountB));
+    const args = new Args().add(amountA).add(amountB);
     call(this._origin, 'addLiquidity', args, 0);
   }
 
   addLiquidityFromRegistry(amountA: u256, amountB: u256): void {
-    const args = new Args().add(u256ToBytes(amountA)).add(u256ToBytes(amountB));
+    const args = new Args().add(amountA).add(amountB);
     call(this._origin, 'addLiquidityFromRegistry', args, 0);
   }
 
@@ -68,7 +68,7 @@ export class IBasicPool {
    * @param {u256} amountIn - Amount of the input token.
    */
   swap(tokenInAddress: string, amountIn: u256): void {
-    const args = new Args().add(tokenInAddress).add(u256ToBytes(amountIn));
+    const args = new Args().add(tokenInAddress).add(amountIn);
     call(this._origin, 'swap', args, 0);
   }
 
@@ -85,7 +85,7 @@ export class IBasicPool {
    * @param {u256} lpTokenAmount - Amount of LP tokens to remove.
    */
   removeLiquidity(lpTokenAmount: u256): void {
-    const args = new Args().add(u256ToBytes(lpTokenAmount));
+    const args = new Args().add(lpTokenAmount);
     call(this._origin, 'removeLiquidity', args, 0);
   }
 
@@ -105,7 +105,7 @@ export class IBasicPool {
    * @returns {u256} Estimated output amount.
    */
   getSwapOutEstimation(tokenInAddress: string, amountIn: u256): u256 {
-    const args = new Args().add(tokenInAddress).add(u256ToBytes(amountIn));
+    const args = new Args().add(tokenInAddress).add(amountIn);
     const result = call(this._origin, 'getSwapOutEstimation', args, 0);
     return bytesToU256(result);
   }
