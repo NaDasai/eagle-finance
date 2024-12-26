@@ -14,14 +14,13 @@ import {
   f64ToBytes,
   stringToBytes,
 } from '@massalabs/as-types';
-import { u256 } from 'as-bignum/assembly';
+
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
 import { _buildPoolKey, assertIsValidTokenDecimals } from '../utils';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
-import { isBetweenZeroAndOne } from '../lib/math';
 import { IMRC20 } from '../interfaces/IMRC20';
 
 // pools persistent map to store the pools in the registery
@@ -60,10 +59,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('WmasTokenAddress is missing or invalid');
 
-  // ensure that the fee share protocol is between 0 and 1
+  // ensure that the fee share protocol is greater than 0
   assert(
-    isBetweenZeroAndOne(feeShareProtocolInput),
-    'Fee share protocol must be between 0 and 1',
+    feeShareProtocolInput > 0,
+    'Fee share protocol must be greater than 0',
   );
 
   // ensure taht the wmasTokenAddress is a smart contract address
