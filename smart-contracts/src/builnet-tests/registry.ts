@@ -22,8 +22,8 @@ const byteCode = getScByteCode('build', 'registry.wasm');
 
 // constructr takes fee share protocol as a parameter
 const constructorArgs = new Args()
-  .addF64(0.5)
-  .addString('AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU')
+  .addF64(50) // 50% fee share protocol
+  .addString('AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU') // WMAS address
   .serialize();
 
 let contract = await SmartContract.deploy(provider, byteCode, constructorArgs, {
