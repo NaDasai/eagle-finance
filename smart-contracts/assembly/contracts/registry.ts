@@ -22,6 +22,7 @@ import { _buildPoolKey, assertIsValidTokenDecimals } from '../utils';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
+import { isBetweenZeroAndTenPercent } from '../lib/math';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
@@ -59,10 +60,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('WmasTokenAddress is missing or invalid');
 
-  // ensure that the fee share protocol is greater than 0
+  // ensure that the fee share protocol is between 0 and 10%
   assert(
-    feeShareProtocolInput > 0,
-    'Fee share protocol must be greater than 0',
+    isBetweenZeroAndTenPercent(feeShareProtocolInput),
+    'Fee share protocol must be between 0 and 10%',
   );
 
   // ensure taht the wmasTokenAddress is a smart contract address
@@ -173,11 +174,11 @@ function _createNewPool(
   bTokenAddress: string,
   inputFeeRate: f64,
 ): IBasicPool {
-  // Ensure that the fee share protocol is between 0 and 1
-  // assert(
-  //   isBetweenZeroAndOne(inputFeeRate),
-  //   'Fee share protocol must be between 0 and 1',
-  // );
+  // Ensure that the input fee rate is between 0 and 10%
+  assert(
+    isBetweenZeroAndTenPercent(inputFeeRate),
+    'Input fee rate must be between 0 and 10%',
+  );
 
   // Ensure that the aTokenAddress and bTokenAddress are different
   assert(aTokenAddress !== bTokenAddress, 'Tokens must be different');
