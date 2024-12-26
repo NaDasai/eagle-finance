@@ -214,20 +214,6 @@ function _addLiquidity(
   const aTokenDecimalsStored = _getATokenDecimals();
   const bTokenDecimalsStored = _getBTokenDecimals();
 
-  // normalize the amount of token A to default decimals
-  amountA = normalizeToDecimals(
-    amountA,
-    aTokenDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
-
-  // normalize the amount of token B to default decimals
-  amountB = normalizeToDecimals(
-    amountB,
-    bTokenDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
-
   // Get the total supply of the LP token
   const totalSupply: u256 = liquidityManager.getTotalSupply();
 
@@ -544,13 +530,6 @@ export function getSwapOutEstimation(
   // Get the decimals of the token in
   const tokenInDecimalsStored = _getTokenDecimals(tokenInAddress);
 
-  // Normalize the amount of tokenIn to default decimals
-  amountIn = normalizeToDecimals(
-    amountIn,
-    tokenInDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
-
   // Get current reserves
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
@@ -863,13 +842,6 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
     tokenInAddress == aTokenAddressStored
       ? _getATokenDecimals()
       : _getBTokenDecimals();
-
-  // Normalize the amount of tokenIn to default decimals
-  amountIn = normalizeToDecimals(
-    amountIn,
-    tokenInDecimalsStored,
-    DEFAULT_DECIMALS,
-  );
 
   // Calculate fees
   const feeRate = _getFeeRate(); // e.g., 0.003
