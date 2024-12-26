@@ -32,7 +32,11 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { DEFAULT_DECIMALS, NATIVE_MAS_COIN_ADDRESS } from '../utils';
+import {
+  _wrapMasToWMAS,
+  DEFAULT_DECIMALS,
+  NATIVE_MAS_COIN_ADDRESS,
+} from '../utils';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 
 // storage key containning the value of the token A reserve inside the pool
@@ -147,6 +151,31 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 }
 
 /**
+ * Adds liquidity to the pool using MAS tokens.
+ *
+ * @param binaryArgs - A serialized array of bytes containing the amounts of tokens A and B.
+ *  - `amountA`: The amount of token A to add to the pool.
+ *  - `amountB`: The amount of token B to add to the pool.
+ *
+ * @remarks
+ * This function wraps MAS tokens to WMAS and then adds liquidity to the pool.
+ * It expects the binaryArgs to contain valid u256 values for both token amounts.
+ * Throws an error if the amounts are missing or invalid.
+ */
+export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
+  const args = new Args(binaryArgs);
+
+  const aAmount = args.nextU256().expect('Amount A is missing or invalid');
+  const bAmount = args.nextU256().expect('Amount B is missing or invalid');
+
+  // Wrap MAS to WMAS
+  _wrapMasToWMAS(bAmount);
+
+  // Add liquidity with WMAS
+  _addLiquidity(aAmount, bAmount, false, true);
+}
+
+/**
  * Adds liquidity to the pool by processing a request from the registry contract.
  *
  * @param binaryArgs - The serialized arguments containing the amounts of tokens A and B.
@@ -171,11 +200,20 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
   // Ensure that the amounts are greater than 0
-  let amountA = args.nextU256().expect('Amount A is missing or invalid');
-  let amountB = args.nextU256().expect('Amount B is missing or invalid');
+  let aAmount = args.nextU256().expect('Amount A is missing or invalid');
+  let bAmount = args.nextU256().expect('Amount B is missing or invalid');
+
+  // Bool to check if the coin are native
+  const isNativeCoin = args
+    .nextBool()
+    .expect('isNativeCoin is missing or invalid');
+
+  if (isNativeCoin) {
+    _wrapMasToWMAS(bAmount);
+  }
 
   // Call the Internal function
-  _addLiquidity(amountA, amountB, true);
+  _addLiquidity(aAmount, bAmount, true, isNativeCoin);
 }
 
 /**
@@ -185,6 +223,7 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
  * @param amountA - The amount of token A to add to the pool.
  * @param amountB - The amount of token B to add to the pool.
  * @param isCalledByRegistry - Indicates if the function is called by the registry contract.
+ * @param isWithMAS - Indicates if the add Liquidity is called with MAS native coin
  *
  * @remarks
  * - Ensures that both amountA and amountB are greater than zero.
@@ -197,6 +236,7 @@ function _addLiquidity(
   amountA: u256,
   amountB: u256,
   isCalledByRegistry: bool = false,
+  isWithMAS: bool = false,
 ): void {
   // ensure that amountA and amountB are greater than 0
   assert(amountA > u256.Zero, 'Amount A must be greater than 0');
@@ -274,12 +314,14 @@ function _addLiquidity(
       finalAmountA,
     );
 
-    // Transfer tokens B from user to contract
-    new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-      Context.caller(),
-      contractAddress,
-      finalAmountB,
-    );
+    if (!isWithMAS) {
+      // Transfer tokens B from user to contract if this function is not called from addLiquidityWithMAS
+      new IMRC20(new Address(bTokenAddressStored)).transferFrom(
+        Context.caller(),
+        contractAddress,
+        finalAmountB,
+      );
+    }
   }
 
   // Mint LP tokens to user
