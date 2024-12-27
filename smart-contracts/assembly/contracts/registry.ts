@@ -10,6 +10,7 @@ import {
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
+  boolToByte,
   bytesToF64,
   bytesToString,
   f64ToBytes,
@@ -159,14 +160,17 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   let coinsToSendOnAddLiquidity = u64(0);
 
   if (isBTokenNativeMas) {
-    // If bTokenAddress is native mas, get the transferred coins and send them to the pool contract
-    coinsToSendOnAddLiquidity = Context.transferredCoins();
+    // Get the transferred coins
+    const transferredCoins = Context.transferredCoins();
 
     // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
     assert(
-      u256.fromU64(coinsToSendOnAddLiquidity) >= bAmount,
+      u256.fromU64(transferredCoins) >= bAmount,
       'Coins to send on addLiquidityFromRegistry function must be greater than or equal to bAmount',
     );
+
+    // If bTokenAddress is native mas, get the transferred coins and send them to the pool contract as coins
+    coinsToSendOnAddLiquidity = bAmount.toU64();
 
     // Get the wmas token address stored
     const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
@@ -385,6 +389,40 @@ export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
 
 function _getFeeShareProtocol(): f64 {
   return bytesToF64(Storage.get(feeShareProtocol));
+}
+
+/**
+ * Checks if a pool exists based on the provided binary arguments.
+ *
+ * @param binaryArgs - A serialized array of bytes containing the arguments.
+ *                     - TokenAddress A: The address of token A.
+ *                     - TokenAddress B: The address of token B.
+ *                     - InputFeeRate: The fee rate for the pool.
+ * @returns A StaticArray<u8> representing a boolean value as a byte:
+ *          - 1 if the pool exists.
+ *          - 0 if the pool does not exist.
+ *
+ * @throws Will throw an error if any of the required arguments (TokenAddress A, TokenAddress B, or InputFeeRate)
+ *         are missing or invalid.
+ */
+export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const aTokenAddress = args
+    .nextString()
+    .expect('TokenAddress A is missing or invalid');
+
+  const bTokenAddress = args
+    .nextString()
+    .expect('TokenAddress B is missing or invalid');
+
+  const inputFeeRate = args
+    .nextF64()
+    .expect('InputFeeRate is missing or invalid');
+
+  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
+
+  return boolToByte(pools.contains(poolKey));
 }
 
 // exprot all the functions from teh ownership file
