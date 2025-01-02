@@ -20,6 +20,9 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'registry.wasm');
 
+// Native MAS coin address to determine if the token address is the native Mas coin
+export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
+
 // constructr takes fee share protocol as a parameter
 const constructorArgs = new Args()
   .addF64(25) // 25% fee share protocol
@@ -65,6 +68,7 @@ async function createNewPoolWithLiquidity(
   inputFeeRate: number,
   amountA: bigint,
   amountB: bigint,
+  isNativeCoin: boolean = false,
 ) {
   console.log('Creating new poool and add liquidity.....');
 
@@ -77,7 +81,7 @@ async function createNewPoolWithLiquidity(
       .addU256(amountB)
       .addF64(inputFeeRate)
       .serialize(),
-    { coins: Mas.fromString('0.1') },
+    { coins: isNativeCoin ? Mas.fromString('5.1') : Mas.fromString('0.1') },
   );
 
   const status = await operation.waitFinalExecution();
@@ -168,6 +172,7 @@ async function getBalanceOf(tokenAddress: string, accountAddress: string) {
 async function testCreateAndAddLiquidityAndGetPools() {
   const aToken = 'AS12iCU3KNvPCoxCFiPnXbRAqN128hXGwQ2tDhkqfM4EKsU9xqXvb';
   const bToken = 'AS1f8dKz2ZLVyTtfh7se6MCE8yQk1t3ZshRgJnmCNpRm8WL2WoFV';
+
   const amount = parseUnits('1', 9);
 
   console.log('Amount:', amount);
@@ -207,13 +212,58 @@ async function testCreateAndAddLiquidityAndGetPools() {
   }
 }
 
+async function testCreatePoolAndAddLiquidityWithMAS() {
+  const aToken = 'AS12iCU3KNvPCoxCFiPnXbRAqN128hXGwQ2tDhkqfM4EKsU9xqXvb';
+  // const bToken = 'AS1f8dKz2ZLVyTtfh7se6MCE8yQk1t3ZshRgJnmCNpRm8WL2WoFV';
+  const bToken = NATIVE_MAS_COIN_ADDRESS;
+
+  const amount = parseUnits('5', 9);
+
+  console.log('Amount:', amount);
+
+  console.log('Increase allowance of the two tokens.....');
+  await increaseAllowance(aToken, amount);
+  // await increaseAllowance(bToken, amount);
+
+  await createNewPoolWithLiquidity(aToken, bToken, 5, amount, amount, true);
+
+  const pools = await getPools();
+
+  console.log('Pools:', pools);
+
+  if (pools.length <= 0) {
+    console.warn('No pools found');
+    return;
+  }
+
+  const pool = pools[0];
+
+  console.log('Pool address:', pool.poolAddress);
+  console.log('Pool token A address:', pool.aTokenddress);
+  console.log('Pool token B address:', pool.bTokenAddress);
+  console.log('Pool fee rate:', pool.inputFeeRate);
+
+  await getPoolReserves(pool.poolAddress);
+
+  const events = await provider.getEvents({
+    smartContractAddress: pool.poolAddress,
+  });
+
+  console.log('Pool Events:');
+
+  for (const event of events) {
+    console.log('Event message:', event.data);
+  }
+}
+
 // await testCreateAndGetPools();
 // await getBalanceOf(
 //   'AS128szebpFEzt62KYEkRNxAxmNh5BM26WgeHR1gCEpCTcyWa1TcG',
 //   contract.address,
 // );
 
-await testCreateAndAddLiquidityAndGetPools();
+// await testCreateAndAddLiquidityAndGetPools();
+await testCreatePoolAndAddLiquidityWithMAS();
 
 console.log('Registry Events:');
 

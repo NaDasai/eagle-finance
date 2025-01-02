@@ -56,9 +56,14 @@ export class IBasicPool {
     call(this._origin, 'addLiquidity', args, 0);
   }
 
-  addLiquidityFromRegistry(amountA: u256, amountB: u256): void {
-    const args = new Args().add(amountA).add(amountB);
-    call(this._origin, 'addLiquidityFromRegistry', args, 0);
+  addLiquidityFromRegistry(
+    amountA: u256,
+    amountB: u256,
+    isNativeCoin: bool = false,
+    coins: u64 = 0,
+  ): void {
+    const args = new Args().add(amountA).add(amountB).add(isNativeCoin);
+    call(this._origin, 'addLiquidityFromRegistry', args, coins);
   }
 
   /**

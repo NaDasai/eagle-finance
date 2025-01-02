@@ -1,4 +1,9 @@
-import { Args } from '@massalabs/as-types';
+import { Args, bytesToString } from '@massalabs/as-types';
+import { Address, Context, Storage } from '@massalabs/massa-as-sdk';
+import { u256 } from 'as-bignum/assembly';
+import { registryContractAddress } from '../contracts/basicPool';
+import { IRegistery } from '../interfaces/IRegistry';
+import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 
 // function to check teh address validity
 export function isValidAddress(address: string): bool {
@@ -69,4 +74,43 @@ export function serializeStringArray(arr: string[]): StaticArray<u8> {
  */
 export function deserializeStringArray(arr: StaticArray<u8>): string[] {
   return new Args(arr).nextStringArray().unwrapOrDefault();
+}
+
+/**
+ * Wraps a specified amount of MAS coins into WMAS tokens.
+ *
+ * This function ensures that the amount of MAS coins transferred is sufficient
+ * before proceeding to wrap them into WMAS tokens. It retrieves the registry
+ * contract address and the WMAS token address from storage, then uses these
+ * addresses to create an instance of the WMAS contract. Finally, it deposits
+ * the specified amount of MAS coins into the WMAS contract.
+ *
+ * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
+ * @throws Will throw an error if the transferred MAS coins are insufficient.
+ */
+export function _wrapMasToWMAS(amount: u256): void {
+  // Get the transferred coins from the operation
+  const transferredCoins = Context.transferredCoins();
+
+  // Ensure bAmount is equal to MAS coins transferred
+  assert(
+    u256.fromU64(transferredCoins) >= amount,
+    'INSUFFICIENT MAS COINS TRANSFERRED',
+  );
+
+  // Get the registry contract address
+  const registryContractAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Get the wmas token address
+  const wmasTokenAddressStored = new IRegistery(
+    new Address(registryContractAddressStored),
+  ).getWmasTokenAddress();
+
+  // Get the wmas contract instance
+  const wmasToken = new IWMAS(new Address(wmasTokenAddressStored));
+
+  // Wrap MAS coins into WMAS
+  wmasToken.deposit(amount.toU64());
 }

@@ -7,10 +7,13 @@ import {
   Address,
   validateAddress,
   assertIsSmartContract,
+  call
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
+  boolToByte,
   bytesToF64,
+  bytesToString,
   f64ToBytes,
   stringToBytes,
 } from '@massalabs/as-types';
@@ -18,11 +21,16 @@ import {
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
-import { _buildPoolKey, assertIsValidTokenDecimals } from '../utils';
+import {
+  _buildPoolKey,
+  assertIsValidTokenDecimals,
+  NATIVE_MAS_COIN_ADDRESS,
+} from '../utils';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { isBetweenZeroAndTenPercent } from '../lib/math';
+import { u256 } from 'as-bignum/assembly';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
@@ -96,13 +104,22 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('TokenAddress A is missing or invalid');
 
-  const bTokenAddress = args
+  let bTokenAddress = args
     .nextString()
     .expect('TokenAddress B is missing or invalid');
 
   const inputFeeRate = args
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
+
+  const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
+
+  // Check if bTokenAddress is native mas
+  // WMAS can only be used as bToken since token ordering during pool creation ensures WMAS is always assigned as bToken
+  if (bTokenAddress == NATIVE_MAS_COIN_ADDRESS) {
+    // Change bTokenAddress to wmasTokenAddress
+    bTokenAddress = wmasTokenAddressStored;
+  }
 
   // Call the internal function
   _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
@@ -127,7 +144,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('TokenAddress A is missing or invalid');
 
-  const bTokenAddress = args
+  let bTokenAddress = args
     .nextString()
     .expect('TokenAddress B is missing or invalid');
 
@@ -138,6 +155,32 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
 
+  // Check if bTokenAddress is native mas
+  const isBTokenNativeMas = bTokenAddress == NATIVE_MAS_COIN_ADDRESS;
+
+  // Coins To Send on addLiquidityFromRegistry function
+  let coinsToSendOnAddLiquidity = u64(0);
+
+  if (isBTokenNativeMas) {
+    // Get the transferred coins
+    const transferredCoins = Context.transferredCoins();
+
+    // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
+    assert(
+      u256.fromU64(transferredCoins) >= bAmount,
+      'Coins to send on addLiquidityFromRegistry function must be greater than or equal to bAmount',
+    );
+
+    // If bTokenAddress is native mas, get the transferred coins and send them to the pool contract as coins
+    coinsToSendOnAddLiquidity = bAmount.toU64();
+
+    // Get the wmas token address stored
+    const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
+
+    // Change bTokenAddress to wmasTokenAddress
+    bTokenAddress = wmasTokenAddressStored;
+  }
+
   // Call the internal function
   const poolContract = _createNewPool(
     aTokenAddress,
@@ -145,21 +188,29 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     inputFeeRate,
   );
 
-  // Transfer amounts to the pool contract
+  // Transfer amount A to the pool contract
   new IMRC20(new Address(aTokenAddress)).transferFrom(
     Context.caller(),
     poolContract._origin,
     aAmount,
   );
 
-  new IMRC20(new Address(bTokenAddress)).transferFrom(
-    Context.caller(),
-    poolContract._origin,
-    bAmount,
-  );
+  // Transfer amount B to the pool contract if bTokenAddress is not native mas
+  if (!isBTokenNativeMas) {
+    new IMRC20(new Address(bTokenAddress)).transferFrom(
+      Context.caller(),
+      poolContract._origin,
+      bAmount,
+    );
+  }
 
-  // Call the addLiquidity function inside the pool contract
-  poolContract.addLiquidityFromRegistry(aAmount, bAmount);
+  // Call the addLiquidityFromRegistry function inside the pool contract
+  poolContract.addLiquidityFromRegistry(
+    aAmount,
+    bAmount,
+    isBTokenNativeMas,
+    coinsToSendOnAddLiquidity,
+  );
 }
 
 /**
@@ -340,6 +391,41 @@ export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
 
 function _getFeeShareProtocol(): f64 {
   return bytesToF64(Storage.get(feeShareProtocol));
+}
+
+/**
+ * Checks if a pool exists based on the provided binary arguments.
+ *
+ * @param binaryArgs - A serialized array of bytes containing the arguments.
+ *                     - TokenAddress A: The address of token A.
+ *                     - TokenAddress B: The address of token B.
+ *                     - InputFeeRate: The fee rate for the pool.
+ * @returns A StaticArray<u8> representing a boolean value as a byte:
+ *          - 1 if the pool exists.
+ *          - 0 if the pool does not exist.
+ *
+ * @throws Will throw an error if any of the required arguments (TokenAddress A, TokenAddress B, or InputFeeRate)
+ *         are missing or invalid.
+ */
+export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const aTokenAddress = args
+    .nextString()
+    .expect('TokenAddress A is missing or invalid');
+
+  const bTokenAddress = args
+    .nextString()
+    .expect('TokenAddress B is missing or invalid');
+
+  const inputFeeRate = args
+    .nextF64()
+    .expect('InputFeeRate is missing or invalid');
+
+  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
+
+  return boolToByte(pools.contains(poolKey));
+  
 }
 
 // exprot all the functions from teh ownership file
