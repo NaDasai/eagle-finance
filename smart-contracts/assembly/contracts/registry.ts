@@ -7,6 +7,7 @@ import {
   Address,
   validateAddress,
   assertIsSmartContract,
+  call
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -114,6 +115,7 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
   const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
 
   // Check if bTokenAddress is native mas
+  // WMAS can only be used as bToken since token ordering during pool creation ensures WMAS is always assigned as bToken
   if (bTokenAddress == NATIVE_MAS_COIN_ADDRESS) {
     // Change bTokenAddress to wmasTokenAddress
     bTokenAddress = wmasTokenAddressStored;
@@ -423,6 +425,7 @@ export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
 
   return boolToByte(pools.contains(poolKey));
+  
 }
 
 // exprot all the functions from teh ownership file
