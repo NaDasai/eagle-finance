@@ -13,6 +13,7 @@
         "clean": "rimraf build",
         "deploy:token": "npm run build && tsx src/deployToken.ts",
         "deploy:registry": "npm run build && tsx src/deployRegistry.ts",
+        "deploy:tokenDeployer": "npm run build && tsx src/deployTokenDeployer.ts",
         "prettier": "prettier '**/src/**/*.ts' --check && as-prettier --check assembly",
         "prettier:fix": "prettier '**/src/**/*.ts' --write && as-prettier --write assembly",
         "lint": "eslint .",
