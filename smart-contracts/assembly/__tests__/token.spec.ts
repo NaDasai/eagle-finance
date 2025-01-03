@@ -1,7 +1,6 @@
 import {
   Address,
   changeCallStack,
-  print,
   resetStorage,
   setDeployContext,
 } from '@massalabs/massa-as-sdk';
@@ -59,6 +58,7 @@ beforeAll(() => {
   setDeployContext(user1Address);
   TokenConstructor(
     new Args()
+      .add(user1Address)
       .add(TOKEN_NAME)
       .add(TOKEN_SYMBOL)
       .add(DECIMALS)

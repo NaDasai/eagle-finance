@@ -32,8 +32,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   assert(isDeployingContract());
 
   const args = new Args(binaryArgs);
-  
-  // Admin arg passed by the token deployer to specify the owner of the token 
+
+  // Admin arg passed by the token deployer to specify the owner of the token
   const admin = args.nextString().expect('Invalid admin');
   const tokenName = args.nextString().expect('Invalid token name');
   const tokenSymbol = args.nextString().expect('Invalid token symbol');
@@ -323,3 +323,14 @@ export function transferFrom(binaryArgs: StaticArray<u8>): void {
 
   generateEvent(TRANSFER_EVENT_NAME);
 }
+
+export { mint } from '@massalabs/sc-standards/assembly/contracts/MRC20/mintable';
+export {
+  burn,
+  burnFrom,
+} from '@massalabs/sc-standards/assembly/contracts/MRC20/burnable';
+export {
+  setOwner,
+  onlyOwner,
+  isOwner,
+} from '@massalabs/sc-standards/assembly/contracts/utils/ownership';

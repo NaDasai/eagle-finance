@@ -14,13 +14,19 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'registry.wasm');
 
-const constructorArgs = new Args().addF64(0.05).serialize();
+// constructr takes fee share protocol as a parameter
+const constructorArgs = new Args()
+  .addF64(0.005 * 1000) // 0.005% fee share protocol
+  .addString('AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU') // WMAS address
+  .serialize();
 
 const contract = await SmartContract.deploy(
   provider,
   byteCode,
   constructorArgs,
-  { coins: Mas.fromString('0.1') },
+  {
+    coins: Mas.fromString('10'),
+  },
 );
 
 console.log('Contract deployed at:', contract.address);
