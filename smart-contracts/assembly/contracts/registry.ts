@@ -10,7 +10,6 @@ import {
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
-  boolToByte,
   bytesToF64,
   bytesToString,
   f64ToBytes,
