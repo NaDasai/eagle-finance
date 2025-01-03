@@ -1,3 +1,16 @@
+/**
+ * Library that manages the liquidity and token balances across different contracts.
+ * It handles:
+ *
+ * - **Minting:** Creation of new LP tokens.
+ * - **Burning:** Destruction of LP tokens.
+ * - **Transferring:** Transfer of LP tokens between users.
+ * - **Allowances:** Management of token allowances for spending on behalf of others.
+ *
+ * Taken from {@linkhttps://github.com/massalabs/massa-as-sdk/blob/main/assembly/helpers/liquidityManager.ts}, and updated to be compatible with `u256` from `as-bignum`.
+ *
+ */
+
 import {
   bytesToU256,
   fromBytes,
