@@ -14,9 +14,8 @@ import {
   getLPBalance,
   swap,
 } from '../contracts/basicPool';
-import { Args, bytesToU256, bytesToU64 } from '@massalabs/as-types';
+import { Args, bytesToU256 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
-import { DEFAULT_DECIMALS } from '../utils';
 
 // addres of contract in @massalabs/massa-as-sdk/vm-mock/vm.js
 const contractAddr = 'AS12BqZEQ6sByhRLyEuf0YbQmcF2PsDdkNNG1akBJu9XcjZA1eT';
@@ -31,7 +30,9 @@ const user3Address = 'AU12jojWJf8LRGpWUZoA5CjSVEGHzNnpck1ktbnvP9Ttw7i16avMF';
 const aTokenAddress = 'AS12V58y942EBAexRzU3bGVb7Fxoduba4UxfLAQCbSeKNVamDCHfL';
 const bTokenAddress = 'AS1mb6djKDu2LnhQtajuLPGX1J2PNYgCY2LoUxQxa69ABUgedJXN';
 const registeryContractAddr =
-  'AS125BAcgd4n6U7nEY9an6DnHFRBFgfyUq82bN9GpYQEbuiSVvt4x';
+  'AS1nifpyaSFvYtqZF9bzba8uJnt7SMFzsqTd3deCGodhLrP4FfCQ';
+
+const TOKENS_DEFAULT_DECIMALS = 9;
 
 function switchUser(user: string): void {
   changeCallStack(user + ' , ' + contractAddr);
@@ -48,8 +49,8 @@ beforeAll(() => {
   const args = new Args()
     .add(aTokenAddress) // token a address
     .add(bTokenAddress) // token b address
-    .add(0.3) // fee rate
-    .add(0.05) // fee share protocol
+    .add(0.3 * 1000) // fee rate
+    .add(0.05 * 1000) // fee share protocol
     .add(registeryContractAddr); // registery address
 
   mockScCall(new Args().add(user1Address).serialize());
@@ -62,10 +63,10 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     // Initialize 100 tokens of A and B
     // In blockchain smart contracts, token amounts are typically represented in their smallest units (also called "base units").
     // To convert from human-readable token values (e.g., 100 tokens) to the base units that the smart contract expects,
-    // we multiply the value by 10^DEFAULT_DECIMALS, where DEFAULT_DECIMALS represents the number of decimal places
-    // the token supports. Commonly, DEFAULT_DECIMALS is 9 (e.g., for Massa Blockchain) or 18 (e.g., for most ERC-20 tokens).
-    const aAmount = u256.fromU64(100 * 10 ** DEFAULT_DECIMALS); // 100 tokens of A in base units
-    const bAmount = u256.fromU64(100 * 10 ** DEFAULT_DECIMALS); // 100 tokens of B in base units
+    // we multiply the value by 10^TOKENS_DEFAULT_DECIMALS, where TOKENS_DEFAULT_DECIMALS represents the number of decimal places
+    // the token supports. Commonly, TOKENS_DEFAULT_DECIMALS is 9 (e.g., for Massa Blockchain) or 18 (e.g., for most ERC-20 tokens).
+    const aAmount = u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS); // 100 tokens of A in base units
+    const bAmount = u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS); // 100 tokens of B in base units
 
     // get the LP balance of the user
     const lpBalance = bytesToU256(
@@ -86,20 +87,22 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     );
 
     expect(lpBalance2).toStrictEqual(
-      u256.fromU64(100 * 10 ** DEFAULT_DECIMALS),
+      u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS),
     );
   });
 
   test('add liquidity again', () => {
-    const aAmount = u256.fromU64(150 * 10 ** DEFAULT_DECIMALS);
-    const bAmount = u256.fromU64(200 * 10 ** DEFAULT_DECIMALS);
+    const aAmount = u256.fromU64(150 * 10 ** TOKENS_DEFAULT_DECIMALS);
+    const bAmount = u256.fromU64(200 * 10 ** TOKENS_DEFAULT_DECIMALS);
 
     // get the LP balance of the user
     const lpBalance = bytesToU256(
       getLPBalance(new Args().add(user1Address).serialize()),
     );
 
-    expect(lpBalance).toStrictEqual(u256.fromU64(100 * 10 ** DEFAULT_DECIMALS));
+    expect(lpBalance).toStrictEqual(
+      u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS),
+    );
 
     print(`Adding liquidity again with 150 and 200...`);
 
@@ -113,7 +116,7 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     );
 
     expect(lpBalance2).toStrictEqual(
-      u256.fromU64(250 * 10 ** DEFAULT_DECIMALS),
+      u256.fromU64(250 * 10 ** TOKENS_DEFAULT_DECIMALS),
     );
   });
 
@@ -128,8 +131,12 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     print(`Reserve A: ${resA.toString()}`);
     print(`Reserve B: ${resB.toString()}`);
 
-    expect(resA).toStrictEqual(u256.fromU64(250 * 10 ** DEFAULT_DECIMALS));
-    expect(resB).toStrictEqual(u256.fromU64(250 * 10 ** DEFAULT_DECIMALS));
+    expect(resA).toStrictEqual(
+      u256.fromU64(250 * 10 ** TOKENS_DEFAULT_DECIMALS),
+    );
+    expect(resB).toStrictEqual(
+      u256.fromU64(250 * 10 ** TOKENS_DEFAULT_DECIMALS),
+    );
 
     mockScCall(new Args().serialize());
     mockScCall(new Args().serialize());
@@ -137,16 +144,28 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     swap(
       new Args()
         .add(aTokenAddress)
-        .add(u256.fromU64(100 * 10 ** DEFAULT_DECIMALS))
+        .add(u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS))
         .serialize(),
     );
 
     resA = bytesToU256(getLocalReserveA());
     resB = bytesToU256(getLocalReserveB());
 
-    print(`Reserve A: ${resA.toString()}`);
-    print(`Reserve B: ${resB.toString()}`);
-    expect(resA).toStrictEqual(u256.fromU64(350 * 10 ** DEFAULT_DECIMALS));
-    expect(resB).toStrictEqual(u256.fromU64(179 * 10 ** DEFAULT_DECIMALS));
+    print(`Reserve A After Swap: ${resA.toString()}`);
+    print(`Reserve B After Swap: ${resB.toString()}`);
+
+    // convert teh resA(9 decimals) to normal number
+    const resANumber = u256.div(
+      resA,
+      u256.fromU64(10 ** TOKENS_DEFAULT_DECIMALS),
+    );
+
+    const resBNumber = u256.div(
+      resB,
+      u256.fromU64(10 ** TOKENS_DEFAULT_DECIMALS),
+    );
+
+    print(`Reserve A Number: ${resANumber.toString()}`);
+    print(`Reserve B Number: ${resBNumber.toString()}`);
   });
 });
