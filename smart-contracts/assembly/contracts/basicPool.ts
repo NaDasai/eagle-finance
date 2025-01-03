@@ -944,3 +944,6 @@ export function _wrapMasToWMAS(amount: u256): void {
   // Wrap MAS coins into WMAS
   wmasToken.deposit(amount.toU64());
 }
+
+// Export ownership functions
+export * from '../utils/ownership';

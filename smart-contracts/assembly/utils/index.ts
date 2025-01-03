@@ -15,7 +15,7 @@ export function _buildPoolKey(
   wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
 ): string {
   // sort the addresses to ensure that the key of the pool is always the same
-  // Ensure WMAS is always tokenB
+  // Ensure WMAS if exists, it is always tokenB
   if (tokenA === wmasAddress || (tokenB !== wmasAddress && tokenA > tokenB)) {
     const temp = tokenA;
     tokenA = tokenB;
