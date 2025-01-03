@@ -47,10 +47,6 @@ export const bTokenReserve = stringToBytes('bTokenReserve');
 export const aTokenAddress = stringToBytes('tokenA');
 // storage key containning address of the token B inside the pool
 export const bTokenAddress = stringToBytes('tokenB');
-// storage key containning the decimals of the token A inside the pool
-export const aTokenDecimals = stringToBytes('aTokenDecimals');
-// storage key containning the decimals of the token B inside the pool
-export const bTokenDecimals = stringToBytes('bTokenDecimals');
 // storage key containning the accumulated fee protocol of the token A inside the pool
 export const aProtocolFee = stringToBytes('aProtocolFee');
 // storage key containning the accumulated fee protocol of the token B inside the pool
@@ -79,9 +75,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Read the arguments
   const aAddress = args.nextString().expect('Address A is missing or invalid');
   const bAddress = args.nextString().expect('Address B is missing or invalid');
-
-  const aDecimals = args.nextU8().expect('Decimals A is missing or invalid');
-  const bDecimals = args.nextU8().expect('Decimals B is missing or invalid');
 
   const inputFeeRate = args
     .nextF64()
@@ -117,10 +110,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Store the tokens a and b addresses reserves in the contract storage
   Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
   Storage.set(bTokenReserve, u256ToBytes(u256.Zero));
-
-  // Store the tokens a and b decimals in the contract storage
-  Storage.set(aTokenDecimals, u64ToBytes(aDecimals));
-  Storage.set(bTokenDecimals, u64ToBytes(bDecimals));
 
   // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
@@ -249,10 +238,6 @@ function _addLiquidity(
   // Get the reserves of the two tokens in the pool
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
-
-  // Get the Decimals of the two tokens in the pool
-  const aTokenDecimalsStored = _getATokenDecimals();
-  const bTokenDecimalsStored = _getBTokenDecimals();
 
   // Get the total supply of the LP token
   const totalSupply: u256 = liquidityManager.getTotalSupply();
@@ -569,9 +554,6 @@ export function getSwapOutEstimation(
       ? bTokenAddressStored
       : aTokenAddressStored;
 
-  // Get the decimals of the token in
-  const tokenInDecimalsStored = _getTokenDecimals(tokenInAddress);
-
   // Get current reserves
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
@@ -830,40 +812,6 @@ function _updateReserveB(amount: u256): void {
 }
 
 /**
- * Retrieves the decimals of a token in the pool.
- * @param tokenAddress - The address of the token.
- * @returns The decimals of the token.
- */
-function _getTokenDecimals(tokenAddress: string): u8 {
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-  if (tokenAddress == aTokenAddressStored) {
-    return _getATokenDecimals();
-  } else if (tokenAddress == bTokenAddressStored) {
-    return _getBTokenDecimals();
-  } else {
-    throw new Error('Invalid token address');
-  }
-}
-
-/**
- * Retrieves the decimals of token A in the pool.
- * @returns The decimals of token A.
- */
-function _getATokenDecimals(): u8 {
-  return byteToU8(Storage.get(aTokenDecimals));
-}
-
-/**
- * Retrieves the decimals of token B in the pool.
- * @returns The decimals of token B.
- */
-function _getBTokenDecimals(): u8 {
-  return byteToU8(Storage.get(bTokenDecimals));
-}
-
-/**
  * Swaps tokens in the pool.
  * @param tokenInAddress - The address of the token to swap in.
  * @param amountIn - The amount of the token to swap in.
@@ -879,11 +827,6 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
       tokenInAddress == bTokenAddressStored,
     'Invalid token address',
   );
-
-  const tokenInDecimalsStored =
-    tokenInAddress == aTokenAddressStored
-      ? _getATokenDecimals()
-      : _getBTokenDecimals();
 
   // Calculate fees
   const feeRate = _getFeeRate(); // e.g., 0.003
