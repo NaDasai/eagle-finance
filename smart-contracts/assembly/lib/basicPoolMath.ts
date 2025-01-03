@@ -1,8 +1,7 @@
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
 import { generateEvent, print } from '@massalabs/massa-as-sdk';
-
-export const HUNDRED_PERCENT = u64(1000);
+import { HUNDRED_PERCENT } from '../utils/constants';
 
 export function getFeeFromAmount(inputAmount: u256, feeRate: f64): u256 {
   const feeRateScaled = u256.fromF64(feeRate);
