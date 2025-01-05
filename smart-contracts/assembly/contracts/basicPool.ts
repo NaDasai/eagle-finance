@@ -91,7 +91,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  assertIsSmartContract(registryAddress);
+  // assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
