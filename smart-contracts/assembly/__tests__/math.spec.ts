@@ -18,7 +18,7 @@ describe('test sqrt calculations', () => {
 describe('test f64ToU256', () => {
   it('test f64ToU256', () => {
     const input = 0.001; // f64 input
-    const result = f64ToU256(input); // Call the function to test
+    const result = f64ToU256(input, 9); // Call the function to test
     const expected = u256.from(1000000); // 0.001 * 10^9
 
     print(`f64ToU256(${input}): ${result.toString()}`);
@@ -27,7 +27,7 @@ describe('test f64ToU256', () => {
 
   it('test f64ToU256 with larget number 1', () => {
     const input = 1; // f64 input
-    const result = f64ToU256(input);
+    const result = f64ToU256(input, 9);
     const expected = u256.from(1000000000); // 1 * 10^9
 
     print(`f64ToU256(${input}): ${result.toString()}`);
@@ -36,7 +36,7 @@ describe('test f64ToU256', () => {
 
   it('test f64ToU256 with edge case (zero)', () => {
     const input = 0.0; // f64 input
-    const result = f64ToU256(input);
+    const result = f64ToU256(input, 9);
     const expected = u256.from(0); // 0 * 10^9
 
     print(`f64ToU256(${input}): ${result.toString()}`);
@@ -47,7 +47,7 @@ describe('test f64ToU256', () => {
     const input = -0.001; // f64 input
 
     expect(() => {
-      f64ToU256(input); // This should throw an error
+      f64ToU256(input, 9); // This should throw an error
     }).toThrow('Negative values are not supported.');
   });
 });
