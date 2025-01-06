@@ -1,4 +1,3 @@
-import { print } from '@massalabs/massa-as-sdk';
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
 import { HUNDRED_PERCENT } from '../utils/constants';
@@ -58,15 +57,11 @@ export function normalizeToDecimals(
 
   // Multiply value by 10^(decimalDifference) to normalize
   if (decimalDifference > 0) {
-    print('Decimal Difference: ' + decimalDifference.toString());
     const multiplier = u256.fromU64(u64(10 ** decimalDifference));
-    print('Multiplier: ' + multiplier.toString());
     return SafeMath256.mul(value, multiplier);
   } else if (decimalDifference < 0) {
     // Divide value by 10^(decimalDifference) to normalize
-    print('Decimal Difference: ' + decimalDifference.toString());
     const divisor = u256.fromU64(u64(10 ** -decimalDifference));
-    print('Divisor: ' + divisor.toString());
     return SafeMath256.div(value, divisor);
   }
 

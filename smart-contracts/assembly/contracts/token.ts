@@ -5,7 +5,6 @@ import {
   Context,
   generateEvent,
   isDeployingContract,
-  print,
   Storage,
 } from '@massalabs/massa-as-sdk';
 import {

@@ -6,7 +6,6 @@ import {
   generateEvent,
   Storage,
   Address,
-  print,
   assertIsSmartContract,
 } from '@massalabs/massa-as-sdk';
 import {
@@ -91,7 +90,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  // assertIsSmartContract(registryAddress);
+  assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
@@ -846,9 +845,6 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
 
   // amountInAfterFee = amountIn - totalFee
   const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
-
-  print(`amountInAfterFee: ${amountInAfterFee.toString()}`);
-  generateEvent(`amountInAfterFee: ${amountInAfterFee.toString()}`);
 
   // Get the address of the other token in the pool
   const tokenOutAddress =
