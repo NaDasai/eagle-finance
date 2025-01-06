@@ -578,11 +578,6 @@ export function getSwapOutEstimation(
   // Calculate amountOut
   const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
 
-  // For estimation, we simply emit an event or store in some state (here we choose event)
-  generateEvent(
-    `Estimation: Input = ${amountIn.toString()} of ${tokenInAddress}, Output = ${amountOut.toString()} of ${tokenOutAddress}`,
-  );
-
   return u256ToBytes(amountOut);
 }
 
