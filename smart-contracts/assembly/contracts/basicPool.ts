@@ -659,6 +659,24 @@ export function getLocalReserveB(): StaticArray<u8> {
 }
 
 /**
+ * Retrieves the last recorded cumulative price of token A from storage.
+ *
+ * @returns The stored cumulative price as a byte array.
+ */
+export function getAPriceCumulativeLast(): StaticArray<u8> {
+  return Storage.get(aPriceCumulative);
+}
+
+/**
+ * Retrieves the last recorded cumulative price of token B from storage.
+ *
+ * @returns The stored cumulative price as a byte array.
+ */
+export function getBPriceCumulativeLast(): StaticArray<u8> {
+  return Storage.get(bPriceCumulative);
+}
+
+/**
  * Calculates the Time-Weighted Average Price (TWAP) for a given token over a specified duration.
  *
  * @param tokenInAddress - The address of the token for which the TWAP is calculated.
