@@ -56,8 +56,8 @@ export const registryContractAddress = stringToBytes('registry');
 const storagePrefixManager = new StoragePrefixManager();
 const liquidityManager = new LiquidityManager<u256>(storagePrefixManager);
 // Storage keys for cumulative prices
-export const priceACumulative = stringToBytes('priceACumulative');
-export const priceBCumulative = stringToBytes('priceBCumulative');
+export const aPriceCumulative = stringToBytes('aPriceCumulative');
+export const bPriceCumulative = stringToBytes('bPriceCumulative');
 
 // Storage key for last timestamp
 export const lastTimestamp = stringToBytes('lastTimestamp');
@@ -128,8 +128,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   _setOwner(registry.ownerAddress());
 
   // Set the default prices to zero
-  Storage.set(priceACumulative, u256ToBytes(u256.Zero));
-  Storage.set(priceBCumulative, u256ToBytes(u256.Zero));
+  Storage.set(aPriceCumulative, u256ToBytes(u256.Zero));
+  Storage.set(bPriceCumulative, u256ToBytes(u256.Zero));
 
   // Set the current timestamp
   Storage.set(lastTimestamp, u64ToBytes(Context.timestamp()));
@@ -675,8 +675,8 @@ export function getTWAP(
   const currentTimestamp = Context.timestamp();
 
   // Retrieve cumulative prices and timestamp
-  const cumulativeA = bytesToU256(Storage.get(priceACumulative));
-  const cumulativeB = bytesToU256(Storage.get(priceBCumulative));
+  const cumulativeA = bytesToU256(Storage.get(aPriceCumulative));
+  const cumulativeB = bytesToU256(Storage.get(bPriceCumulative));
   const lastTime = bytesToU64(Storage.get(lastTimestamp));
 
   // Ensure duration does not exceed available time
@@ -1000,8 +1000,8 @@ function _updateCumulativePrices(): void {
   const currentTimestamp = Context.timestamp();
 
   // Retrieve last cumulative prices for tokens A and B
-  const lastCumulativeA = bytesToU256(Storage.get(priceACumulative));
-  const lastCumulativeB = bytesToU256(Storage.get(priceBCumulative));
+  const lastCumulativeA = bytesToU256(Storage.get(aPriceCumulative));
+  const lastCumulativeB = bytesToU256(Storage.get(bPriceCumulative));
 
   // Retrieve the last timestamp from storage
   const lastTime = bytesToU64(Storage.get(lastTimestamp));
@@ -1026,8 +1026,8 @@ function _updateCumulativePrices(): void {
     );
 
     // Store updated values
-    Storage.set(priceACumulative, u256ToBytes(newCumulativeA));
-    Storage.set(priceBCumulative, u256ToBytes(newCumulativeB));
+    Storage.set(aPriceCumulative, u256ToBytes(newCumulativeA));
+    Storage.set(bPriceCumulative, u256ToBytes(newCumulativeB));
 
     // Update last timestamp
     Storage.set(lastTimestamp, u64ToBytes(currentTimestamp));
