@@ -7,25 +7,19 @@ import {
   Address,
   validateAddress,
   assertIsSmartContract,
-  call
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
-  boolToByte,
   bytesToF64,
   bytesToString,
   f64ToBytes,
   stringToBytes,
 } from '@massalabs/as-types';
-
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
-import {
-  _buildPoolKey,
-  assertIsValidTokenDecimals,
-  NATIVE_MAS_COIN_ADDRESS,
-} from '../utils';
+import { _buildPoolKey } from '../utils';
+import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
@@ -89,7 +83,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // store the poolsKeys array in the poolsKeys persistent map
   Storage.set(poolsKeys, new Args().add(new Array<string>()).serialize());
 
-  generateEvent(`Registery Contract Deployed.`);
+  generateEvent(`Registry Contract Deployed.`);
 }
 
 /**
@@ -115,7 +109,7 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
   const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
 
   // Check if bTokenAddress is native mas
-  // WMAS can only be used as bToken since token ordering during pool creation ensures WMAS is always assigned as bToken
+  // WMAS can only be used as bToken since token ordering during pool creation ensures WMAS if exists, it is always assigned as bToken
   if (bTokenAddress == NATIVE_MAS_COIN_ADDRESS) {
     // Change bTokenAddress to wmasTokenAddress
     bTokenAddress = wmasTokenAddressStored;
@@ -156,6 +150,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     .expect('InputFeeRate is missing or invalid');
 
   // Check if bTokenAddress is native mas
+  // WMAS can only be used as bToken since token ordering during pool creation ensures WMAS if exists, it is always assigned as bToken.
   const isBTokenNativeMas = bTokenAddress == NATIVE_MAS_COIN_ADDRESS;
 
   // Coins To Send on addLiquidityFromRegistry function
@@ -168,7 +163,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
     assert(
       u256.fromU64(transferredCoins) >= bAmount,
-      'Coins to send on addLiquidityFromRegistry function must be greater than or equal to bAmount',
+      'INSUFFICIENT MAS COINS TRANSFERRED',
     );
 
     // If bTokenAddress is native mas, get the transferred coins and send them to the pool contract as coins
@@ -211,94 +206,6 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     isBTokenNativeMas,
     coinsToSendOnAddLiquidity,
   );
-}
-
-/**
- *  Creates a new pool and adds it to the registery.
- *  @param aTokenAddress - Address of Token A.
- *  @param bTokenAddress - Address of Token B.
- *  @param inputFeeRate - Input fee rate.
- *  @returns IBasicPool
- */
-function _createNewPool(
-  aTokenAddress: string,
-  bTokenAddress: string,
-  inputFeeRate: f64,
-): IBasicPool {
-  // Ensure that the input fee rate is between 0 and 10%
-  assert(
-    isBetweenZeroAndTenPercent(inputFeeRate),
-    'Input fee rate must be between 0 and 10%',
-  );
-
-  // Ensure that the aTokenAddress and bTokenAddress are different
-  assert(aTokenAddress !== bTokenAddress, 'Tokens must be different');
-
-  // Ensure taht the aTokenAddress and bTokenAddress are smart contract addresses
-  assertIsSmartContract(aTokenAddress);
-  assertIsSmartContract(bTokenAddress);
-
-  //  check if the pool is already in the registery
-  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
-
-  assert(!pools.contains(poolKey), 'Pool already in the registery');
-
-  const aTokenDecimals = new IMRC20(new Address(aTokenAddress)).decimals();
-  const bTokenDecimals = new IMRC20(new Address(bTokenAddress)).decimals();
-
-  // ensure that the token decimals are either 9 or 18
-  assertIsValidTokenDecimals(aTokenDecimals);
-  assertIsValidTokenDecimals(bTokenDecimals);
-
-  // Get the fee share protocol stored in the registry
-  const feeShareProtocolStored = _getFeeShareProtocol();
-
-  //  deploy the pool contract
-  const poolByteCode: StaticArray<u8> = fileToByteArray('build/basicPool.wasm');
-  const poolAddress = createSC(poolByteCode);
-
-  //  Init the pool contract
-  const poolContract = new IBasicPool(poolAddress);
-
-  poolContract.init(
-    aTokenAddress,
-    bTokenAddress,
-    aTokenDecimals,
-    bTokenDecimals,
-    inputFeeRate,
-    feeShareProtocolStored,
-    Context.callee().toString(), // registry address
-  );
-
-  // Add the pool to the registery
-  const pool = new Pool(
-    poolAddress,
-    new Address(aTokenAddress),
-    new Address(bTokenAddress),
-    inputFeeRate,
-  );
-
-  // Store the pool in the pools persistent map
-  pools.set(poolKey, pool);
-
-  // Store the pool key in the poolsKeys array
-  const poolsKeysStored = Storage.get(poolsKeys);
-
-  // Deserialize the poolsKeys array
-  const deserializedPoolsKeys = new Args(poolsKeysStored)
-    .nextStringArray()
-    .unwrap();
-
-  // Add the pool key to the poolsKeys array
-  deserializedPoolsKeys.push(poolKey);
-
-  // Serialize the deserialized poolsKeys array
-  Storage.set(poolsKeys, new Args().add(deserializedPoolsKeys).serialize());
-
-  // Emit an event
-  generateEvent(`Pool ${poolAddress} added to the registery`);
-
-  return poolContract;
 }
 
 /**
@@ -345,13 +252,14 @@ export function getFeeShareProtocolReceiver(): StaticArray<u8> {
  * @returns  void
  */
 export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
-  onlyOwner(); // only owner of registery can set the protocol fee receiver
+  // Only owner of registery can set the protocol fee receiver
+  onlyOwner();
 
   const args = new Args(binaryArgs);
 
   const receiver = args.nextString().expect('Invalid protocol fee receiver');
 
-  assert(validateAddress(receiver), 'Invalid protocol fee receiver');
+  assert(validateAddress(receiver), 'INVALID ADDRESS');
 
   Storage.set(feeShareProtocolReceiver, stringToBytes(receiver));
 }
@@ -386,47 +294,95 @@ export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
   Storage.set(wmasTokenAddress, stringToBytes(wmasTokenAddressInput));
 
   // Emit an event
-  generateEvent(`WmasTokenAddress set to ${wmasTokenAddressInput}`);
+  generateEvent(`WMAS address updated to ${wmasTokenAddressInput}`);
 }
 
+/**
+ *  Creates a new pool and adds it to the registery.
+ *  @param aTokenAddress - Address of Token A.
+ *  @param bTokenAddress - Address of Token B.
+ *  @param inputFeeRate - Input fee rate.
+ *  @returns IBasicPool
+ */
+function _createNewPool(
+  aTokenAddress: string,
+  bTokenAddress: string,
+  inputFeeRate: f64,
+): IBasicPool {
+  // Ensure that the input fee rate is between 0 and 10%
+  assert(
+    isBetweenZeroAndTenPercent(inputFeeRate),
+    'Input fee rate must be between 0 and 10%',
+  );
+
+  // Ensure that the aTokenAddress and bTokenAddress are different
+  assert(aTokenAddress !== bTokenAddress, 'Tokens must be different');
+
+  // Ensure taht the aTokenAddress and bTokenAddress are smart contract addresses
+  assertIsSmartContract(aTokenAddress);
+  assertIsSmartContract(bTokenAddress);
+
+  //  check if the pool is already in the registery
+  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
+
+  assert(!pools.contains(poolKey), 'Pool already in the registery');
+
+  // Get the fee share protocol stored in the registry
+  const feeShareProtocolStored = _getFeeShareProtocol();
+
+  //  Deploy the pool contract
+  const poolByteCode: StaticArray<u8> = fileToByteArray('build/basicPool.wasm');
+  const poolAddress = createSC(poolByteCode);
+
+  //  Init the pool contract
+  const poolContract = new IBasicPool(poolAddress);
+  poolContract.init(
+    aTokenAddress,
+    bTokenAddress,
+    inputFeeRate,
+    feeShareProtocolStored,
+    Context.callee().toString(), // registry address
+  );
+
+  // Add the pool to the registery
+  const pool = new Pool(
+    poolAddress,
+    new Address(aTokenAddress),
+    new Address(bTokenAddress),
+    inputFeeRate,
+  );
+
+  // Store the pool in the pools persistent map
+  pools.set(poolKey, pool);
+
+  // Store the pool key in the poolsKeys array
+  const poolsKeysStored = Storage.get(poolsKeys);
+
+  // Deserialize the poolsKeys array
+  const deserializedPoolsKeys = new Args(poolsKeysStored)
+    .nextStringArray()
+    .unwrap();
+
+  // Add the pool key to the poolsKeys array
+  deserializedPoolsKeys.push(poolKey);
+
+  // Serialize the deserialized poolsKeys array
+  Storage.set(poolsKeys, new Args().add(deserializedPoolsKeys).serialize());
+
+  // Emit an event
+  generateEvent(`Pool ${poolAddress} added to the registery`);
+
+  return poolContract;
+}
+
+/**
+ * Retrieves the fee share protocol value from storage and converts it to a floating-point number.
+ *
+ * @returns {f64} The fee share protocol value as a 64-bit floating-point number.
+ */
 function _getFeeShareProtocol(): f64 {
   return bytesToF64(Storage.get(feeShareProtocol));
 }
 
-/**
- * Checks if a pool exists based on the provided binary arguments.
- *
- * @param binaryArgs - A serialized array of bytes containing the arguments.
- *                     - TokenAddress A: The address of token A.
- *                     - TokenAddress B: The address of token B.
- *                     - InputFeeRate: The fee rate for the pool.
- * @returns A StaticArray<u8> representing a boolean value as a byte:
- *          - 1 if the pool exists.
- *          - 0 if the pool does not exist.
- *
- * @throws Will throw an error if any of the required arguments (TokenAddress A, TokenAddress B, or InputFeeRate)
- *         are missing or invalid.
- */
-export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
-  const args = new Args(binaryArgs);
-
-  const aTokenAddress = args
-    .nextString()
-    .expect('TokenAddress A is missing or invalid');
-
-  const bTokenAddress = args
-    .nextString()
-    .expect('TokenAddress B is missing or invalid');
-
-  const inputFeeRate = args
-    .nextF64()
-    .expect('InputFeeRate is missing or invalid');
-
-  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
-
-  return boolToByte(pools.contains(poolKey));
-  
-}
-
-// exprot all the functions from teh ownership file
+// Export all the functions from the ownership functions
 export * from '../utils/ownership';

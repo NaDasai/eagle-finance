@@ -6,25 +6,22 @@ import {
   generateEvent,
   Storage,
   Address,
-  print,
+  assertIsSmartContract,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
   bytesToF64,
   bytesToString,
   bytesToU256,
-  byteToU8,
   f64ToBytes,
   stringToBytes,
   u256ToBytes,
-  u64ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
-import { normalizeToDecimals } from '../lib/math';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
@@ -32,42 +29,40 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import {
-  _wrapMasToWMAS,
-  DEFAULT_DECIMALS,
-  NATIVE_MAS_COIN_ADDRESS,
-} from '../utils';
+import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 
-// storage key containning the value of the token A reserve inside the pool
+// Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
-// storage key containning the value of the token B reserve inside the pool
+// Storage key containning the value of the token B reserve inside the pool
 export const bTokenReserve = stringToBytes('bTokenReserve');
-// storage key containning address of the token A inside the pool
+// Storage key containning address of the token A inside the pool
 export const aTokenAddress = stringToBytes('tokenA');
 // storage key containning address of the token B inside the pool
 export const bTokenAddress = stringToBytes('tokenB');
-// storage key containning the decimals of the token A inside the pool
-export const aTokenDecimals = stringToBytes('aTokenDecimals');
-// storage key containning the decimals of the token B inside the pool
-export const bTokenDecimals = stringToBytes('bTokenDecimals');
-// storage key containning the accumulated fee protocol of the token A inside the pool
+// Storage key containning the accumulated fee protocol of the token A inside the pool
 export const aProtocolFee = stringToBytes('aProtocolFee');
-// storage key containning the accumulated fee protocol of the token B inside the pool
+// Storage key containning the accumulated fee protocol of the token B inside the pool
 export const bProtocolFee = stringToBytes('bProtocolFee');
-// storage key containning the fee rate value of the pool. value is between 0 and 1
+// Storage key containning the fee rate value of the pool. value is between 0 and 1
 export const feeRate = stringToBytes('feeRate');
-// storage key containning the fee share protocol value of the pool. value is between 0 and 1
+// Storage key containning the fee share protocol value of the pool. value is between 0 and 1
 export const feeShareProtocol = stringToBytes('feeShareProtocol');
-// storage key containning the address of the registry contract inside the pool
+// Storage key containning the address of the registry contract inside the pool
 export const registryContractAddress = stringToBytes('registry');
-// create new liquidity manager
+// Create new liquidity manager representing the pool LP token
 const storagePrefixManager = new StoragePrefixManager();
 const liquidityManager = new LiquidityManager<u256>(storagePrefixManager);
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
- * @param binaryArgs - Arguments serialized with Args (aAddress, bAddress, feeRate, feeShareProtocol, lpTokenAddress, registryAddress)
+ * @param binaryArgs - Arguments serialized with Args
+ * - `aAddress`: Address of token A.
+ * - `bAddress`: Address of token B.
+ * - `inputFeeRate`: Input fee rate for the pool.
+ * - `feeShareProtocol`: Fee share protocol for the pool.
+ * - `registryAddress`: Address of the registry contract.
+ * @returns void
  */
 export function constructor(binaryArgs: StaticArray<u8>): void {
   // This line is important. It ensures that this function can't be called in the future.
@@ -79,9 +74,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Read the arguments
   const aAddress = args.nextString().expect('Address A is missing or invalid');
   const bAddress = args.nextString().expect('Address B is missing or invalid');
-
-  const aDecimals = args.nextU8().expect('Decimals A is missing or invalid');
-  const bDecimals = args.nextU8().expect('Decimals B is missing or invalid');
 
   const inputFeeRate = args
     .nextF64()
@@ -98,7 +90,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  // assertIsSmartContract(registryAddress);
+  assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
@@ -118,10 +110,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(aTokenReserve, u256ToBytes(u256.Zero));
   Storage.set(bTokenReserve, u256ToBytes(u256.Zero));
 
-  // Store the tokens a and b decimals in the contract storage
-  Storage.set(aTokenDecimals, u64ToBytes(aDecimals));
-  Storage.set(bTokenDecimals, u64ToBytes(bDecimals));
-
   // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
 
@@ -138,7 +126,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
 /**
  *  Adds liquidity to the pool.
- *  @param binaryArgs - Arguments serialized with Args (amountA, amountB)
+ *  @param binaryArgs - Arguments serialized with Args
+ *  - `amountA`: The amount of token A to add to the pool.
+ *  - `amountB`: The amount of token B to add to the pool.
  * @returns void
  */
 export function addLiquidity(binaryArgs: StaticArray<u8>): void {
@@ -194,7 +184,7 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   // Ensure that the caller is the registry contract
   assert(
     Context.caller().toString() == registeryAddressStored,
-    'Only the registry contract can call this function',
+    'Caller is not the registry contract',
   );
 
   const args = new Args(binaryArgs);
@@ -203,7 +193,7 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   let aAmount = args.nextU256().expect('Amount A is missing or invalid');
   let bAmount = args.nextU256().expect('Amount B is missing or invalid');
 
-  // Bool to check if the coin are native
+  // Bool args to know if the tokens are native or not
   const isNativeCoin = args
     .nextBool()
     .expect('isNativeCoin is missing or invalid');
@@ -250,10 +240,6 @@ function _addLiquidity(
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
-  // Get the Decimals of the two tokens in the pool
-  const aTokenDecimalsStored = _getATokenDecimals();
-  const bTokenDecimalsStored = _getBTokenDecimals();
-
   // Get the total supply of the LP token
   const totalSupply: u256 = liquidityManager.getTotalSupply();
 
@@ -297,10 +283,13 @@ function _addLiquidity(
     liquidity = liqA < liqB ? liqA : liqB;
   }
 
-  assert(liquidity > u256.Zero, 'Insufficient liquidity minted');
+  assert(liquidity > u256.Zero, 'INSUFFICIENT LIQUIDITY MINTED');
 
   // Address of the current contract
   const contractAddress = Context.callee();
+
+  // Address of the caller
+  const callerAddress = Context.caller();
 
   // check if it is called by the registry
   if (!isCalledByRegistry) {
@@ -309,7 +298,7 @@ function _addLiquidity(
 
     // Transfer tokens A from user to contract
     new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-      Context.caller(),
+      callerAddress,
       contractAddress,
       finalAmountA,
     );
@@ -317,7 +306,7 @@ function _addLiquidity(
     if (!isWithMAS) {
       // Transfer tokens B from user to contract if this function is not called from addLiquidityWithMAS
       new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-        Context.caller(),
+        callerAddress,
         contractAddress,
         finalAmountB,
       );
@@ -325,7 +314,7 @@ function _addLiquidity(
   }
 
   // Mint LP tokens to user
-  liquidityManager.mint(Context.caller(), liquidity);
+  liquidityManager.mint(callerAddress, liquidity);
 
   // Update reserves
   _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
@@ -449,10 +438,13 @@ export function claimProtocolFees(): void {
   // Get the protocol fee receiver from the registry
   const protocolFeeReceiver = _getProtocolFeeReceiver();
 
+  // Address of the caller
+  const callerAddress = Context.caller();
+
   if (aAccumulatedFeesStored > u256.Zero) {
     // Transfer accumulated protocol fees to the protocol fee receiver (retreived from the registry contarct)
     new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-      Context.callee(),
+      callerAddress,
       protocolFeeReceiver,
       aAccumulatedFeesStored,
     );
@@ -463,7 +455,7 @@ export function claimProtocolFees(): void {
 
   if (bAccumulatedFeesStored > u256.Zero) {
     new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-      Context.callee(),
+      callerAddress,
       protocolFeeReceiver,
       bAccumulatedFeesStored,
     );
@@ -472,7 +464,7 @@ export function claimProtocolFees(): void {
     _setTokenAccumulatedProtocolFee(bTokenAddressStored, u256.Zero);
   }
 
-  generateEvent(`Protocol fees claimed by ${Context.caller().toString()}`);
+  generateEvent(`Protocol fees claimed by ${callerAddress.toString()}`);
 }
 
 /**
@@ -569,15 +561,12 @@ export function getSwapOutEstimation(
       ? bTokenAddressStored
       : aTokenAddressStored;
 
-  // Get the decimals of the token in
-  const tokenInDecimalsStored = _getTokenDecimals(tokenInAddress);
-
   // Get current reserves
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
 
   // Calculate fees
-  const feeRate = _getFeeRate(); // e.g., 0.003
+  const feeRate = _getFeeRate(); // e.g. if it will be 30 it actually means 0.03% (30 / 1000)
 
   // totalFee = amountIn * feeRate
   const totalFee = getFeeFromAmount(amountIn, feeRate);
@@ -587,11 +576,6 @@ export function getSwapOutEstimation(
 
   // Calculate amountOut
   const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
-
-  // For estimation, we simply emit an event or store in some state (here we choose event)
-  generateEvent(
-    `Estimation: Input = ${amountIn.toString()} of ${tokenInAddress}, Output = ${amountOut.toString()} of ${tokenOutAddress}`,
-  );
 
   return u256ToBytes(amountOut);
 }
@@ -830,40 +814,6 @@ function _updateReserveB(amount: u256): void {
 }
 
 /**
- * Retrieves the decimals of a token in the pool.
- * @param tokenAddress - The address of the token.
- * @returns The decimals of the token.
- */
-function _getTokenDecimals(tokenAddress: string): u8 {
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-  if (tokenAddress == aTokenAddressStored) {
-    return _getATokenDecimals();
-  } else if (tokenAddress == bTokenAddressStored) {
-    return _getBTokenDecimals();
-  } else {
-    throw new Error('Invalid token address');
-  }
-}
-
-/**
- * Retrieves the decimals of token A in the pool.
- * @returns The decimals of token A.
- */
-function _getATokenDecimals(): u8 {
-  return byteToU8(Storage.get(aTokenDecimals));
-}
-
-/**
- * Retrieves the decimals of token B in the pool.
- * @returns The decimals of token B.
- */
-function _getBTokenDecimals(): u8 {
-  return byteToU8(Storage.get(bTokenDecimals));
-}
-
-/**
  * Swaps tokens in the pool.
  * @param tokenInAddress - The address of the token to swap in.
  * @param amountIn - The amount of the token to swap in.
@@ -880,11 +830,6 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
     'Invalid token address',
   );
 
-  const tokenInDecimalsStored =
-    tokenInAddress == aTokenAddressStored
-      ? _getATokenDecimals()
-      : _getBTokenDecimals();
-
   // Calculate fees
   const feeRate = _getFeeRate(); // e.g., 0.003
   const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
@@ -900,9 +845,6 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
 
   // amountInAfterFee = amountIn - totalFee
   const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
-
-  print(`amountInAfterFee: ${amountInAfterFee.toString()}`);
-  generateEvent(`amountInAfterFee: ${amountInAfterFee.toString()}`);
 
   // Get the address of the other token in the pool
   const tokenOutAddress =
@@ -954,3 +896,45 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
 
   return amountOut;
 }
+
+/**
+ * Wraps a specified amount of MAS coins into WMAS tokens.
+ *
+ * This function ensures that the amount of MAS coins transferred is sufficient
+ * before proceeding to wrap them into WMAS tokens. It retrieves the registry
+ * contract address and the WMAS token address from storage, then uses these
+ * addresses to create an instance of the WMAS contract. Finally, it deposits
+ * the specified amount of MAS coins into the WMAS contract.
+ *
+ * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
+ * @throws Will throw an error if the transferred MAS coins are insufficient.
+ */
+export function _wrapMasToWMAS(amount: u256): void {
+  // Get the transferred coins from the operation
+  const transferredCoins = Context.transferredCoins();
+
+  // Ensure bAmount is equal to MAS coins transferred
+  assert(
+    u256.fromU64(transferredCoins) >= amount,
+    'INSUFFICIENT MAS COINS TRANSFERRED',
+  );
+
+  // Get the registry contract address
+  const registryContractAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Get the wmas token address
+  const wmasTokenAddressStored = new IRegistery(
+    new Address(registryContractAddressStored),
+  ).getWmasTokenAddress();
+
+  // Get the wmas contract instance
+  const wmasToken = new IWMAS(new Address(wmasTokenAddressStored));
+
+  // Wrap MAS coins into WMAS
+  wmasToken.deposit(amount.toU64());
+}
+
+// Export ownership functions
+export * from '../utils/ownership';
