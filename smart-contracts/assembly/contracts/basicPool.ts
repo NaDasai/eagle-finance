@@ -335,9 +335,6 @@ function _addLiquidity(
   _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
   _updateReserveB(SafeMath256.add(reserveB, finalAmountB));
 
-  // Update cumulative prices
-  _updateCumulativePrices();
-
   generateEvent(
     `Liquidity added: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
   );
@@ -548,9 +545,6 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   generateEvent(
     `Removed liquidity: ${lpAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
   );
-
-  // Update cumulative prices
-  _updateCumulativePrices();
 }
 
 /**
