@@ -13,9 +13,11 @@ import {
   bytesToF64,
   bytesToString,
   bytesToU256,
+  bytesToU64,
   f64ToBytes,
   stringToBytes,
   u256ToBytes,
+  u64ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
@@ -53,6 +55,12 @@ export const registryContractAddress = stringToBytes('registry');
 // Create new liquidity manager representing the pool LP token
 const storagePrefixManager = new StoragePrefixManager();
 const liquidityManager = new LiquidityManager<u256>(storagePrefixManager);
+// Storage keys for cumulative prices
+export const aPriceCumulative = stringToBytes('aPriceCumulative');
+export const bPriceCumulative = stringToBytes('bPriceCumulative');
+
+// Storage key for last timestamp
+export const lastTimestamp = stringToBytes('lastTimestamp');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -118,6 +126,13 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Set the owner of the pool contract to the same registry owner address
   _setOwner(registry.ownerAddress());
+
+  // Set the default prices to zero
+  Storage.set(aPriceCumulative, u256ToBytes(u256.Zero));
+  Storage.set(bPriceCumulative, u256ToBytes(u256.Zero));
+
+  // Set the current timestamp
+  Storage.set(lastTimestamp, u64ToBytes(Context.timestamp()));
 
   generateEvent(
     `New pool deployed at ${Context.callee()}. Token A: ${aAddress}. Token B: ${bAddress}. Registry: ${registryAddress}.`,
@@ -638,23 +653,69 @@ export function getLocalReserveB(): StaticArray<u8> {
 }
 
 /**
- * Retrieves the price of Token A in terms of Token B.
- * @returns The price of token A in terms of token B, as a u256 represented as a fraction.
- * Returns zero if the b reserve is zero to avoid division by zero error.
+ * Retrieves the last recorded cumulative price of token A from storage.
+ *
+ * @returns The stored cumulative price as a byte array.
  */
-export function getPrice(): StaticArray<u8> {
-  const reserveA = _getLocalReserveA();
-  const reserveB = _getLocalReserveB();
+export function getAPriceCumulativeLast(): StaticArray<u8> {
+  return Storage.get(aPriceCumulative);
+}
 
-  // If reserveB is zero return zero
-  if (reserveB == u256.Zero) {
-    return u256ToBytes(u256.Zero);
-  }
+/**
+ * Retrieves the last recorded cumulative price of token B from storage.
+ *
+ * @returns The stored cumulative price as a byte array.
+ */
+export function getBPriceCumulativeLast(): StaticArray<u8> {
+  return Storage.get(bPriceCumulative);
+}
 
-  // priceAInB = reserveB / reserveA
-  const price = SafeMath256.div(reserveB, reserveA);
+/**
+ * Calculates the Time-Weighted Average Price (TWAP) for a given token over a specified duration.
+ *
+ * @param tokenInAddress - The address of the token for which the TWAP is calculated.
+ * @param duration - The time period over which the TWAP is calculated, in seconds.
+ * @returns The TWAP as a byte array, representing the average price of the token.
+ *
+ * @throws Will throw an error if the specified duration exceeds the available time since the last recorded timestamp.
+ */
+export function getTWAP(
+  tokenInAddress: string,
+  duration: u64,
+): StaticArray<u8> {
+  // Get the current timestamp in seconds
+  const currentTimestamp = Context.timestamp();
 
-  return u256ToBytes(price);
+  // Retrieve cumulative prices and timestamp
+  const cumulativeA = bytesToU256(Storage.get(aPriceCumulative));
+  const cumulativeB = bytesToU256(Storage.get(bPriceCumulative));
+  const lastTime = bytesToU64(Storage.get(lastTimestamp));
+
+  // Ensure duration does not exceed available time
+  assert(
+    currentTimestamp >= lastTime + duration,
+    'Duration exceeds available time',
+  );
+
+  // Calculate TWAP
+  const elapsedTime = currentTimestamp - lastTime;
+
+  // Get the price of token A in terms of token B
+  const priceA = SafeMath256.div(
+    SafeMath256.sub(cumulativeA, cumulativeB),
+    u256.fromU64(elapsedTime),
+  );
+
+  // Get the price of token B in terms of token A
+  const priceB = SafeMath256.div(
+    SafeMath256.sub(cumulativeB, cumulativeA),
+    u256.fromU64(elapsedTime),
+  );
+
+  // Return the TWAP for the given token
+  return tokenInAddress == bytesToString(Storage.get(aTokenAddress))
+    ? u256ToBytes(priceA)
+    : u256ToBytes(priceB);
 }
 
 /**
@@ -894,6 +955,9 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
     `Swap: In=${amountIn.toString()} of ${tokenInAddress}, Out=${amountOut.toString()} of ${tokenOutAddress}, Fees: total=${totalFee.toString()}, protocol=${protocolFee.toString()}, lp=${lpFee.toString()}`,
   );
 
+  // Update cumulative prices
+  _updateCumulativePrices();
+
   return amountOut;
 }
 
@@ -909,7 +973,7 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
  * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
  * @throws Will throw an error if the transferred MAS coins are insufficient.
  */
-export function _wrapMasToWMAS(amount: u256): void {
+function _wrapMasToWMAS(amount: u256): void {
   // Get the transferred coins from the operation
   const transferredCoins = Context.transferredCoins();
 
@@ -934,6 +998,52 @@ export function _wrapMasToWMAS(amount: u256): void {
 
   // Wrap MAS coins into WMAS
   wmasToken.deposit(amount.toU64());
+}
+
+/**
+ * Updates the cumulative prices for tokens A and B based on the elapsed time since the last update.
+ *
+ * This function retrieves the last stored cumulative prices and timestamp, calculates the elapsed time,
+ * and updates the cumulative prices using the current reserves and elapsed time. The updated values
+ * are then stored back in the storage.
+ */
+function _updateCumulativePrices(): void {
+  // Get the current timestamp
+  const currentTimestamp = Context.timestamp();
+
+  // Retrieve last cumulative prices for tokens A and B
+  const lastCumulativeA = bytesToU256(Storage.get(aPriceCumulative));
+  const lastCumulativeB = bytesToU256(Storage.get(bPriceCumulative));
+
+  // Retrieve the last timestamp from storage
+  const lastTime = bytesToU64(Storage.get(lastTimestamp));
+
+  // Calculate elapsed time
+  const elapsedTime = currentTimestamp - lastTime;
+
+  if (elapsedTime > 0) {
+    // Get Local reserves for tokens A and B
+    const reserveA = _getLocalReserveA();
+    const reserveB = _getLocalReserveB();
+
+    // Update cumulative prices
+    const newCumulativeA = SafeMath256.add(
+      lastCumulativeA,
+      SafeMath256.mul(reserveB, u256.fromU64(elapsedTime)),
+    );
+
+    const newCumulativeB = SafeMath256.add(
+      lastCumulativeB,
+      SafeMath256.mul(reserveA, u256.fromU64(elapsedTime)),
+    );
+
+    // Store updated values
+    Storage.set(aPriceCumulative, u256ToBytes(newCumulativeA));
+    Storage.set(bPriceCumulative, u256ToBytes(newCumulativeB));
+
+    // Update last timestamp
+    Storage.set(lastTimestamp, u64ToBytes(currentTimestamp));
+  }
 }
 
 // Export ownership functions
