@@ -343,6 +343,9 @@ function _addLiquidity(
 /**
  *  Swaps tokens in the pool.
  * @param binaryArgs - Arguments serialized with Args (tokenInAddress, amountIn)
+ * - `tokenInAddress`: The address of the token to swap in.
+ * - `amountIn`: The amount of the token to swap in.
+ * - `minAmountOut`: The minimum amount of the token to swap out.
  * @returns void
  */
 export function swap(binaryArgs: StaticArray<u8>): void {
@@ -356,8 +359,19 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // Get the amount of tokenIn to swap
   let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
+  // Get the minimum amount of tokenOut
+  const minAmountOut = args
+    .nextU256()
+    .expect('minAmountOut is missing or invalid');
+
+  // Check if the amountIn is greater than 0
+  assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
+
+  // Check if the minAmountOut is greater than 0
+  assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
+
   // Call the internal swap function
-  _swap(tokenInAddress, amountIn);
+  _swap(tokenInAddress, amountIn, minAmountOut);
 }
 
 /**
@@ -373,6 +387,17 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
     .expect('TokenIn is missing or invalid');
 
   let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+
+  // Get the minimum amount of tokenOut
+  const minAmountOut = args
+    .nextU256()
+    .expect('minAmountOut is missing or invalid');
+
+  // Check if the amountIn is greater than 0
+  assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
+
+  // Check if the minAmountOut is greater than 0
+  assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
 
   // Get the registry contract address
   const registryContractAddressStored = bytesToString(
@@ -400,7 +425,7 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
     wmasContract.deposit(transferredCoins);
 
     // Call the swap internal function
-    _swap(wmasTokenAddressStored, u256.fromU64(transferredCoins));
+    _swap(wmasTokenAddressStored, u256.fromU64(transferredCoins), minAmountOut);
   } else {
     // Get the token addresses from storage
     const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
@@ -419,7 +444,7 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
     );
 
     // Call the swap internal function
-    const amountOut = _swap(tokenInAddress, amountIn);
+    const amountOut = _swap(tokenInAddress, amountIn, minAmountOut);
 
     const wmasContract = new IWMAS(new Address(wmasTokenAddressStored));
 
@@ -878,9 +903,14 @@ function _updateReserveB(amount: u256): void {
  * Swaps tokens in the pool.
  * @param tokenInAddress - The address of the token to swap in.
  * @param amountIn - The amount of the token to swap in.
+ * @param minAmountOut - The minimum amount of the token to swap out.
  * @returns The amount of the token to swap out.
  */
-function _swap(tokenInAddress: string, amountIn: u256): u256 {
+function _swap(
+  tokenInAddress: string,
+  amountIn: u256,
+  minAmountOut: u256,
+): u256 {
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
 
@@ -920,8 +950,8 @@ function _swap(tokenInAddress: string, amountIn: u256): u256 {
   // Calculate the amount of tokens to be swapped
   const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
 
-  // Esnure that the amountOut is greater than zero
-  assert(amountOut > u256.Zero, 'AmountOut is less than or equal to zero');
+  // Ensure that the amountOut is greater than or equal to minAmountOut
+  assert(amountOut >= minAmountOut, 'SLIPPAGE LIMIT EXCEEDED');
 
   // Transfer the amountIn to the contract
   new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
