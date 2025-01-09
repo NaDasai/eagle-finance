@@ -72,6 +72,9 @@ async function createNewPoolWithLiquidity(
 ) {
   console.log('Creating new poool and add liquidity.....');
 
+  const minAmountA = BigInt(0);
+  const minAmountB = BigInt(0);
+
   const operation = await contract.call(
     'createNewPoolWithLiquidity',
     new Args()
@@ -79,6 +82,8 @@ async function createNewPoolWithLiquidity(
       .addString(bTokenAddress)
       .addU256(amountA)
       .addU256(amountB)
+      .addU256(minAmountA)
+      .addU256(minAmountB)
       .addF64(inputFeeRate)
       .serialize(),
     { coins: isNativeCoin ? Mas.fromString('5.1') : Mas.fromString('0.1') },
