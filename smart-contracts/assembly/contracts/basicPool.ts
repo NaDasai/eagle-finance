@@ -295,8 +295,8 @@ function _addLiquidity(
     }
 
     // assert that the finalAmountA and finalAmountB are greater than minAmountA and minAmountB
-    assert(finalAmountA >= minAmountA, 'INSUFFICIENT_A_AMOUNT');
-    assert(finalAmountB >= minAmountB, 'INSUFFICIENT_B_AMOUNT');
+    assert(finalAmountA >= minAmountA, 'LESS_MIN_A_AMOUNT');
+    assert(finalAmountB >= minAmountB, 'LESS_MIN_B_AMOUNT');
 
     // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
     const liqA = SafeMath256.div(
