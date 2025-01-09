@@ -44,19 +44,37 @@ export class IBasicPool {
    *
    * @param {u256} amountA - Amount of Token A.
    * @param {u256} amountB - Amount of Token B.
+   * @param {u256} minAmountA - Minimum amount of Token A to receive.
+   * @param {u256} minAmountB - Minimum amount of Token B to receive.
    */
-  addLiquidity(amountA: u256, amountB: u256): void {
-    const args = new Args().add(amountA).add(amountB);
+  addLiquidity(
+    amountA: u256,
+    amountB: u256,
+    minAmountA: u256,
+    minAmountB: u256,
+  ): void {
+    const args = new Args()
+      .add(amountA)
+      .add(amountB)
+      .add(minAmountA)
+      .add(minAmountB);
     call(this._origin, 'addLiquidity', args, 0);
   }
 
   addLiquidityFromRegistry(
     amountA: u256,
     amountB: u256,
+    minAmountA: u256,
+    minAmountB: u256,
     isNativeCoin: bool = false,
     coins: u64 = 0,
   ): void {
-    const args = new Args().add(amountA).add(amountB).add(isNativeCoin);
+    const args = new Args()
+      .add(amountA)
+      .add(amountB)
+      .add(minAmountA)
+      .add(minAmountB)
+      .add(isNativeCoin);
     call(this._origin, 'addLiquidityFromRegistry', args, coins);
   }
 
@@ -82,9 +100,15 @@ export class IBasicPool {
    * Removes liquidity from the pool.
    *
    * @param {u256} lpTokenAmount - Amount of LP tokens to remove.
+   * @param {u256} minAmountA - Minimum amount of Token A to receive.
+   * @param {u256} minAmountB - Minimum amount of Token B to receive.
    */
-  removeLiquidity(lpTokenAmount: u256): void {
-    const args = new Args().add(lpTokenAmount);
+  removeLiquidity(
+    lpTokenAmount: u256,
+    minAmountA: u256,
+    minAmountB: u256,
+  ): void {
+    const args = new Args().add(lpTokenAmount).add(minAmountA).add(minAmountB);
     call(this._origin, 'removeLiquidity', args, 0);
   }
 

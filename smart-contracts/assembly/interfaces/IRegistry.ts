@@ -56,24 +56,29 @@ export class IRegistery {
    *
    * @param {string} aTokenAddress - Address of Token A.
    * @param {string} bTokenAddress - Address of Token B.
-   * @param {f64} inputFeeRate - Input fee rate.
    * @param {u256} aAmount - Amount of Token A.
    * @param {u256} bAmount - Amount of Token B.
+   * @param {u256} minAmountA - Minimum amount of Token A to receive.
+   * @param {u256} minAmountB - Minimum amount of Token B to receive.
+   * @param {f64} inputFeeRate - Input fee rate.
    */
   createNewPoolWithLiquidity(
     aTokenAddress: string,
     bTokenAddress: string,
-    inputFeeRate: f64,
     aAmount: u256,
     bAmount: u256,
+    minAmountA: u256,
+    minAmountB: u256,
+    inputFeeRate: f64,
   ): void {
     const args = new Args()
       .add(aTokenAddress)
       .add(bTokenAddress)
-      .add(inputFeeRate)
-      .add(u256ToBytes(aAmount))
-      .add(u256ToBytes(bAmount));
-
+      .add(aAmount)
+      .add(bAmount)
+      .add(minAmountA)
+      .add(minAmountB)
+      .add(inputFeeRate);
     call(this._origin, 'createNewPoolWithLiquidity', args, 0);
   }
 
