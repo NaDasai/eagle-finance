@@ -151,8 +151,10 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
 
   let amountA = args.nextU256().expect('Amount A is missing or invalid');
   let amountB = args.nextU256().expect('Amount B is missing or invalid');
+  const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
+  const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
-  _addLiquidity(amountA, amountB);
+  _addLiquidity(amountA, amountB, minAmountA, minAmountB);
 }
 
 /**
@@ -172,12 +174,14 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
 
   const aAmount = args.nextU256().expect('Amount A is missing or invalid');
   const bAmount = args.nextU256().expect('Amount B is missing or invalid');
+  const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
+  const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
   // Wrap MAS to WMAS
   _wrapMasToWMAS(bAmount);
 
   // Add liquidity with WMAS
-  _addLiquidity(aAmount, bAmount, false, true);
+  _addLiquidity(aAmount, bAmount, minAmountA, minAmountB, false, true);
 }
 
 /**
@@ -204,9 +208,11 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
 
   const args = new Args(binaryArgs);
 
-  // Ensure that the amounts are greater than 0
   let aAmount = args.nextU256().expect('Amount A is missing or invalid');
   let bAmount = args.nextU256().expect('Amount B is missing or invalid');
+
+  const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
+  const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
   // Bool args to know if the tokens are native or not
   const isNativeCoin = args
@@ -218,7 +224,7 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   }
 
   // Call the Internal function
-  _addLiquidity(aAmount, bAmount, true, isNativeCoin);
+  _addLiquidity(aAmount, bAmount, minAmountA, minAmountB, true, isNativeCoin);
 }
 
 /**
@@ -240,6 +246,8 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
 function _addLiquidity(
   amountA: u256,
   amountB: u256,
+  minAmountA: u256,
+  minAmountB: u256,
   isCalledByRegistry: bool = false,
   isWithMAS: bool = false,
 ): void {
@@ -285,6 +293,10 @@ function _addLiquidity(
       // User provided more B than needed, adjust B
       finalAmountB = amountBOptimal;
     }
+
+    // assert that the finalAmountA and finalAmountB are greater than minAmountA and minAmountB
+    assert(finalAmountA >= minAmountA, 'INSUFFICIENT_A_AMOUNT');
+    assert(finalAmountB >= minAmountB, 'INSUFFICIENT_B_AMOUNT');
 
     // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
     const liqA = SafeMath256.div(
@@ -951,7 +963,7 @@ function _swap(
   const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
 
   // Ensure that the amountOut is greater than or equal to minAmountOut
-  assert(amountOut >= minAmountOut, 'SLIPPAGE LIMIT EXCEEDED');
+  assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
 
   // Transfer the amountIn to the contract
   new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
@@ -982,7 +994,7 @@ function _swap(
   }
 
   generateEvent(
-    `Swap: In=${amountIn.toString()} of ${tokenInAddress}, Out=${amountOut.toString()} of ${tokenOutAddress}, Fees: total=${totalFee.toString()}, protocol=${protocolFee.toString()}, lp=${lpFee.toString()}`,
+    `SWAP: In=${amountIn.toString()} of ${tokenInAddress}, Out=${amountOut.toString()} of ${tokenOutAddress}, Fees: total=${totalFee.toString()}, protocol=${protocolFee.toString()}, lp=${lpFee.toString()}`,
   );
 
   // Update cumulative prices

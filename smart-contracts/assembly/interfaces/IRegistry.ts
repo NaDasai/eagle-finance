@@ -66,14 +66,17 @@ export class IRegistery {
     inputFeeRate: f64,
     aAmount: u256,
     bAmount: u256,
+    minAmountA: u256,
+    minAmountB: u256,
   ): void {
     const args = new Args()
       .add(aTokenAddress)
       .add(bTokenAddress)
-      .add(inputFeeRate)
-      .add(u256ToBytes(aAmount))
-      .add(u256ToBytes(bAmount));
-
+      .add(aAmount)
+      .add(bAmount)
+      .add(minAmountA)
+      .add(minAmountB)
+      .add(inputFeeRate);
     call(this._origin, 'createNewPoolWithLiquidity', args, 0);
   }
 

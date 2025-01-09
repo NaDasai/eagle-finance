@@ -145,6 +145,9 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   const aAmount = args.nextU256().expect('TokenAmount A is missing or invalid');
   const bAmount = args.nextU256().expect('TokenAmount B is missing or invalid');
 
+  const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
+  const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
+
   const inputFeeRate = args
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
@@ -203,6 +206,8 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   poolContract.addLiquidityFromRegistry(
     aAmount,
     bAmount,
+    minAmountA,
+    minAmountB,
     isBTokenNativeMas,
     coinsToSendOnAddLiquidity,
   );
