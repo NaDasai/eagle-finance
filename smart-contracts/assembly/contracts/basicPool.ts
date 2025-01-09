@@ -532,6 +532,10 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     .nextU256()
     .expect('LpTokenAmount is missing or invalid');
 
+  const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
+
+  const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
+
   // Ensure that the user has enough LP tokens
   assert(
     liquidityManager.getBalance(Context.caller()) >= lpAmount,
@@ -558,6 +562,17 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const amountBOut = SafeMath256.div(
     SafeMath256.mul(lpAmount, reserveB),
     totalSupply,
+  );
+
+  // check if the amountAOut and amountBOut are greater than or equal to minAmountA and minAmountB
+  assert(
+    amountAOut >= minAmountA,
+    'REMOVE LIQUIDITY: SLIPPAGE_LIMIT_EXCEEDED_A',
+  );
+
+  assert(
+    amountBOut >= minAmountB,
+    'REMOVE LIQUIDITY: SLIPPAGE_LIMIT_EXCEEDED_B',
   );
 
   // Burn lp tokens

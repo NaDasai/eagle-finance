@@ -44,6 +44,8 @@ export class IBasicPool {
    *
    * @param {u256} amountA - Amount of Token A.
    * @param {u256} amountB - Amount of Token B.
+   * @param {u256} minAmountA - Minimum amount of Token A to receive.
+   * @param {u256} minAmountB - Minimum amount of Token B to receive.
    */
   addLiquidity(
     amountA: u256,
@@ -98,9 +100,15 @@ export class IBasicPool {
    * Removes liquidity from the pool.
    *
    * @param {u256} lpTokenAmount - Amount of LP tokens to remove.
+   * @param {u256} minAmountA - Minimum amount of Token A to receive.
+   * @param {u256} minAmountB - Minimum amount of Token B to receive.
    */
-  removeLiquidity(lpTokenAmount: u256): void {
-    const args = new Args().add(lpTokenAmount);
+  removeLiquidity(
+    lpTokenAmount: u256,
+    minAmountA: u256,
+    minAmountB: u256,
+  ): void {
+    const args = new Args().add(lpTokenAmount).add(minAmountA).add(minAmountB);
     call(this._origin, 'removeLiquidity', args, 0);
   }
 
