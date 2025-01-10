@@ -33,6 +33,7 @@ import {
 } from '../lib/liquidityManager';
 import { HUNDRED_PERCENT, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
+import { IEagleCallee } from '../interfaces/IEagleCallee';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -1117,7 +1118,7 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
 
   // Is the data that will be passed to the callback function
   const callbackData = args
-    .nextString()
+    .nextBytes()
     .expect('callbackData is missing or invalid');
 
   // Enusre that bAmountOut or aAmountOut is greater than 0
@@ -1184,10 +1185,15 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
     );
   }
 
-  // TODO: call the callback function of the contract
-  // call(callbackAddress, callbackData);
+  // Call the callback function of the contract
+  new IEagleCallee(new Address(callbackAddress)).eagleCall(
+    Context.caller(),
+    aAmountOut,
+    bAmountOut,
+    callbackData,
+  );
 
-  // update contract balances
+  // Update contract balances
   aContractBalance = aToken.balanceOf(contractAddress);
   bContractBalance = bToken.balanceOf(contractAddress);
 
