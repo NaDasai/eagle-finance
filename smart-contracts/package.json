@@ -5,7 +5,8 @@
     "main": "index.js",
     "scripts": {
         "events": "tsx src/events.ts",
-        "test": "asp --verbose",
+        "test": "asp --summary",
+        "test:verbose": "asp --verbose",
         "buildnet:registry": "npm run build && tsx src/builnet-tests/registry.ts",
         "buildnet:flashSwap": "npm run build && tsx src/builnet-tests/flashSwap.ts",
         "buildnet:wrapMas": "tsx src/builnet-tests/WrapMas.ts",
