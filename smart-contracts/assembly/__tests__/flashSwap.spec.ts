@@ -28,8 +28,8 @@ const user2Address = 'AU1aC6g4NpkLQrhp6mVC1ugaDrAEdPGUyVk57xPmEZgF6bh6dTUf';
 // user 3 address
 const user3Address = 'AU12jojWJf8LRGpWUZoA5CjSVEGHzNnpck1ktbnvP9Ttw7i16avMF';
 
-const aTokenAddress = 'AS12V58y942EBAexRzU3bGVb7Fxoduba4UxfLAQCbSeKNVamDCHfL';
-const bTokenAddress = 'AS1mb6djKDu2LnhQtajuLPGX1J2PNYgCY2LoUxQxa69ABUgedJXN';
+const aTokenAddress = 'AS12mGPKTyQYC5FwJG5wHQFwmtbzhQTvvoGLBVvSgLCGtUhpDeGSb';
+const bTokenAddress = 'AS126PjhhpC2aYhPcCh5DgJFQjEkPtts5fnqktu1hPJdcLdV5RXXs';
 const registeryContractAddr =
   'AS1FUB799cR9KYhyjfJRowWnZCuXe2h4Eb8V71Cmn9tsAr6HHuUU';
 
@@ -119,10 +119,17 @@ describe('Scenario 1: Add liquidity, Flash Swap', () => {
       u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS),
     );
 
-    mockScCall(new Args().serialize());
-    mockScCall(new Args().serialize());
+    mockScCall(
+      new Args()
+        .add(u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS))
+        .serialize(),
+    );
 
-    mockScCall(new Args().serialize());
+    mockScCall(
+      new Args()
+        .add(u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS))
+        .serialize(),
+    );
 
     flashSwap(
       new Args()
