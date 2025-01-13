@@ -1169,8 +1169,7 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
 
   if (aAmountOut > u256.Zero) {
     // Transfer aAmountOut from the contract to the callbackAddress
-    aToken.transferFrom(
-      contractAddress,
+    aToken.transfer(
       new Address(callbackAddress),
       aAmountOut,
     );
@@ -1178,8 +1177,7 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
 
   if (bAmountOut > u256.Zero) {
     // Transfer bAmountOut from the contract to the callbackAddress
-    bToken.transferFrom(
-      contractAddress,
+    bToken.transfer(
       new Address(callbackAddress),
       bAmountOut,
     );
