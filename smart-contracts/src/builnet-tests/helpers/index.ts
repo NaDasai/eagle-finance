@@ -36,6 +36,8 @@ export async function increaseAllowance(
   provider: Provider,
   contract: SmartContract,
 ) {
+  console.log('Increase allowance of the token: ', tokenAddress);
+
   const mrc20 = new MRC20(provider, tokenAddress);
 
   // increase allowance of the token
@@ -43,9 +45,11 @@ export async function increaseAllowance(
     coins: Mas.fromString('0.1'),
   });
 
-  const status = await operation.waitFinalExecution();
+  const status = await operation.waitSpeculativeExecution();
 
-  if (status === OperationStatus.Success) {
+  console.log('Status ops :', status);
+
+  if (status === OperationStatus.SpeculativeSuccess) {
     console.log('Allowance increased successfully');
   } else {
     console.log('Status:', status);

@@ -7,6 +7,7 @@ import {
   MRC20,
   OperationStatus,
   parseUnits,
+  Provider,
   SmartContract,
   Web3Provider,
 } from '@massalabs/massa-web3';
@@ -68,9 +69,9 @@ async function createNewPoolWithLiquidity(
     { coins: isNativeCoin ? Mas.fromString('5.1') : Mas.fromString('0.1') },
   );
 
-  const status = await operation.waitFinalExecution();
+  const status = await operation.waitSpeculativeExecution();
 
-  if (status === OperationStatus.Success) {
+  if (status === OperationStatus.SpeculativeSuccess) {
     console.log('Pool created successfully and Liquidity added');
   } else {
     console.log('Status:', status);
@@ -78,7 +79,7 @@ async function createNewPoolWithLiquidity(
   }
 }
 
-async function testCreateAndAddLiquidityAndGetPools() {
+async function createAndAddLiquidityAndGetPools() {
   const aToken = aTokenAddress;
   const bToken = bTokenAddress;
 
@@ -113,7 +114,47 @@ async function testCreateAndAddLiquidityAndGetPools() {
   await getPoolReserves(pool.poolAddress, provider);
 }
 
-await testCreateAndAddLiquidityAndGetPools();
+async function testFlashSwap() {
+  if (!poolAddress) {
+    console.warn('No pool address found');
+    return;
+  }
+
+  const aAmount = parseUnits('10', 9);
+  const bAmount = 0n;
+
+  const poolContract = new SmartContract(provider, poolAddress);
+
+  const operation = await poolContract.call(
+    'flashSwap',
+    new Args()
+      .addU256(aAmount) // amount of token A
+      .addU256(bAmount) // amount of token B
+      .addString(contract.address) // callback address
+      .addUint8Array(new Args().addString('test callback data').serialize()) // callback data
+      .serialize(),
+    { coins: Mas.fromString('0.1') },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Flash swap executed successfully');
+  } else {
+    console.log('Status:', status);
+    throw new Error('Failed to execute flash swap');
+  }
+
+  console.log('Getting pool reserves after flash swap.....');
+  await getPoolReserves(poolAddress, provider);
+}
+
+console.log('Create and add liquidity and get pools.....');
+await createAndAddLiquidityAndGetPools();
+console.log('Done creating and adding liquidity and getting pools');
+console.log('Flash swap starts.....');
+await testFlashSwap();
+console.log('Flash Swap End. ');
 
 console.log('Registry Events:');
 
