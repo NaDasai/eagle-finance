@@ -14,7 +14,7 @@ import {
   getLocalReserveB,
   getLPBalance,
   swap,
-} from '../contracts/basicPool';
+} from '../../contracts/basicPool';
 import { Args, bytesToU256 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 

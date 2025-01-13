@@ -21,7 +21,7 @@ import {
   url,
   VERSION,
   version,
-} from '../contracts/token';
+} from '../../contracts/token';
 import {
   Args,
   bytesToU256,
