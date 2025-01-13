@@ -1151,13 +1151,17 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
   const aReserve = _getLocalReserveA();
   const bReserve = _getLocalReserveB();
 
+  // Get the pool K value that will be used later to ensure that the flash swap is valid
+  const poolK = SafeMath256.mul(aReserve, bReserve);
+
+  // Get the pool fee rate
+  const poolFeeRate = _getFeeRate();
+
   // Ensure that the pool reserves are greater than the amounts to be swapped
   assert(
     aReserve > aAmountOut || bReserve > bAmountOut,
     'FLASH_SWAP_ERROR: INSUFFICIENT_LIQUIDITY',
   );
-
-  const contractAddress = Context.callee();
 
   // Get the token instances
   const aToken = new IMRC20(new Address(aTokenAddressStored));
@@ -1169,18 +1173,12 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
 
   if (aAmountOut > u256.Zero) {
     // Transfer aAmountOut from the contract to the callbackAddress
-    aToken.transfer(
-      new Address(callbackAddress),
-      aAmountOut,
-    );
+    aToken.transfer(new Address(callbackAddress), aAmountOut);
   }
 
   if (bAmountOut > u256.Zero) {
     // Transfer bAmountOut from the contract to the callbackAddress
-    bToken.transfer(
-      new Address(callbackAddress),
-      bAmountOut,
-    );
+    bToken.transfer(new Address(callbackAddress), bAmountOut);
   }
 
   // Call the callback function of the contract
@@ -1190,6 +1188,8 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
     bAmountOut,
     callbackData,
   );
+
+  const contractAddress = Context.callee();
 
   // Update contract balances
   aContractBalance = aToken.balanceOf(contractAddress);
@@ -1224,12 +1224,6 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
     aAmountIn > u256.Zero || bAmountIn > u256.Zero,
     'FLASH_SWAP_ERROR: INSUFFICIENT_INPUT_AMOUNT',
   );
-
-  // Get the pool K value
-  const poolK = SafeMath256.mul(aReserve, bReserve);
-
-  // Get the pool fee rate
-  const poolFeeRate = _getFeeRate();
 
   // Remove fees from the balances
   const aBalanceAdjusted = SafeMath256.sub(
