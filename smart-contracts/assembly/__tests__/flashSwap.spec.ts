@@ -9,6 +9,7 @@ import {
 import {
   addLiquidity,
   constructor,
+  flashSwap,
   getLocalReserveA,
   getLocalReserveB,
   getLPBalance,
@@ -30,7 +31,7 @@ const user3Address = 'AU12jojWJf8LRGpWUZoA5CjSVEGHzNnpck1ktbnvP9Ttw7i16avMF';
 const aTokenAddress = 'AS12V58y942EBAexRzU3bGVb7Fxoduba4UxfLAQCbSeKNVamDCHfL';
 const bTokenAddress = 'AS1mb6djKDu2LnhQtajuLPGX1J2PNYgCY2LoUxQxa69ABUgedJXN';
 const registeryContractAddr =
-  'AS1nifpyaSFvYtqZF9bzba8uJnt7SMFzsqTd3deCGodhLrP4FfCQ';
+  'AS1FUB799cR9KYhyjfJRowWnZCuXe2h4Eb8V71Cmn9tsAr6HHuUU';
 
 const TOKENS_DEFAULT_DECIMALS = 9;
 
@@ -121,11 +122,14 @@ describe('Scenario 1: Add liquidity, Flash Swap', () => {
     mockScCall(new Args().serialize());
     mockScCall(new Args().serialize());
 
-    swap(
+    mockScCall(new Args().serialize());
+
+    flashSwap(
       new Args()
-        .add(aTokenAddress)
-        .add(u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS))
-        .add(u256.fromU64(10 * 10 ** TOKENS_DEFAULT_DECIMALS))
+        .add(u256.fromU64(50 * 10 ** TOKENS_DEFAULT_DECIMALS))
+        .add(u256.Zero)
+        .add(registeryContractAddr)
+        .add(new Args().add(aTokenAddress).serialize())
         .serialize(),
     );
 
@@ -149,6 +153,4 @@ describe('Scenario 1: Add liquidity, Flash Swap', () => {
     print(`Reserve A Number: ${resANumber.toString()}`);
     print(`Reserve B Number: ${resBNumber.toString()}`);
   });
-
-  
 });
