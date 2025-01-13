@@ -67,6 +67,8 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     // the token supports. Commonly, TOKENS_DEFAULT_DECIMALS is 9 (e.g., for Massa Blockchain) or 18 (e.g., for most ERC-20 tokens).
     const aAmount = u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS); // 100 tokens of A in base units
     const bAmount = u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS); // 100 tokens of B in base units
+    const minAAmount = u256.Zero; // 0
+    const minBAmount = u256.Zero; // 0
 
     // get the LP balance of the user
     const lpBalance = bytesToU256(
@@ -80,7 +82,14 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     mockScCall(new Args().serialize());
     mockScCall(new Args().serialize());
 
-    addLiquidity(new Args().add(aAmount).add(bAmount).serialize());
+    addLiquidity(
+      new Args()
+        .add(aAmount)
+        .add(bAmount)
+        .add(minAAmount)
+        .add(minBAmount)
+        .serialize(),
+    );
 
     const lpBalance2 = bytesToU256(
       getLPBalance(new Args().add(user1Address).serialize()),
@@ -94,6 +103,8 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
   test('add liquidity again', () => {
     const aAmount = u256.fromU64(150 * 10 ** TOKENS_DEFAULT_DECIMALS);
     const bAmount = u256.fromU64(200 * 10 ** TOKENS_DEFAULT_DECIMALS);
+    const minAAmount = u256.Zero; // 0
+    const minBAmount = u256.Zero; // 0
 
     // get the LP balance of the user
     const lpBalance = bytesToU256(
@@ -109,7 +120,14 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
     mockScCall(new Args().serialize());
     mockScCall(new Args().serialize());
 
-    addLiquidity(new Args().add(aAmount).add(bAmount).serialize());
+    addLiquidity(
+      new Args()
+        .add(aAmount)
+        .add(bAmount)
+        .add(minAAmount)
+        .add(minBAmount)
+        .serialize(),
+    );
 
     const lpBalance2 = bytesToU256(
       getLPBalance(new Args().add(user1Address).serialize()),
@@ -145,6 +163,7 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', () => {
       new Args()
         .add(aTokenAddress)
         .add(u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS))
+        .add(u256.fromU64(50 * 10 ** TOKENS_DEFAULT_DECIMALS))
         .serialize(),
     );
 

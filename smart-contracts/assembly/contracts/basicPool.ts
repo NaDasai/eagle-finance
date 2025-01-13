@@ -31,8 +31,9 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
+import { HUNDRED_PERCENT, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
+import { IEagleCallee } from '../interfaces/IEagleCallee';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -1101,6 +1102,157 @@ function _updateCumulativePrices(): void {
     // Update last timestamp
     Storage.set(lastTimestamp, u64ToBytes(currentTimestamp));
   }
+}
+
+export function flashSwap(binaryArgs: StaticArray<u8>): void {
+  // read args
+  const args = new Args(binaryArgs);
+
+  const aAmountOut = args.nextU256().expect('aAmountOut is missing or invalid');
+  const bAmountOut = args.nextU256().expect('bAmountOut is missing or invalid');
+
+  // Is the smart contract address that will use the borrowed tokens
+  const callbackAddress = args
+    .nextString()
+    .expect('callbackAddress is missing or invalid');
+
+  // Is the data that will be passed to the callback function
+  const callbackData = args
+    .nextBytes()
+    .expect('callbackData is missing or invalid');
+
+  // Enusre that bAmountOut or aAmountOut is greater than 0
+  assert(
+    bAmountOut > u256.Zero || aAmountOut > u256.Zero,
+    'FLASH_SWAP_ERROR: AMOUNTS MUST BE GREATER THAN 0',
+  );
+
+  // Ensure that the callback address is a smart contract address
+  assertIsSmartContract(callbackAddress);
+
+  // Ensure that the callback data is not empty
+  assert(
+    callbackData.length > 0,
+    'FLASH_SWAP_ERROR: CALLBACK DATA MUST NOT BE EMPTY',
+  );
+
+  // Get the stored token addresses
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  // Ensure that the callbackAddress is not one of the two tokens in the pool
+  assert(
+    callbackAddress != aTokenAddressStored &&
+      callbackAddress != bTokenAddressStored,
+    'FLASH_SWAP_ERROR: INVALID_CALLBACK_ADDRESS',
+  );
+
+  // Get the pool reserves
+  const aReserve = _getLocalReserveA();
+  const bReserve = _getLocalReserveB();
+
+  // Get the pool K value that will be used later to ensure that the flash swap is valid
+  const poolK = SafeMath256.mul(aReserve, bReserve);
+
+  // Get the pool fee rate
+  const poolFeeRate = _getFeeRate();
+
+  // Ensure that the pool reserves are greater than the amounts to be swapped
+  assert(
+    aReserve > aAmountOut || bReserve > bAmountOut,
+    'FLASH_SWAP_ERROR: INSUFFICIENT_LIQUIDITY',
+  );
+
+  // Get the token instances
+  const aToken = new IMRC20(new Address(aTokenAddressStored));
+  const bToken = new IMRC20(new Address(bTokenAddressStored));
+
+  //Initialize the contract balances for token A and B
+  let aContractBalance: u256;
+  let bContractBalance: u256;
+
+  if (aAmountOut > u256.Zero) {
+    // Transfer aAmountOut from the contract to the callbackAddress
+    aToken.transfer(new Address(callbackAddress), aAmountOut);
+  }
+
+  if (bAmountOut > u256.Zero) {
+    // Transfer bAmountOut from the contract to the callbackAddress
+    bToken.transfer(new Address(callbackAddress), bAmountOut);
+  }
+
+  // Call the callback function of the contract
+  new IEagleCallee(new Address(callbackAddress)).eagleCall(
+    Context.caller(),
+    aAmountOut,
+    bAmountOut,
+    callbackData,
+  );
+
+  const contractAddress = Context.callee();
+
+  // Update contract balances
+  aContractBalance = aToken.balanceOf(contractAddress);
+  bContractBalance = bToken.balanceOf(contractAddress);
+
+  // Calculate aAmountIn
+  // This calculation determines how much of token A was effectively returned to the contract
+  // after the callback function was executed.
+  //
+  // Explanation:
+  // 1. `aReserve - aAmountOut`: This is the expected balance of token A in the contract
+  //    after the flash loan, assuming no tokens were returned.
+  // 2. `aContractBalance > aReserve - aAmountOut`: This checks if the actual balance of token A in the contract after the callback is greater than the expected balance.
+  // 3. If the condition is true, it means tokens were returned:
+  //    `aContractBalance - (aReserve - aAmountOut)` calculates the difference, which is the
+  //    amount of token A that was returned (aAmountIn).
+  // 4. If the condition is false, it means no tokens were returned or the contract's balance
+  //    is less than the expected balance, so `aAmountIn` is set to 0.
+  const aAmountIn: u256 =
+    aContractBalance > SafeMath256.sub(aReserve, aAmountOut)
+      ? SafeMath256.sub(aContractBalance, SafeMath256.sub(aReserve, aAmountOut))
+      : u256.Zero;
+
+  // Same as aAmountIn but for token B
+  const bAmountIn: u256 =
+    bContractBalance > SafeMath256.sub(bReserve, bAmountOut)
+      ? SafeMath256.sub(bContractBalance, SafeMath256.sub(bReserve, bAmountOut))
+      : u256.Zero;
+
+  // Ensure that aAmountIn or bAmountIn is greater than 0
+  assert(
+    aAmountIn > u256.Zero || bAmountIn > u256.Zero,
+    'FLASH_SWAP_ERROR: INSUFFICIENT_INPUT_AMOUNT',
+  );
+
+  // Remove fees from the balances
+  const aBalanceAdjusted = SafeMath256.sub(
+    SafeMath256.mul(aContractBalance, u256.fromU64(HUNDRED_PERCENT)),
+    SafeMath256.mul(aAmountIn, u256.fromF64(poolFeeRate)),
+  );
+
+  const bBalanceAdjusted = SafeMath256.sub(
+    SafeMath256.mul(bContractBalance, u256.fromU64(HUNDRED_PERCENT)),
+    SafeMath256.mul(bAmountIn, u256.fromF64(poolFeeRate)),
+  );
+
+  // Ensure the new k value is greater or equal to the pool K value
+  assert(
+    SafeMath256.mul(aBalanceAdjusted, bBalanceAdjusted) >=
+      SafeMath256.mul(poolK, u256.fromU64(1000 ** 2)), // Scale poolK by 1000^2 because aBalanceAdjusted and bBalanceAdjusted are scaled by 1000
+    'FLASH_SWAP_ERROR: K_VALUE_TOO_LOW',
+  );
+
+  // Update the reserves of the pool
+  _updateReserveA(aContractBalance);
+  _updateReserveB(bContractBalance);
+
+  // Update the cumulative prices
+  _updateCumulativePrices();
+
+  generateEvent(
+    `FLASH_SWAP: User ${Context.caller()} executed a flash swap. he swapped ${aAmountIn} ${aTokenAddressStored} for ${bAmountOut} ${bTokenAddressStored} and ${aAmountOut} ${aTokenAddressStored} for ${bAmountIn} ${bTokenAddressStored}.`,
+  );
 }
 
 // Export ownership functions
