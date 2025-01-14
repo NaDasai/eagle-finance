@@ -61,7 +61,7 @@ function resetPoolContract(): void {
 
 beforeAll(() => resetPoolContract());
 
-describe('addLiquidity success cases', () => {
+describe('User 3 and User 2 add, remove and swap liquidity.', () => {
   test('User 2 adds liquidity while both Reserves are 0', () => {
     switchUser(user2Address);
 
@@ -251,5 +251,48 @@ describe('addLiquidity success cases', () => {
 
     print(`aResAfter: ${aResAfter.toString()}`);
     print(`bResAfter: ${bResAfter.toString()}`);
+  });
+
+  test('User 2 removes the rest of its liquidity', () => {
+    switchUser(user2Address);
+
+    const aResBefore = bytesToU256(getLocalReserveA());
+    const bResBefore = bytesToU256(getLocalReserveB());
+
+    print(`aResBefore: ${aResBefore.toString()}`);
+    print(`bResBefore: ${bResBefore.toString()}`);
+
+    const lpBalanceBefore = bytesToU256(
+      getLPBalance(new Args().add(user2Address).serialize()),
+    );
+
+    expect(lpBalanceBefore).toStrictEqual(parseMas(5));
+
+    const minAAmountOut = parseMas(0);
+    const minBAmountOut = parseMas(0);
+
+    // There is 2 transferFrom calls in removeLiquidity which will be mocked
+    mockScCall(new Args().serialize());
+    mockScCall(new Args().serialize());
+
+    const removeLiquidityArgs = new Args()
+      .add(lpBalanceBefore)
+      .add(minAAmountOut)
+      .add(minBAmountOut)
+      .serialize();
+
+    removeLiquidity(removeLiquidityArgs);
+
+    const aResAfter = bytesToU256(getLocalReserveA());
+    const bResAfter = bytesToU256(getLocalReserveB());
+
+    print(`aResAfter: ${aResAfter.toString()}`);
+    print(`bResAfter: ${bResAfter.toString()}`);
+
+    const lpBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user2Address).serialize()),
+    );
+
+    expect(lpBalanceAfter).toStrictEqual(u256.Zero);
   });
 });
