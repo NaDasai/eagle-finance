@@ -9,6 +9,8 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'], // Define where your test files are located.
     coverage: {
       provider: 'v8', // Enable coverage reports.
+      enabled: true,
+      include: ['assembly/**/*.ts'],
       reporter: ['text', 'html', 'json'], // Output types for coverage reports.
     },
   },

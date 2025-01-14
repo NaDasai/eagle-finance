@@ -80,5 +80,10 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
       reserveA === BigInt(0) && reserveB === BigInt(0),
       'Reserves should be 0 when pool is empty',
     );
+
+    // 
+
   });
+
+
 });
