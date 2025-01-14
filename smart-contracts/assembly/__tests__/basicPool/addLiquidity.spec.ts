@@ -12,6 +12,7 @@ import {
   getLocalReserveA,
   getLocalReserveB,
   getLPBalance,
+  removeLiquidity,
   swap,
 } from '../../contracts/basicPool';
 import { Args, bytesToU256 } from '@massalabs/as-types';
@@ -161,5 +162,94 @@ describe('addLiquidity success cases', () => {
     expect(
       bytesToU256(getLPBalance(new Args().add(user3Address).serialize())),
     ).toStrictEqual(expectedLPBalance);
+  });
+
+  test('User 2 remove half of its liquidity', () => {
+    switchUser(user2Address);
+
+    const aRes = bytesToU256(getLocalReserveA());
+    const bRes = bytesToU256(getLocalReserveB());
+
+    print(`aRes: ${aRes.toString()}`);
+    print(`bRes: ${bRes.toString()}`);
+
+    expect(aRes).toStrictEqual(parseMas(3));
+    expect(bRes).toStrictEqual(parseMas(300));
+
+    const lpBalanceBefore = bytesToU256(
+      getLPBalance(new Args().add(user2Address).serialize()),
+    );
+
+    print(`lpBalanceBefore: ${lpBalanceBefore.toString()}`);
+
+    const lpAmount = parseMas(5);
+
+    const minAAmountOut = parseMas(0);
+    const minBAmountOut = parseMas(0);
+
+    const removeLiquidityArgs = new Args()
+      .add(lpAmount)
+      .add(minAAmountOut)
+      .add(minBAmountOut)
+      .serialize();
+
+    // There is 2 transferFrom calls in removeLiquidity which will be mocked
+    mockScCall(new Args().serialize());
+    mockScCall(new Args().serialize());
+
+    removeLiquidity(removeLiquidityArgs);
+
+    const aResAfter = bytesToU256(getLocalReserveA());
+    const bResAfter = bytesToU256(getLocalReserveB());
+
+    print(`aResAfter: ${aResAfter.toString()}`);
+    print(`bResAfter: ${bResAfter.toString()}`);
+
+    expect(aResAfter).toStrictEqual(parseMas(2.5));
+    expect(bResAfter).toStrictEqual(parseMas(250));
+
+    const lpBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user2Address).serialize()),
+    );
+
+    print(`lpBalanceAfter: ${lpBalanceAfter.toString()}`);
+
+    expect(lpBalanceAfter).toStrictEqual(
+      SafeMath256.sub(lpBalanceBefore, lpAmount),
+    );
+  });
+
+  test('User 2 swap 0.5 of token a for  token b', () => {
+    switchUser(user2Address);
+
+    const aResBefore = bytesToU256(getLocalReserveA());
+    const bResBefore = bytesToU256(getLocalReserveB());
+
+    print(`aResBefore: ${aResBefore.toString()}`);
+    print(`bResBefore: ${bResBefore.toString()}`);
+
+    // user 2 swaps 0.5 of token a for token b
+    const tokenInAddress = aTokenAddress;
+    const amountIn = parseMas(0.5);
+    const minAmountOut = parseMas(0.4);
+
+    const swapArgs = new Args()
+      .add(tokenInAddress)
+      .add(amountIn)
+      .add(minAmountOut)
+      .serialize();
+
+    // There is 2 transferFrom calls in swap which will be mocked
+    mockScCall(new Args().serialize());
+    mockScCall(new Args().serialize());
+
+    // user 2 swaps 0.5 of token a for token b
+    swap(swapArgs);
+
+    const aResAfter = bytesToU256(getLocalReserveA());
+    const bResAfter = bytesToU256(getLocalReserveB());
+
+    print(`aResAfter: ${aResAfter.toString()}`);
+    print(`bResAfter: ${bResAfter.toString()}`);
   });
 });
