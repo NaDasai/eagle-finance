@@ -5,7 +5,9 @@
     "main": "index.js",
     "scripts": {
         "events": "tsx src/events.ts",
-        "test": "asp --summary",
+        "test": "vitest",
+        "test:ui": "vitest --ui",
+        "test:run": "vitest run",
         "test:verbose": "asp --verbose",
         "buildnet:registry": "npm run build && tsx src/builnet-tests/registry.ts",
         "buildnet:flashSwap": "npm run build && tsx src/builnet-tests/flashSwap.ts",
@@ -46,7 +48,8 @@
         "prettier": "^2.8.1",
         "tslib": "^2.4.0",
         "tsx": "^4.7.0",
-        "typescript": "^4.8.4"
+        "typescript": "^4.8.4",
+        "vitest": "^2.1.8"
     },
     "overrides": {
         "visitor-as": {
@@ -57,5 +60,8 @@
     "prettier": "@massalabs/prettier-config-as",
     "engines": {
         "node": ">=16"
+    },
+    "dependencies": {
+        "@vitest/ui": "^2.1.8"
     }
 }
