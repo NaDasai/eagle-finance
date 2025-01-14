@@ -52,9 +52,9 @@ async function createNewPool(
     { coins: Mas.fromString('0.1') },
   );
 
-  const status = await operation.waitFinalExecution();
+  const status = await operation.waitSpeculativeExecution();
 
-  if (status === OperationStatus.Success) {
+  if (status === OperationStatus.SpeculativeSuccess) {
     console.log('Pool created successfully');
   } else {
     console.log('Status:', status);
@@ -122,11 +122,10 @@ async function getRegistryFeeShareProtocol() {
 async function testCreateAndGetPools() {
   await getRegistryFeeShareProtocol();
 
-  await createNewPool(
-    'AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA',
-    'AS1otSzBjxmtAFfqsRViVSEqbW8ARnY5S34B2bYH2qWqTxzJQsiA',
-    0.5,
-  );
+  const aTokenAddress = 'AS12V58y942EBAexRzU3bGVb7Fxoduba4UxfLAQCbSeKNVamDCHfL';
+  const bTokenAddress = 'AS1mb6djKDu2LnhQtajuLPGX1J2PNYgCY2LoUxQxa69ABUgedJXN';
+
+  await createNewPool(aTokenAddress, bTokenAddress, 0.3 * 1000);
 
   await getPools();
 }
@@ -261,14 +260,14 @@ async function testCreatePoolAndAddLiquidityWithMAS() {
   }
 }
 
-// await testCreateAndGetPools();
+await testCreateAndGetPools();
 // await getBalanceOf(
 //   'AS128szebpFEzt62KYEkRNxAxmNh5BM26WgeHR1gCEpCTcyWa1TcG',
 //   contract.address,
 // );
 
 // await testCreateAndAddLiquidityAndGetPools();
-await testCreatePoolAndAddLiquidityWithMAS();
+// await testCreatePoolAndAddLiquidityWithMAS();
 
 console.log('Registry Events:');
 
