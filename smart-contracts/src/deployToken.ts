@@ -22,7 +22,7 @@ const constructorArgs = new Args()
   .addString('Eagle Finance') // token name
   .addString('EGL') // token symbol
   .addU8(U8.fromNumber(9)) // token decimals
-  .addU256(parseUnits('100000000', 9)) // token total supply
+  .addU256(parseUnits('10000000', 9)) // token total supply
   .addString('https://eaglex.vercel.app/images/eagle-finance.png') // token url (optional)
   .addString('Dex on Massa') // token description (optional)
   .serialize();

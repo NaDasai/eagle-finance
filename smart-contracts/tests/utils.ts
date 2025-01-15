@@ -13,3 +13,6 @@ export function getScByteCode(folderName: string, fileName: string): Buffer {
 }
 
 
+
+
+export const TOKEN_DEFAULT_DECIMALS = 9;
