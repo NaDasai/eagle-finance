@@ -76,5 +76,5 @@ export function normalizeToDecimals(
  * @returns A boolean indicating whether the value is greater than 0 and less than or equal to 10 percent.
  */
 export function isBetweenZeroAndTenPercent(value: f64): bool {
-  return value > 0 && value <= 10 * f64(HUNDRED_PERCENT);
+  return value >= 0 && value <= 10 * f64(HUNDRED_PERCENT);
 }
