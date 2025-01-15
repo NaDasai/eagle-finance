@@ -5,9 +5,9 @@
     "main": "index.js",
     "scripts": {
         "events": "tsx src/events.ts",
-        "test": "vitest",
+        "test": "vitest run",
         "test:ui": "vitest --ui",
-        "test:run": "vitest run",
+        "test:run": "vitest",
         "coverage": "vitest run --coverage",
         "test:verbose": "asp --verbose",
         "buildnet:registry": "npm run build && tsx src/builnet-tests/registry.ts",
