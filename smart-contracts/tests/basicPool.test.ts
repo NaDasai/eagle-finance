@@ -15,13 +15,21 @@ import { getScByteCode } from './utils';
 import {
   addLiquidity,
   getLPBalance,
+  getPoolReserves,
   getTokenBalance,
   increaseAllownace,
+  swap,
 } from './calls/basicPool';
 
 dotenv.config();
 
 const user1Provider = Web3Provider.buildnet(await Account.fromEnv());
+const user2Provider = Web3Provider.buildnet(
+  await Account.fromEnv('PRIVATE_KEY_TWO'),
+);
+
+console.log('User1 address: ', user1Provider.address);
+console.log('User2 address: ', user2Provider.address);
 
 describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
   const wmasAddress = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU';
@@ -79,20 +87,13 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
 
   console.log('rEPEATING OUTSIDE');
 
-  it('User 1 Add liquidity to pool when its empty', async () => {
+  test('User 1 Add liquidity to pool when its empty', async () => {
     console.log('Repeating inside');
     // get all pool reserves and expect them to be 0
-    const reserveA = new Args(
-      (await poolContract.read('getLocalReserveA')).value,
-    ).nextU256();
-    const reserveB = new Args(
-      (await poolContract.read('getLocalReserveB')).value,
-    ).nextU256();
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
 
-    expect(
-      reserveA === BigInt(0) && reserveB === BigInt(0),
-      'Reserves should be 0 when pool is empty',
-    );
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0);
 
     const user1ATokenBalanceBefore = await getTokenBalance(
       aTokenAddress,
@@ -120,12 +121,7 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     await addLiquidity(poolContract, aAmount, bAmount, 0, 0);
 
     // get teh reserves
-    const reserveAAfter = new Args(
-      (await poolContract.read('getLocalReserveA')).value,
-    ).nextU256();
-    const reserveBAfter = new Args(
-      (await poolContract.read('getLocalReserveB')).value,
-    ).nextU256();
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
 
     console.log('Reserve A after: ', reserveAAfter);
     console.log('Reserve B after: ', reserveBAfter);
@@ -155,15 +151,13 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
       'User1 B Token balance should decrease after adding liquidity',
     ).toBeLessThan(user1BTokenBalanceBefore);
 
-    expect(
-      Number(formatMas(reserveAAfter)),
-      'Reserve A should be 10 after adding liquidity',
-    ).toBe(10);
+    expect(reserveAAfter, 'Reserve A should be 10 after adding liquidity').toBe(
+      10,
+    );
 
-    expect(
-      Number(formatMas(reserveBAfter)),
-      'Reserve B should be 10 after adding liquidity',
-    ).toBe(10);
+    expect(reserveBAfter, 'Reserve B should be 10 after adding liquidity').toBe(
+      10,
+    );
 
     // get the lp balance of user1
     const user1LPBalance = await getLPBalance(
@@ -174,5 +168,76 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     console.log('User1 LP balance: ', user1LPBalance);
 
     expect(user1LPBalance, 'User1 LP balance should be 10').toBe(10);
+  });
+
+  test("User 2 swaps B token for A token in pool's reserves", async () => {
+    // switch poolContrcat to user2 provider
+    poolContract = new SmartContract(user2Provider, poolAddress);
+
+    // get all pool reserves and expect them to be 0
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A before swap: ', reserveA);
+    console.log('Reserve B before swap: ', reserveB);
+
+    expect(reserveA, 'Reserve A should be 10 before swap').toBe(10);
+    expect(reserveB, 'Reserve B should be 10 before swap').toBe(10);
+
+    const bSwapAmount = 5;
+    const minASwapOutAmount = 2;
+
+    const user2ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    console.log('User2 A Token balance before: ', user2ATokenBalanceBefore);
+    console.log('User2 B Token balance before: ', user2BTokenBalanceBefore);
+
+    expect(
+      user2BTokenBalanceBefore,
+      'User2 B Token balance should be greater than or equals to swap amount',
+    ).toBeGreaterThanOrEqual(bSwapAmount);
+
+    // increase allownace for BToken
+    await increaseAllownace(
+      bTokenAddress,
+      poolAddress,
+      bSwapAmount,
+      user2Provider,
+    );
+
+    // swap B token for A token
+    await swap(poolContract, bTokenAddress, bSwapAmount, minASwapOutAmount);
+
+    // get reserves after swap
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after swap: ', reserveAAfter);
+    console.log('Reserve B after swap: ', reserveBAfter);
+
+    // get user2 balances after swap
+    const user2ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    console.log('User2 A Token balance after: ', user2ATokenBalanceAfter);
+
+    console.log('User2 B Token balance after: ', user2BTokenBalanceAfter);
   });
 });
