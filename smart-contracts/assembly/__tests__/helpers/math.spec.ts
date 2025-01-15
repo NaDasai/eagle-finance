@@ -1,7 +1,7 @@
 import { print, resetStorage } from '@massalabs/massa-as-sdk';
-import { SafeMath256 } from '../lib/safeMath';
+import { SafeMath256 } from '../../lib/safeMath';
 import { u128, u256 } from 'as-bignum/assembly';
-import { f64ToU256, normalizeToDecimals } from '../lib/math';
+import { f64ToU256, normalizeToDecimals } from '../../lib/math';
 
 beforeEach(() => {
   resetStorage();

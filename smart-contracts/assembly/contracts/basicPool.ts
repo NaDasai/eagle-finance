@@ -580,13 +580,11 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   liquidityManager.burn(Context.caller(), lpAmount);
 
   // Transfer tokens to user
-  new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-    Context.callee(),
+  new IMRC20(new Address(aTokenAddressStored)).transfer(
     Context.caller(),
     amountAOut,
   );
-  new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-    Context.callee(),
+  new IMRC20(new Address(bTokenAddressStored)).transfer(
     Context.caller(),
     amountBOut,
   );
@@ -982,11 +980,14 @@ function _swap(
   assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
 
   // Transfer the amountIn to the contract
-  new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
+  new IMRC20(new Address(tokenInAddress)).transferFrom(
+    Context.caller(),
+    Context.callee(),
+    amountIn,
+  );
 
   // Transfer the amountOut to the caller
-  new IMRC20(new Address(tokenOutAddress)).transferFrom(
-    Context.callee(),
+  new IMRC20(new Address(tokenOutAddress)).transfer(
     Context.caller(),
     amountOut,
   );
