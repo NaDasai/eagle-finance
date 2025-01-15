@@ -86,10 +86,7 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     poolAddress,
   );
 
-  console.log('rEPEATING OUTSIDE');
-
   test('User 1 Add liquidity to pool when its empty', async () => {
-    console.log('Repeating inside');
     // get all pool reserves and expect them to be 0
     const [reserveA, reserveB] = await getPoolReserves(poolContract);
 
