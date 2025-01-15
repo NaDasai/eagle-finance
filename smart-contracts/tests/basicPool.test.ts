@@ -9,7 +9,7 @@ import {
   SmartContract,
   Web3Provider,
 } from '@massalabs/massa-web3';
-import { createNewPool } from './calls/registry';
+import { createNewPool, deployRegistryContract } from './calls/registry';
 import { Pool } from '../src/builnet-tests/structs/pool';
 import { getScByteCode } from './utils';
 import {
@@ -39,25 +39,9 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
   const bTokenAddress = wmasAddress;
   const poolFeeRate = 0;
 
-  const registryByteCode = getScByteCode('build', 'registry.wasm');
+  const registryContracct = await  deployRegistryContract(user1Provider, wmasAddress);
 
-  const constructorArgs = new Args()
-    .addF64(0) // 0% fee share protocol
-    .addString(wmasAddress) // WMAS address
-    .serialize();
-
-  const contract = await SmartContract.deploy(
-    user1Provider,
-    registryByteCode,
-    constructorArgs,
-    {
-      coins: Mas.fromString('8'),
-    },
-  );
-
-  const registryAddress = contract.address.toString();
-
-  const registryContracct = new SmartContract(user1Provider, registryAddress);
+  const registryAddress = registryContracct.address.toString();
 
   // create new pool
   await createNewPool(

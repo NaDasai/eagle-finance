@@ -1,4 +1,11 @@
-import { Args, Mas, OperationStatus, SmartContract } from "@massalabs/massa-web3";
+import {
+  Args,
+  Mas,
+  OperationStatus,
+  Provider,
+  SmartContract,
+} from '@massalabs/massa-web3';
+import { getScByteCode } from '../utils';
 
 export async function createNewPool(
   contract: SmartContract,
@@ -26,4 +33,27 @@ export async function createNewPool(
     console.log('Status:', status);
     throw new Error('Failed to create new pool');
   }
+}
+
+export async function deployRegistryContract(
+  user1Provider: Provider,
+  wmasAddress: string,
+) {
+  const registryByteCode = getScByteCode('build', 'registry.wasm');
+
+  const constructorArgs = new Args()
+    .addF64(0) // 0% fee share protocol
+    .addString(wmasAddress) // WMAS address
+    .serialize();
+
+  const contract = await SmartContract.deploy(
+    user1Provider,
+    registryByteCode,
+    constructorArgs,
+    {
+      coins: Mas.fromString('8'),
+    },
+  );
+
+  return contract;
 }
