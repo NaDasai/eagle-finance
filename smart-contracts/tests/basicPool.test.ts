@@ -36,12 +36,12 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
   const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
   //   const bTokenAddress = 'AS1mb6djKDu2LnhQtajuLPGX1J2PNYgCY2LoUxQxa69ABUgedJXN';
   const bTokenAddress = wmasAddress;
-  const poolFeeRate = 0.3 * 1000;
+  const poolFeeRate = 0;
 
   const registryByteCode = getScByteCode('build', 'registry.wasm');
 
   const constructorArgs = new Args()
-    .addF64(0.005 * 1000) // 0.005% fee share protocol
+    .addF64(0) // 0% fee share protocol
     .addString(wmasAddress) // WMAS address
     .serialize();
 
@@ -183,6 +183,10 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     expect(reserveA, 'Reserve A should be 10 before swap').toBe(10);
     expect(reserveB, 'Reserve B should be 10 before swap').toBe(10);
 
+    const initialK = reserveA * reserveB;
+
+    console.log('Initial K: ', initialK);
+
     const bSwapAmount = 5;
     const minASwapOutAmount = 2;
 
@@ -239,5 +243,27 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     console.log('User2 A Token balance after: ', user2ATokenBalanceAfter);
 
     console.log('User2 B Token balance after: ', user2BTokenBalanceAfter);
+
+    const finalK = reserveAAfter * reserveBAfter;
+
+    console.log('Final K: ', finalK);
+
+    expect(
+      finalK,
+      'Final K should be greater than or equal to initial K',
+    ).toBeGreaterThanOrEqual(initialK);
+  });
+
+  test('User 1 removes liquidity from pool', async () => {
+    // switch poolContrcat to user1 provider
+    poolContract = new SmartContract(user1Provider, poolAddress);
+
+    // get all pool reserves
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A before remove liquidity: ', reserveA);
+    console.log('Reserve B before remove liquidity: ', reserveB);
+
+    
   });
 });
