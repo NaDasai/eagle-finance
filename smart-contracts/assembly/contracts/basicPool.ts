@@ -580,13 +580,11 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   liquidityManager.burn(Context.caller(), lpAmount);
 
   // Transfer tokens to user
-  new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-    Context.callee(),
+  new IMRC20(new Address(aTokenAddressStored)).transfer(
     Context.caller(),
     amountAOut,
   );
-  new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-    Context.callee(),
+  new IMRC20(new Address(bTokenAddressStored)).transfer(
     Context.caller(),
     amountBOut,
   );
