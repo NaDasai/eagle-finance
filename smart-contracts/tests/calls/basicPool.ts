@@ -68,6 +68,36 @@ export async function swap(
   }
 }
 
+export async function removeLiquidity(
+  poolContract: SmartContract,
+  lpAmount: number,
+  minAmountA: number,
+  minAmountB: number,
+) {
+  console.log(
+    `Remove liquidity: ${lpAmount} LP (min: ${minAmountA} A, ${minAmountB} B) from pool...`,
+  );
+
+  const operation = await poolContract.call(
+    'removeLiquidity',
+    new Args()
+      .addU256(parseUnits(lpAmount.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(minAmountA.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(minAmountB.toString(), TOKEN_DEFAULT_DECIMALS))
+      .serialize(),
+    { coins: Mas.fromString('0.1') },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Liquidity removed');
+  } else {
+    console.log('Status:', status);
+    throw new Error('Failed to remove liquidity');
+  }
+}
+
 export async function getTokenBalance(
   tokenAddress: string,
   userAddress: string,

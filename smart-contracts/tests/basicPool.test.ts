@@ -18,6 +18,7 @@ import {
   getPoolReserves,
   getTokenBalance,
   increaseAllownace,
+  removeLiquidity,
   swap,
 } from './calls/basicPool';
 
@@ -254,7 +255,7 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     ).toBeGreaterThanOrEqual(initialK);
   });
 
-  test('User 1 removes liquidity from pool', async () => {
+  test('User 1 removes its liquidity from pool', async () => {
     // switch poolContrcat to user1 provider
     poolContract = new SmartContract(user1Provider, poolAddress);
 
@@ -264,6 +265,81 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     console.log('Reserve A before remove liquidity: ', reserveA);
     console.log('Reserve B before remove liquidity: ', reserveB);
 
-    
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    console.log('User1 A Token balance before: ', user1ATokenBalanceBefore);
+    console.log('User1 B Token balance before: ', user1BTokenBalanceBefore);
+
+    const user1LPBalanceBefore = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance before: ', user1LPBalanceBefore);
+
+    expect(
+      user1LPBalanceBefore,
+      'User1 LP balance should be equals to 10 before removing liquidity',
+    ).toBe(10);
+
+    const lpAmount = 10;
+    const minAOutAmount = 0;
+    const minBOutAmount = 0;
+
+    // remove liquidity
+    await removeLiquidity(poolContract, lpAmount, minAOutAmount, minBOutAmount);
+
+    // get reserves after remove liquidity
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after remove liquidity: ', reserveAAfter);
+    console.log('Reserve B after remove liquidity: ', reserveBAfter);
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    console.log('User1 A Token balance after: ', user1ATokenBalanceAfter);
+    console.log('User1 B Token balance after: ', user1BTokenBalanceAfter);
+
+    expect(
+      user1ATokenBalanceAfter,
+      'User1 A Token balance should increase after removing liquidity',
+    ).toBeGreaterThan(user1ATokenBalanceBefore);
+
+    expect(
+      user1BTokenBalanceAfter,
+      'User1 B Token balance should increase after removing liquidity',
+    ).toBeGreaterThan(user1BTokenBalanceBefore);
+
+    const lpAmountAfter = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance after: ', lpAmountAfter);
+
+    expect(
+      lpAmountAfter,
+      'User1 LP balance should be 0 after removing liquidity',
+    ).toBe(0);
   });
 });
