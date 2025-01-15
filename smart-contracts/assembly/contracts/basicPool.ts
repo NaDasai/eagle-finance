@@ -982,11 +982,14 @@ function _swap(
   assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
 
   // Transfer the amountIn to the contract
-  new IMRC20(new Address(tokenInAddress)).transfer(Context.callee(), amountIn);
+  new IMRC20(new Address(tokenInAddress)).transferFrom(
+    Context.caller(),
+    Context.callee(),
+    amountIn,
+  );
 
   // Transfer the amountOut to the caller
-  new IMRC20(new Address(tokenOutAddress)).transferFrom(
-    Context.callee(),
+  new IMRC20(new Address(tokenOutAddress)).transfer(
     Context.caller(),
     amountOut,
   );
