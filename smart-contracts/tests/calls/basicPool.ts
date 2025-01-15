@@ -41,6 +41,33 @@ export async function addLiquidity(
   }
 }
 
+export async function swap(
+  poolContract: SmartContract,
+  tokenInAddress: string,
+  amountIn: number,
+  minAmountOut: number,
+) {
+  console.log(`Swap ${amountIn} ${tokenInAddress} to pool...`);
+  const operation = await poolContract.call(
+    'swap',
+    new Args()
+      .addString(tokenInAddress)
+      .addU256(parseUnits(amountIn.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS))
+      .serialize(),
+    { coins: Mas.fromString('0.1') },
+  );
+
+  const operationStatus = await operation.waitSpeculativeExecution();
+
+  if (operationStatus === OperationStatus.SpeculativeSuccess) {
+    console.log('Swap successful');
+  } else {
+    console.log('Status:', operationStatus);
+    throw new Error('Failed to swap');
+  }
+}
+
 export async function getTokenBalance(
   tokenAddress: string,
   userAddress: string,
@@ -100,4 +127,17 @@ export async function increaseAllownace(
     console.log('Status:', status);
     throw new Error('Failed to increase allowance');
   }
+}
+
+export async function getPoolReserves(
+  poolContract: SmartContract,
+): Promise<[number, number]> {
+  const reserveA = new Args(
+    (await poolContract.read('getLocalReserveA')).value,
+  ).nextU256();
+  const reserveB = new Args(
+    (await poolContract.read('getLocalReserveB')).value,
+  ).nextU256();
+
+  return [Number(formatMas(reserveA)), Number(formatMas(reserveB))];
 }
