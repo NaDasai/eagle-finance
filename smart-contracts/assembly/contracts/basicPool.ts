@@ -349,7 +349,7 @@ function _addLiquidity(
   _updateReserveB(SafeMath256.add(reserveB, finalAmountB));
 
   generateEvent(
-    `Liquidity added: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
+    `ADD_LIQUIDITY: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
   );
 }
 
@@ -1036,12 +1036,6 @@ function _wrapMasToWMAS(amount: u256): void {
   // Get the transferred coins from the operation
   const transferredCoins = Context.transferredCoins();
 
-  // Ensure bAmount is equal to MAS coins transferred
-  assert(
-    u256.fromU64(transferredCoins) >= amount,
-    'INSUFFICIENT MAS COINS TRANSFERRED',
-  );
-
   // Get the registry contract address
   const registryContractAddressStored = bytesToString(
     Storage.get(registryContractAddress),
@@ -1055,8 +1049,34 @@ function _wrapMasToWMAS(amount: u256): void {
   // Get the wmas contract instance
   const wmasToken = new IWMAS(new Address(wmasTokenAddressStored));
 
+  const mintStorageCost = u256.fromU64(
+    _computeMintStorageCost(Context.callee()),
+  );
+
+  const amountToWrap = SafeMath256.add(amount, mintStorageCost);
+
+  // Ensure bAmount is equal to MAS coins transferred
+  assert(
+    u256.fromU64(transferredCoins) >= amountToWrap,
+    'INSUFFICIENT MAS COINS TRANSFERRED',
+  );
+
   // Wrap MAS coins into WMAS
-  wmasToken.deposit(amount.toU64());
+  wmasToken.deposit(amountToWrap.toU64());
+
+  // Generate an event to indicate that MAS coins have been wrapped into WMAS
+  generateEvent(`WRAP_MAS: ${amount.toString()} of MAS wrapped into WMAS`);
+}
+
+function _computeMintStorageCost(receiver: Address): u64 {
+  const STORAGE_BYTE_COST = 100_000;
+  const STORAGE_PREFIX_LENGTH = 4;
+  const BALANCE_KEY_PREFIX_LENGTH = 7;
+
+  const baseLength = STORAGE_PREFIX_LENGTH;
+  const keyLength = BALANCE_KEY_PREFIX_LENGTH + receiver.toString().length;
+  const valueLength = 4 * sizeof<u64>();
+  return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
 }
 
 /**
