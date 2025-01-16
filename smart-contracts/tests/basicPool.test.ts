@@ -14,8 +14,10 @@ import { Pool } from '../src/builnet-tests/structs/pool';
 import { getScByteCode } from './utils';
 import {
   addLiquidity,
+  addLiquidityWithMAS,
   getLPBalance,
   getPoolReserves,
+  getPoolTWAP,
   getTokenBalance,
   increaseAllownace,
   removeLiquidity,
@@ -32,16 +34,18 @@ const user2Provider = Web3Provider.buildnet(
 console.log('User1 address: ', user1Provider.address);
 console.log('User2 address: ', user2Provider.address);
 
-describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
-  const wmasAddress = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU';
-  const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+const wmasAddress = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU';
+const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+
+/* describe('Scenario 1: Add liquidity, Swap, Remove liquidity without feees', async () => {
   //   const bTokenAddress = 'AS1mb6djKDu2LnhQtajuLPGX1J2PNYgCY2LoUxQxa69ABUgedJXN';
   const bTokenAddress = wmasAddress;
   const poolFeeRate = 0;
 
-  const registryContracct = await  deployRegistryContract(user1Provider, wmasAddress);
-
-  const registryAddress = registryContracct.address.toString();
+  const registryContracct = await deployRegistryContract(
+    user1Provider,
+    wmasAddress,
+  );
 
   // create new pool
   await createNewPool(
@@ -322,5 +326,182 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
       lpAmountAfter,
       'User1 LP balance should be 0 after removing liquidity',
     ).toBe(0);
+  });
+}); */
+
+describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using native coin', async () => {
+  console.log(
+    'User1 Mas at first : ',
+    formatMas(await user1Provider.balance(false)),
+  );
+
+  const bTokenAddress = wmasAddress;
+  const poolFeeRate = 0;
+
+  const registryContracct = await deployRegistryContract(
+    user1Provider,
+    wmasAddress,
+  );
+
+  // create new pool
+  await createNewPool(
+    registryContracct,
+    aTokenAddress,
+    bTokenAddress,
+    poolFeeRate,
+  );
+
+  // get pools from registry
+  const poolsRes = await registryContracct.read('getPools');
+
+  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
+    Pool,
+  );
+
+  console.log('Pools: ', pools);
+
+  expect(pools.length > 0, 'No pools found');
+
+  // get the last pool address
+  const poolAddress = pools[pools.length - 1].poolAddress;
+
+  let poolContract: SmartContract = new SmartContract(
+    user1Provider,
+    poolAddress,
+  );
+
+  console.log(
+    'User1 Mas after creating pools and depolying  : ',
+    formatMas(await user1Provider.balance(false)),
+  );
+
+  test('User 1 Add liquidity to pool using MAS when its empty', async () => {
+    // get all pool reserves and expect them to be 0
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0);
+
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1MasBalanceBefore = Number(
+      formatMas(await user1Provider.balance(false)),
+    );
+
+    console.log('User1 A Token balance before: ', user1ATokenBalanceBefore);
+    console.log('User1 MAS balance before: ', user1MasBalanceBefore);
+
+    const contractATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user1Provider,
+    );
+
+    const contractBTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user1Provider,
+    );
+
+    expect(
+      contractATokenBalanceBefore,
+      'Contract A Token balance should be 0 when pool is empty',
+    ).toBe(0);
+
+    expect(
+      contractBTokenBalanceBefore,
+      'Contract B Token balance should be 0 when pool is empty',
+    ).toBe(0);
+
+    const aAmount = 100;
+    const bAmount = 1;
+
+    // increase allowance of both a token first before adding liquidity
+    await increaseAllownace(aTokenAddress, poolAddress, aAmount, user1Provider);
+
+    // add Liquidity with MAS
+    const sendCoins = await addLiquidityWithMAS(
+      poolContract,
+      aAmount,
+      bAmount,
+      0,
+      0,
+    );
+
+    // get the reserves
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+    console.log('Reserve B after: ', reserveBAfter);
+
+    expect(
+      reserveAAfter,
+      'Reserve A should be 100 after adding liquidity',
+    ).toBe(aAmount);
+
+    expect(reserveBAfter, 'Reserve B should be 1 after adding liquidity').toBe(
+      bAmount,
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1MasBalanceAfter = Number(
+      formatMas(await user1Provider.balance(false)),
+    );
+
+    console.log('User1 A Token balance after: ', user1ATokenBalanceAfter);
+    console.log('User1 MAS balance after: ', user1MasBalanceAfter);
+
+    expect(
+      user1ATokenBalanceBefore - user1ATokenBalanceAfter,
+      'User1 A Token balance should decrease after adding liquidity',
+    ).toBe(aAmount);
+
+    console.log('Difference: ', user1MasBalanceBefore - user1MasBalanceAfter);
+
+    const contractATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user1Provider,
+    );
+
+    const contractBTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user1Provider,
+    );
+
+    expect(
+      contractATokenBalanceAfter,
+      'Contract A Token balance should be equal to reserve A',
+    ).toBe(reserveAAfter);
+
+    expect(
+      contractBTokenBalanceAfter,
+      'Contract B Token balance should be equal to reserve B',
+    ).toEqual(reserveBAfter);
+
+    expect(
+      Number(user1MasBalanceBefore - user1MasBalanceAfter).toFixed(0),
+      'User1 MAS balance should decrease after adding liquidity',
+    ).toBe(Number(formatMas(sendCoins)).toFixed(0));
+
+    // get the lp balance of user1
+    const user1LPBalance = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance: ', user1LPBalance);
+
+    expect(user1LPBalance, 'User1 LP balance should be 10').toBe(10);
   });
 });

@@ -57,7 +57,8 @@ export async function addLiquidityWithMAS(
 
   const storageCosts = computeMintStorageCost(poolContract.address);
 
-  const coins = bAmount + 0.1;
+  const coins =
+    Mas.fromString((bAmount + 0.1).toString()) + BigInt(storageCosts);
 
   const operation = await poolContract.call(
     'addLiquidityWithMas',
@@ -67,7 +68,7 @@ export async function addLiquidityWithMAS(
       .addU256(parseUnits(minAmountA.toString(), TOKEN_DEFAULT_DECIMALS))
       .addU256(parseUnits(minAmountB.toString(), TOKEN_DEFAULT_DECIMALS))
       .serialize(),
-    { coins: Mas.fromString(coins.toString()) + BigInt(storageCosts) },
+    { coins },
   );
 
   const status = await operation.waitSpeculativeExecution();
@@ -78,6 +79,8 @@ export async function addLiquidityWithMAS(
     console.log('Status:', status);
     throw new Error('Failed to add liquidity');
   }
+
+  return coins;
 }
 
 export async function swap(
