@@ -1,4 +1,5 @@
 import {
+  Address,
   Args,
   formatMas,
   Mas,
@@ -7,6 +8,8 @@ import {
   parseUnits,
   Provider,
   SmartContract,
+  U256,
+  U64,
 } from '@massalabs/massa-web3';
 import { TOKEN_DEFAULT_DECIMALS } from '../utils';
 
@@ -35,6 +38,42 @@ export async function addLiquidity(
 
   if (status === OperationStatus.SpeculativeSuccess) {
     console.log('Liquidity added');
+  } else {
+    console.log('Status:', status);
+    throw new Error('Failed to add liquidity');
+  }
+}
+
+export async function addLiquidityWithMAS(
+  poolContract: SmartContract,
+  aAmount: number,
+  bAmount: number,
+  minAmountA: number,
+  minAmountB: number,
+) {
+  console.log(
+    `Add liquidity with MAS: ${aAmount} A, ${bAmount} B (min: ${minAmountA} A, ${minAmountB} B) to pool...`,
+  );
+
+  const storageCosts = computeMintStorageCost(poolContract.address);
+
+  const coins = bAmount + 0.1;
+
+  const operation = await poolContract.call(
+    'addLiquidityWithMas',
+    new Args()
+      .addU256(parseUnits(aAmount.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(bAmount.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(minAmountA.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(minAmountB.toString(), TOKEN_DEFAULT_DECIMALS))
+      .serialize(),
+    { coins: Mas.fromString(coins.toString()) + BigInt(storageCosts) },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Liquidity added with MAS');
   } else {
     console.log('Status:', status);
     throw new Error('Failed to add liquidity');
@@ -170,4 +209,31 @@ export async function getPoolReserves(
   ).nextU256();
 
   return [Number(formatMas(reserveA)), Number(formatMas(reserveB))];
+}
+
+export async function getPoolTWAP(
+  poolContract: SmartContract,
+  tokenAddress: string,
+): Promise<number> {
+  const twap = (
+    await poolContract.read(
+      'getTWAP',
+      new Args().addString(tokenAddress).addU64(0n).serialize(),
+    )
+  ).value;
+
+  const desTwap = new Args(twap).nextU256();
+  return Number(formatMas(desTwap));
+}
+
+export function computeMintStorageCost(receiver: string) {
+  const STORAGE_BYTE_COST = 100_000;
+  const STORAGE_PREFIX_LENGTH = 4;
+  const BALANCE_KEY_PREFIX_LENGTH = 7;
+
+  const baseLength = STORAGE_PREFIX_LENGTH;
+  const keyLength = BALANCE_KEY_PREFIX_LENGTH + receiver.length;
+  const valueLength = 4 * U64.SIZE_BYTE;
+
+  return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
 }
