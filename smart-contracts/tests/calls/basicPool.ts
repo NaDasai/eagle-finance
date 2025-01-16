@@ -12,6 +12,7 @@ import {
   U64,
 } from '@massalabs/massa-web3';
 import { TOKEN_DEFAULT_DECIMALS } from '../utils';
+import { Pool } from '../../src/builnet-tests/structs/pool';
 
 export async function addLiquidity(
   poolContract: SmartContract,
@@ -239,4 +240,17 @@ export function computeMintStorageCost(receiver: string) {
   const valueLength = 4 * U64.SIZE_BYTE;
 
   return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
+}
+
+export async function getPools(registryContract: SmartContract) {
+  // get pools from registry
+  const poolsRes = await registryContract.read('getPools');
+
+  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
+    Pool,
+  );
+
+  console.log('Pools: ', pools);
+
+  return pools;
 }

@@ -17,6 +17,7 @@ import {
   addLiquidityWithMAS,
   getLPBalance,
   getPoolReserves,
+  getPools,
   getPoolTWAP,
   getTokenBalance,
   increaseAllownace,
@@ -330,11 +331,6 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
 }); */
 
 describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using native coin', async () => {
-  console.log(
-    'User1 Mas at first : ',
-    formatMas(await user1Provider.balance(false)),
-  );
-
   const bTokenAddress = wmasAddress;
   const poolFeeRate = 0;
 
@@ -351,14 +347,7 @@ describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using nati
     poolFeeRate,
   );
 
-  // get pools from registry
-  const poolsRes = await registryContracct.read('getPools');
-
-  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
-    Pool,
-  );
-
-  console.log('Pools: ', pools);
+  const pools = await getPools(registryContracct);
 
   expect(pools.length > 0, 'No pools found');
 
@@ -368,11 +357,6 @@ describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using nati
   let poolContract: SmartContract = new SmartContract(
     user1Provider,
     poolAddress,
-  );
-
-  console.log(
-    'User1 Mas after creating pools and depolying  : ',
-    formatMas(await user1Provider.balance(false)),
   );
 
   test('User 1 Add liquidity to pool using MAS when its empty', async () => {
