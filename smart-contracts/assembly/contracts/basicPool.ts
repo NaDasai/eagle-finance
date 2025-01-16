@@ -428,31 +428,10 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
     _wrapMasToWMAS(amountIn);
 
     // Call the swap internal function
-    _swap(wmasTokenAddressStored, amountIn, minAmountOut);
+    _swap(wmasTokenAddressStored, amountIn, minAmountOut, true);
   } else {
-    // Get the token addresses from storage
-    const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-    const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-    // Get the other token address in the pool
-    const tokenOutAddress =
-      tokenInAddress == aTokenAddressStored
-        ? bTokenAddressStored
-        : aTokenAddressStored;
-
-    // Ensure that the tokenOut is wmas token
-    assert(
-      tokenOutAddress == wmasTokenAddressStored,
-      'TokenOut is not wrapped mas token',
-    );
-
     // Call the swap internal function
-    const amountOut = _swap(tokenInAddress, amountIn, minAmountOut);
-
-    const wmasContract = new IWMAS(new Address(wmasTokenAddressStored));
-
-    // Unwrap mas to wmas
-    wmasContract.withdraw(amountOut.toU64(), Context.caller());
+    _swap(tokenInAddress, amountIn, minAmountOut, false, true);
   }
 }
 
@@ -920,12 +899,16 @@ function _updateReserveB(amount: u256): void {
  * @param tokenInAddress - The address of the token to swap in.
  * @param amountIn - The amount of the token to swap in.
  * @param minAmountOut - The minimum amount of the token to swap out.
+ * @param isTokenInNative - Whether the token to swap in is the native token.
+ * @param isTokenOutNative - Whether the token to swap out is the native token.
  * @returns The amount of the token to swap out.
  */
 function _swap(
   tokenInAddress: string,
   amountIn: u256,
   minAmountOut: u256,
+  isTokenInNative: bool = false,
+  isTokenOutNative: bool = false,
 ): u256 {
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -969,18 +952,24 @@ function _swap(
   // Ensure that the amountOut is greater than or equal to minAmountOut
   assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
 
-  // Transfer the amountIn to the contract
-  new IMRC20(new Address(tokenInAddress)).transferFrom(
-    Context.caller(),
-    Context.callee(),
-    amountIn,
-  );
+  if (!isTokenInNative) {
+    // Transfer the amountIn to the contract
+    new IMRC20(new Address(tokenInAddress)).transferFrom(
+      Context.caller(),
+      Context.callee(),
+      amountIn,
+    );
+  }
 
-  // Transfer the amountOut to the caller
-  new IMRC20(new Address(tokenOutAddress)).transfer(
-    Context.caller(),
-    amountOut,
-  );
+  if (!isTokenOutNative) {
+    // Transfer the amountOut to the caller
+    new IMRC20(new Address(tokenOutAddress)).transfer(
+      Context.caller(),
+      amountOut,
+    );
+  } else {
+    // TODO: unwrap the amountOut to MAs then transfer to the caller
+  }
 
   // Update reserves:
   // The input reserve increases by amountInAfterFee + lpFee (the portion of fees that goes to the LPs).
