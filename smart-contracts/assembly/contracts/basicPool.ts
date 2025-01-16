@@ -424,21 +424,11 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
 
   // Check if the tokenIn or tokenOut is native Mas coin
   if (tokenInAddress == NATIVE_MAS_COIN_ADDRESS) {
-    // Get the transferred coins from teh operation
-    const transferredCoins = Context.transferredCoins();
-
-    assert(
-      amountIn == u256.fromU64(transferredCoins),
-      'AmountIn is not equal to the transferred coins',
-    );
-
-    const wmasContract = new IWMAS(new Address(wmasTokenAddressStored));
-
-    // Wrap mas to wmas
-    wmasContract.deposit(transferredCoins);
+    // Wrap Mas to WMAS
+    _wrapMasToWMAS(amountIn);
 
     // Call the swap internal function
-    _swap(wmasTokenAddressStored, u256.fromU64(transferredCoins), minAmountOut);
+    _swap(wmasTokenAddressStored, amountIn, minAmountOut);
   } else {
     // Get the token addresses from storage
     const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
