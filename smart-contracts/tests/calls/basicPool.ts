@@ -58,8 +58,9 @@ export async function addLiquidityWithMAS(
 
   const storageCosts = computeMintStorageCost(poolContract.address);
 
-  const coins =
-    Mas.fromString((bAmount + 0.1).toString()) + BigInt(storageCosts);
+  const coins = Mas.fromString(bAmount.toString()) + BigInt(storageCosts);
+
+  console.log('Coins To send: ', coins);
 
   const operation = await poolContract.call(
     'addLiquidityWithMas',
@@ -82,6 +83,47 @@ export async function addLiquidityWithMAS(
   }
 
   return coins;
+}
+
+export async function swapWithMAS(
+  poolContract: SmartContract,
+  tokenInAddress: string,
+  amountIn: number,
+  minAmountOut: number,
+  NativeIn: boolean = true,
+) {
+  console.log(`Swap with MAS ${amountIn} MAS to pool...`);
+
+  const storageCosts = computeMintStorageCost(poolContract.address);
+
+  const coins = Mas.fromString(amountIn.toString()) + BigInt(storageCosts);
+
+  const coinsToSend = NativeIn
+    ? coins
+    : Mas.fromString((amountIn).toString());
+
+  console.log('Coins to send:', coinsToSend);
+
+  const operation = await poolContract.call(
+    'swapWithMas',
+    new Args()
+      .addString(tokenInAddress)
+      .addU256(parseUnits(amountIn.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS))
+      .serialize(),
+    { coins: coinsToSend },
+  );
+
+  const operationStatus = await operation.waitSpeculativeExecution();
+
+  if (operationStatus === OperationStatus.SpeculativeSuccess) {
+    console.log('Swap with MAS successful');
+  } else {
+    console.log('Status:', operationStatus);
+    throw new Error('Failed to swap');
+  }
+
+  return coinsToSend;
 }
 
 export async function swap(
@@ -128,7 +170,6 @@ export async function removeLiquidity(
       .addU256(parseUnits(minAmountA.toString(), TOKEN_DEFAULT_DECIMALS))
       .addU256(parseUnits(minAmountB.toString(), TOKEN_DEFAULT_DECIMALS))
       .serialize(),
-    { coins: Mas.fromString('0.1') },
   );
 
   const status = await operation.waitSpeculativeExecution();
