@@ -11,7 +11,7 @@ import {
 } from '@massalabs/massa-web3';
 import { createNewPool, deployRegistryContract } from './calls/registry';
 import { Pool } from '../src/builnet-tests/structs/pool';
-import { getScByteCode } from './utils';
+import { getScByteCode, NATIVE_MAS_COIN_ADDRESS } from './utils';
 import {
   addLiquidity,
   addLiquidityWithMAS,
@@ -23,6 +23,7 @@ import {
   increaseAllownace,
   removeLiquidity,
   swap,
+  swapWithMAS,
 } from './calls/basicPool';
 
 dotenv.config();
@@ -473,6 +474,9 @@ describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using nati
       'Contract B Token balance should be equal to reserve B',
     ).toEqual(reserveBAfter);
 
+    console.log('Contract A Token Balance After: ', contractATokenBalanceAfter);
+    console.log('Contract B Token Balance After: ', contractBTokenBalanceAfter);
+
     expect(
       Number(user1MasBalanceBefore - user1MasBalanceAfter).toFixed(0),
       'User1 MAS balance should decrease after adding liquidity',
@@ -487,5 +491,104 @@ describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using nati
     console.log('User1 LP balance: ', user1LPBalance);
 
     expect(user1LPBalance, 'User1 LP balance should be 10').toBe(10);
+  });
+
+  test('User 2 swaps native coin for token A in pool', async () => {
+    // switch poolContrcat to user2 provider
+    poolContract = new SmartContract(user2Provider, poolAddress);
+
+    // get reserves before swap
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A before swap: ', reserveA);
+    console.log('Reserve B before swap: ', reserveB);
+
+    const user2ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2MasBalanceBefore = Number(
+      formatMas(await user2Provider.balance(false)),
+    );
+
+    console.log('User2 A Token balance before: ', user2ATokenBalanceBefore);
+    console.log('User2 MAS balance before: ', user2MasBalanceBefore);
+
+    const contractATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    const contractBTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    console.log(
+      'Contract A Token Balance Before: ',
+      contractATokenBalanceBefore,
+    );
+    console.log(
+      'Contract B Token Balance Before: ',
+      contractBTokenBalanceBefore,
+    );
+
+    const bSwapAmount = 0.5;
+    const minASwapOutAmount = 0.1;
+
+    // swap B token for A token
+    const sendCoins = await swapWithMAS(
+      poolContract,
+      NATIVE_MAS_COIN_ADDRESS,
+      bSwapAmount,
+      minASwapOutAmount,
+    );
+
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+    console.log('Reserve B after: ', reserveBAfter);
+
+    expect(
+      reserveBAfter - reserveB,
+      'Reserve B should be  equals to initial reserve B + swap amount',
+    ).toEqual(bSwapAmount);
+
+    expect(
+      reserveAAfter,
+      'Reserve A should be less than the intial reserve A',
+    ).toBeLessThan(reserveA);
+
+    const user2ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2MasBalanceAfter = Number(
+      formatMas(await user2Provider.balance(false)),
+    );
+
+    console.log('User2 A Token balance after: ', user2ATokenBalanceAfter);
+    console.log('User2 MAS balance after: ', user2MasBalanceAfter);
+
+    const contractATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    const contractBTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    console.log('Contract A Token balance after: ', contractATokenBalanceAfter);
+    console.log('Contract B Token balance after: ', contractBTokenBalanceAfter);
   });
 });
