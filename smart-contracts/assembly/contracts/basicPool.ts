@@ -973,7 +973,7 @@ function _swap(
     // Transfer the amountOut to the caller
     new IMRC20(new Address(tokenOutAddress)).transfer(callerAddress, amountOut);
   } else {
-    // TODO: unwrap the amountOut to MAs then transfer to the caller
+    // unwrap the amountOut to MAs then transfer to the caller
     _unwrapWMASToMas(amountOut, callerAddress);
   }
 
