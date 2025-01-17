@@ -7,6 +7,7 @@ import {
   Storage,
   Address,
   assertIsSmartContract,
+  balance,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -34,6 +35,7 @@ import {
 import { HUNDRED_PERCENT, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
+import { transferRemaining } from '../utils';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -412,6 +414,9 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
   // Check if the minAmountOut is greater than 0
   assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
 
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
+
   // Get the registry contract address
   const registryContractAddressStored = bytesToString(
     Storage.get(registryContractAddress),
@@ -429,6 +434,7 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
 
     // Call the swap internal function
     _swap(wmasTokenAddressStored, amountIn, minAmountOut, true);
+    transferRemaining(SCBalance, balance(), sent, Context.caller());
   } else {
     // Call the swap internal function
     _swap(tokenInAddress, amountIn, minAmountOut, false, true);
@@ -952,10 +958,12 @@ function _swap(
   // Ensure that the amountOut is greater than or equal to minAmountOut
   assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
 
+  const callerAddress = Context.caller();
+
   if (!isTokenInNative) {
     // Transfer the amountIn to the contract
     new IMRC20(new Address(tokenInAddress)).transferFrom(
-      Context.caller(),
+      callerAddress,
       Context.callee(),
       amountIn,
     );
@@ -963,12 +971,10 @@ function _swap(
 
   if (!isTokenOutNative) {
     // Transfer the amountOut to the caller
-    new IMRC20(new Address(tokenOutAddress)).transfer(
-      Context.caller(),
-      amountOut,
-    );
+    new IMRC20(new Address(tokenOutAddress)).transfer(callerAddress, amountOut);
   } else {
     // TODO: unwrap the amountOut to MAs then transfer to the caller
+    _unwrapWMASToMas(amountOut, callerAddress);
   }
 
   // Update reserves:
@@ -1045,6 +1051,46 @@ function _wrapMasToWMAS(amount: u256): void {
 
   // Generate an event to indicate that MAS coins have been wrapped into WMAS
   generateEvent(`WRAP_MAS: ${amount.toString()} of MAS wrapped into WMAS`);
+}
+
+/**
+ * Unwraps a specified amount of WMAS tokens into MAS coins.
+ *
+ * This function first checks if the contract has a sufficient balance of WMAS tokens
+ * to unwrap the specified amount. It then retrieves the registry contract address and
+ * the WMAS token address from storage, creates an instance of the WMAS contract, and
+ * withdraws the specified amount of WMAS tokens to the provided address.
+ *
+ * @param amount - The amount of WMAS tokens to be unwrapped into MAS coins.
+ * @param to - The address to receive the unwrapped MAS coins.
+ * @throws Will throw an error if the contract does not have a sufficient balance of WMAS tokens.
+ */
+function _unwrapWMASToMas(amount: u256, to: Address): void {
+  // Get the registry contract address
+  const registryContractAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Get the wmas token address
+  const wmasTokenAddressStored = new IRegistery(
+    new Address(registryContractAddressStored),
+  ).getWmasTokenAddress();
+
+  // Get the wmas contract instance
+  const wmasToken = new IWMAS(new Address(wmasTokenAddressStored));
+
+  // check if the amount is less than or equal the contract balance
+  const contractBalance = wmasToken.balanceOf(Context.callee());
+
+  assert(amount <= contractBalance, 'INSUFFICIENT WMAS BALANCE IN CONTRACT');
+
+  // Unwrap WMAS into MAS
+  wmasToken.withdraw(amount.toU64(), to);
+
+  // Generate an event to indicate that WMAS has been unwrapped into MAS
+  generateEvent(
+    `UNWRAP_WMAS: ${amount.toString()} of WMAS unwrapped into MAS to ${to.toString()}`,
+  );
 }
 
 function _computeMintStorageCost(receiver: Address): u64 {

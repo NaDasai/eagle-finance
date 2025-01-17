@@ -98,9 +98,7 @@ export async function swapWithMAS(
 
   const coins = Mas.fromString(amountIn.toString()) + BigInt(storageCosts);
 
-  const coinsToSend = NativeIn
-    ? coins
-    : Mas.fromString((amountIn).toString());
+  const coinsToSend = NativeIn ? coins : Mas.fromString('0');
 
   console.log('Coins to send:', coinsToSend);
 
@@ -120,6 +118,13 @@ export async function swapWithMAS(
     console.log('Swap with MAS successful');
   } else {
     console.log('Status:', operationStatus);
+
+    // get speculative events from the pool contract
+    const events = await operation.getSpeculativeEvents();
+
+    console.error('Swap with MAS failed : ');
+    console.error(events);
+
     throw new Error('Failed to swap');
   }
 
@@ -186,7 +191,7 @@ export async function getTokenBalance(
   tokenAddress: string,
   userAddress: string,
   provider: Provider,
-): Promise<number> {
+): Promise<bigint> {
   const tokenContract = new MRC20(provider, tokenAddress);
 
   const balance = new Args(
@@ -198,13 +203,13 @@ export async function getTokenBalance(
     ).value,
   ).nextU256();
 
-  return Number(formatMas(balance));
+  return balance;
 }
 
 export async function getLPBalance(
   poolContract: SmartContract,
   userAddress: string,
-): Promise<number> {
+): Promise<bigint> {
   const lpBalance = new Args(
     (
       await poolContract.read(
@@ -214,7 +219,7 @@ export async function getLPBalance(
     ).value,
   ).nextU256();
 
-  return Number(formatMas(lpBalance));
+  return lpBalance;
 }
 
 export async function increaseAllownace(
@@ -245,7 +250,7 @@ export async function increaseAllownace(
 
 export async function getPoolReserves(
   poolContract: SmartContract,
-): Promise<[number, number]> {
+): Promise<[bigint, bigint]> {
   const reserveA = new Args(
     (await poolContract.read('getLocalReserveA')).value,
   ).nextU256();
@@ -253,7 +258,7 @@ export async function getPoolReserves(
     (await poolContract.read('getLocalReserveB')).value,
   ).nextU256();
 
-  return [Number(formatMas(reserveA)), Number(formatMas(reserveB))];
+  return [reserveA, reserveB];
 }
 
 export async function getPoolTWAP(
