@@ -16,3 +16,5 @@ export function getScByteCode(folderName: string, fileName: string): Buffer {
 
 
 export const TOKEN_DEFAULT_DECIMALS = 9;
+
+export const NATIVE_MAS_COIN_ADDRESS= "NATIVE_COIN"

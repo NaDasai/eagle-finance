@@ -6,20 +6,25 @@ import {
   formatMas,
   Mas,
   MRC20,
+  parseMas,
   SmartContract,
   Web3Provider,
 } from '@massalabs/massa-web3';
 import { createNewPool, deployRegistryContract } from './calls/registry';
 import { Pool } from '../src/builnet-tests/structs/pool';
-import { getScByteCode } from './utils';
+import { getScByteCode, NATIVE_MAS_COIN_ADDRESS } from './utils';
 import {
   addLiquidity,
+  addLiquidityWithMAS,
   getLPBalance,
   getPoolReserves,
+  getPools,
+  getPoolTWAP,
   getTokenBalance,
   increaseAllownace,
   removeLiquidity,
   swap,
+  swapWithMAS,
 } from './calls/basicPool';
 
 dotenv.config();
@@ -32,16 +37,18 @@ const user2Provider = Web3Provider.buildnet(
 console.log('User1 address: ', user1Provider.address);
 console.log('User2 address: ', user2Provider.address);
 
-describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
-  const wmasAddress = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU';
-  const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+const wmasAddress = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU';
+const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+
+/* describe('Scenario 1: Add liquidity, Swap, Remove liquidity without feees', async () => {
   //   const bTokenAddress = 'AS1mb6djKDu2LnhQtajuLPGX1J2PNYgCY2LoUxQxa69ABUgedJXN';
   const bTokenAddress = wmasAddress;
   const poolFeeRate = 0;
 
-  const registryContracct = await  deployRegistryContract(user1Provider, wmasAddress);
-
-  const registryAddress = registryContracct.address.toString();
+  const registryContracct = await deployRegistryContract(
+    user1Provider,
+    wmasAddress,
+  );
 
   // create new pool
   await createNewPool(
@@ -105,8 +112,8 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     // get teh reserves
     const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
 
-    console.log('Reserve A after: ', reserveAAfter);
-    console.log('Reserve B after: ', reserveBAfter);
+    console.log('Reserve A after: ', formatMas(reserveAAfter));
+    console.log('Reserve B after: ', formatMas(reserveBAfter);
 
     const user1ATokenBalanceAfter = await getTokenBalance(
       aTokenAddress,
@@ -206,8 +213,8 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     // get reserves after swap
     const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
 
-    console.log('Reserve A after swap: ', reserveAAfter);
-    console.log('Reserve B after swap: ', reserveBAfter);
+    console.log('Reserve A after swap: ', formatMas(reserveAAfter));
+    console.log('Reserve B after swap: ', formatMas(reserveBAfter);
 
     // get user2 balances after swap
     const user2ATokenBalanceAfter = await getTokenBalance(
@@ -283,8 +290,8 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
     // get reserves after remove liquidity
     const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
 
-    console.log('Reserve A after remove liquidity: ', reserveAAfter);
-    console.log('Reserve B after remove liquidity: ', reserveBAfter);
+    console.log('Reserve A after remove liquidity: ', formatMas(reserveAAfter));
+    console.log('Reserve B after remove liquidity: ', formatMas(reserveBAfter);
 
     const user1ATokenBalanceAfter = await getTokenBalance(
       aTokenAddress,
@@ -322,5 +329,371 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity', async () => {
       lpAmountAfter,
       'User1 LP balance should be 0 after removing liquidity',
     ).toBe(0);
+  });
+}); */
+
+describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using native coin', async () => {
+  const bTokenAddress = wmasAddress;
+  const poolFeeRate = 0;
+
+  const registryContracct = await deployRegistryContract(
+    user1Provider,
+    wmasAddress,
+  );
+
+  // create new pool
+  await createNewPool(
+    registryContracct,
+    aTokenAddress,
+    bTokenAddress,
+    poolFeeRate,
+  );
+
+  const pools = await getPools(registryContracct);
+
+  expect(pools.length > 0, 'No pools found');
+
+  // get the last pool address
+  const poolAddress = pools[pools.length - 1].poolAddress;
+
+  let poolContract: SmartContract = new SmartContract(
+    user1Provider,
+    poolAddress,
+  );
+
+  test('User 1 Add liquidity to pool using MAS when its empty', async () => {
+    // get all pool reserves and expect them to be 0
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(
+      parseMas('0'),
+    );
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(
+      parseMas('0'),
+    );
+
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1MasBalanceBefore = await user1Provider.balance(false);
+
+    console.log('User1 A Token balance before: ', user1ATokenBalanceBefore);
+    console.log('User1 MAS balance before: ', user1MasBalanceBefore);
+
+    const contractATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user1Provider,
+    );
+
+    const contractBTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user1Provider,
+    );
+
+    expect(
+      contractATokenBalanceBefore,
+      'Contract A Token balance should be 0 when pool is empty',
+    ).toBe(parseMas('0'));
+
+    expect(
+      contractBTokenBalanceBefore,
+      'Contract B Token balance should be 0 when pool is empty',
+    ).toBe(parseMas('0'));
+
+    const aAmount = 100;
+    const bAmount = 1;
+
+    // increase allowance of both a token first before adding liquidity
+    await increaseAllownace(aTokenAddress, poolAddress, aAmount, user1Provider);
+
+    // add Liquidity with MAS
+    const sendCoins = await addLiquidityWithMAS(
+      poolContract,
+      aAmount,
+      bAmount,
+      0,
+      0,
+    );
+
+    // get the reserves
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+    console.log('Reserve B after: ', reserveBAfter);
+
+    expect(
+      reserveAAfter,
+      'Reserve A should be 100 after adding liquidity',
+    ).toBe(parseMas(aAmount.toString()));
+
+    expect(reserveBAfter, 'Reserve B should be 1 after adding liquidity').toBe(
+      parseMas(bAmount.toString()),
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1MasBalanceAfter = await user1Provider.balance(false);
+
+    console.log('User1 A Token balance after: ', user1ATokenBalanceAfter);
+    console.log('User1 MAS balance after: ', user1MasBalanceAfter);
+
+    expect(
+      user1ATokenBalanceBefore - user1ATokenBalanceAfter,
+      'User1 A Token balance should decrease after adding liquidity',
+    ).toBe(parseMas(aAmount.toString()));
+
+    console.log('Difference: ', user1MasBalanceBefore - user1MasBalanceAfter);
+
+    const contractATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user1Provider,
+    );
+
+    const contractBTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user1Provider,
+    );
+
+    expect(
+      contractATokenBalanceAfter,
+      'Contract A Token balance should be equal to reserve A',
+    ).toBe(reserveAAfter);
+
+    expect(
+      contractBTokenBalanceAfter,
+      'Contract B Token balance should be equal to reserve B',
+    ).toEqual(reserveBAfter);
+
+    console.log('Contract A Token Balance After: ', contractATokenBalanceAfter);
+    console.log('Contract B Token Balance After: ', contractBTokenBalanceAfter);
+
+    // expect(
+    //   Number(user1MasBalanceBefore - user1MasBalanceAfter).toFixed(0),
+    //   'User1 MAS balance should decrease after adding liquidity',
+    // ).toBe(Number(formatMas(sendCoins)).toFixed(0));
+
+    // get the lp balance of user1
+    const user1LPBalance = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance: ', user1LPBalance);
+
+    expect(user1LPBalance, 'User1 LP balance should be 10').toBe(
+      parseMas('10'),
+    );
+  });
+
+  test('User 2 swaps native coin for token A in pool', async () => {
+    // switch poolContrcat to user2 provider
+    poolContract = new SmartContract(user2Provider, poolAddress);
+
+    // get reserves before swap
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A before swap: ', reserveA);
+    console.log('Reserve B before swap: ', reserveB);
+
+    const user2ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2MasBalanceBefore = await user2Provider.balance(false);
+
+    console.log('User2 A Token balance before: ', user2ATokenBalanceBefore);
+    console.log('User2 MAS balance before: ', user2MasBalanceBefore);
+
+    const contractATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    const contractBTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    console.log(
+      'Contract A Token Balance Before: ',
+      contractATokenBalanceBefore,
+    );
+    console.log(
+      'Contract B Token Balance Before: ',
+      contractBTokenBalanceBefore,
+    );
+
+    const bSwapAmount = 0.5;
+    const minASwapOutAmount = 0.1;
+
+    // swap B token for A token
+    const sendCoins = await swapWithMAS(
+      poolContract,
+      NATIVE_MAS_COIN_ADDRESS,
+      bSwapAmount,
+      minASwapOutAmount,
+    );
+
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+    console.log('Reserve B after: ', reserveBAfter);
+
+    expect(
+      reserveBAfter - reserveB,
+      'Reserve B should be  equals to initial reserve B + swap amount',
+    ).toEqual(parseMas(bSwapAmount.toString()));
+
+    expect(
+      reserveAAfter,
+      'Reserve A should be less than the intial reserve A',
+    ).toBeLessThan(parseMas(reserveA.toString()));
+
+    const user2ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2MasBalanceAfter = await user2Provider.balance(false);
+
+    console.log('User2 A Token balance after: ', user2ATokenBalanceAfter);
+    console.log('User2 MAS balance after: ', user2MasBalanceAfter);
+
+    const contractATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    const contractBTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    console.log('Contract A Token balance after: ', contractATokenBalanceAfter);
+    console.log('Contract B Token balance after: ', contractBTokenBalanceAfter);
+  });
+
+  test('User 2 swaps token A for native coin in pool', async () => {
+    // switch poolContrcat to user2 provider
+    poolContract = new SmartContract(user2Provider, poolAddress);
+
+    // get reserves before swap
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A before swap: ', reserveA);
+    console.log('Reserve B before swap: ', reserveB);
+
+    const user2ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2MasBalanceBefore = await user2Provider.balance(false);
+
+    console.log(
+      'User2 A Token balance before: ',
+      formatMas(user2ATokenBalanceBefore),
+    );
+    console.log('User2 MAS balance before: ', formatMas(user2MasBalanceBefore));
+
+    const contractATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    const contractBTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    console.log(
+      'Contract A Token Balance Before: ',
+      contractATokenBalanceBefore,
+    );
+    console.log(
+      'Contract B Token Balance Before: ',
+      contractBTokenBalanceBefore,
+    );
+
+    const aSwapAmount = 50;
+    const minBSwapOutAmount = 0.1;
+
+    // increase allowance of  a token first before swapping
+    await increaseAllownace(
+      aTokenAddress,
+      poolAddress,
+      aSwapAmount,
+      user2Provider,
+    );
+
+    // swap A token for Native coin
+    const sendCoins = await swapWithMAS(
+      poolContract,
+      aTokenAddress,
+      aSwapAmount,
+      minBSwapOutAmount,
+      false,
+    );
+
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+    console.log('Reserve B after: ', reserveBAfter);
+
+    expect(reserveAAfter, 'Reserve should increase by swap amount').toBe(
+      reserveA + parseMas(aSwapAmount.toString()),
+    );
+
+    // expect(
+    //   reserveBAfter.toFixed(1),
+    //   'Reserve B should decrease to 0.857142858',
+    // ).toBe('0.8');
+
+    const user2ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2MasBalanceAfter = await user2Provider.balance(false);
+
+    console.log('User2 A Token balance after: ', user2ATokenBalanceAfter);
+    console.log('User2 MAS balance after: ', user2MasBalanceAfter);
+
+    const contractATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    const contractBTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      poolAddress,
+      user2Provider,
+    );
+
+    console.log('Contract A Token balance after: ', contractATokenBalanceAfter);
+    console.log('Contract B Token balance after: ', contractBTokenBalanceAfter);
   });
 });

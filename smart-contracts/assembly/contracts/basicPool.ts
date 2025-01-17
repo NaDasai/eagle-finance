@@ -7,6 +7,7 @@ import {
   Storage,
   Address,
   assertIsSmartContract,
+  balance,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -34,6 +35,7 @@ import {
 import { HUNDRED_PERCENT, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
+import { transferRemaining } from '../utils';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -349,7 +351,7 @@ function _addLiquidity(
   _updateReserveB(SafeMath256.add(reserveB, finalAmountB));
 
   generateEvent(
-    `Liquidity added: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
+    `ADD_LIQUIDITY: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
   );
 }
 
@@ -412,6 +414,9 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
   // Check if the minAmountOut is greater than 0
   assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
 
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
+
   // Get the registry contract address
   const registryContractAddressStored = bytesToString(
     Storage.get(registryContractAddress),
@@ -424,45 +429,15 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
 
   // Check if the tokenIn or tokenOut is native Mas coin
   if (tokenInAddress == NATIVE_MAS_COIN_ADDRESS) {
-    // Get the transferred coins from teh operation
-    const transferredCoins = Context.transferredCoins();
-
-    assert(
-      amountIn == u256.fromU64(transferredCoins),
-      'AmountIn is not equal to the transferred coins',
-    );
-
-    const wmasContract = new IWMAS(new Address(wmasTokenAddressStored));
-
-    // Wrap mas to wmas
-    wmasContract.deposit(transferredCoins);
+    // Wrap Mas to WMAS
+    _wrapMasToWMAS(amountIn);
 
     // Call the swap internal function
-    _swap(wmasTokenAddressStored, u256.fromU64(transferredCoins), minAmountOut);
+    _swap(wmasTokenAddressStored, amountIn, minAmountOut, true);
+    transferRemaining(SCBalance, balance(), sent, Context.caller());
   } else {
-    // Get the token addresses from storage
-    const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-    const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-    // Get the other token address in the pool
-    const tokenOutAddress =
-      tokenInAddress == aTokenAddressStored
-        ? bTokenAddressStored
-        : aTokenAddressStored;
-
-    // Ensure that the tokenOut is wmas token
-    assert(
-      tokenOutAddress == wmasTokenAddressStored,
-      'TokenOut is not wrapped mas token',
-    );
-
     // Call the swap internal function
-    const amountOut = _swap(tokenInAddress, amountIn, minAmountOut);
-
-    const wmasContract = new IWMAS(new Address(wmasTokenAddressStored));
-
-    // Unwrap mas to wmas
-    wmasContract.withdraw(amountOut.toU64(), Context.caller());
+    _swap(tokenInAddress, amountIn, minAmountOut, false, true);
   }
 }
 
@@ -930,12 +905,16 @@ function _updateReserveB(amount: u256): void {
  * @param tokenInAddress - The address of the token to swap in.
  * @param amountIn - The amount of the token to swap in.
  * @param minAmountOut - The minimum amount of the token to swap out.
+ * @param isTokenInNative - Whether the token to swap in is the native token.
+ * @param isTokenOutNative - Whether the token to swap out is the native token.
  * @returns The amount of the token to swap out.
  */
 function _swap(
   tokenInAddress: string,
   amountIn: u256,
   minAmountOut: u256,
+  isTokenInNative: bool = false,
+  isTokenOutNative: bool = false,
 ): u256 {
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -979,18 +958,24 @@ function _swap(
   // Ensure that the amountOut is greater than or equal to minAmountOut
   assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
 
-  // Transfer the amountIn to the contract
-  new IMRC20(new Address(tokenInAddress)).transferFrom(
-    Context.caller(),
-    Context.callee(),
-    amountIn,
-  );
+  const callerAddress = Context.caller();
 
-  // Transfer the amountOut to the caller
-  new IMRC20(new Address(tokenOutAddress)).transfer(
-    Context.caller(),
-    amountOut,
-  );
+  if (!isTokenInNative) {
+    // Transfer the amountIn to the contract
+    new IMRC20(new Address(tokenInAddress)).transferFrom(
+      callerAddress,
+      Context.callee(),
+      amountIn,
+    );
+  }
+
+  if (!isTokenOutNative) {
+    // Transfer the amountOut to the caller
+    new IMRC20(new Address(tokenOutAddress)).transfer(callerAddress, amountOut);
+  } else {
+    // unwrap the amountOut to MAs then transfer to the caller
+    _unwrapWMASToMas(amountOut, callerAddress);
+  }
 
   // Update reserves:
   // The input reserve increases by amountInAfterFee + lpFee (the portion of fees that goes to the LPs).
@@ -1036,12 +1021,6 @@ function _wrapMasToWMAS(amount: u256): void {
   // Get the transferred coins from the operation
   const transferredCoins = Context.transferredCoins();
 
-  // Ensure bAmount is equal to MAS coins transferred
-  assert(
-    u256.fromU64(transferredCoins) >= amount,
-    'INSUFFICIENT MAS COINS TRANSFERRED',
-  );
-
   // Get the registry contract address
   const registryContractAddressStored = bytesToString(
     Storage.get(registryContractAddress),
@@ -1055,8 +1034,74 @@ function _wrapMasToWMAS(amount: u256): void {
   // Get the wmas contract instance
   const wmasToken = new IWMAS(new Address(wmasTokenAddressStored));
 
+  const mintStorageCost = u256.fromU64(
+    _computeMintStorageCost(Context.callee()),
+  );
+
+  const amountToWrap = SafeMath256.add(amount, mintStorageCost);
+
+  // Ensure bAmount is equal to MAS coins transferred
+  assert(
+    u256.fromU64(transferredCoins) >= amountToWrap,
+    'INSUFFICIENT MAS COINS TRANSFERRED',
+  );
+
   // Wrap MAS coins into WMAS
-  wmasToken.deposit(amount.toU64());
+  wmasToken.deposit(amountToWrap.toU64());
+
+  // Generate an event to indicate that MAS coins have been wrapped into WMAS
+  generateEvent(`WRAP_MAS: ${amount.toString()} of MAS wrapped into WMAS`);
+}
+
+/**
+ * Unwraps a specified amount of WMAS tokens into MAS coins.
+ *
+ * This function first checks if the contract has a sufficient balance of WMAS tokens
+ * to unwrap the specified amount. It then retrieves the registry contract address and
+ * the WMAS token address from storage, creates an instance of the WMAS contract, and
+ * withdraws the specified amount of WMAS tokens to the provided address.
+ *
+ * @param amount - The amount of WMAS tokens to be unwrapped into MAS coins.
+ * @param to - The address to receive the unwrapped MAS coins.
+ * @throws Will throw an error if the contract does not have a sufficient balance of WMAS tokens.
+ */
+function _unwrapWMASToMas(amount: u256, to: Address): void {
+  // Get the registry contract address
+  const registryContractAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Get the wmas token address
+  const wmasTokenAddressStored = new IRegistery(
+    new Address(registryContractAddressStored),
+  ).getWmasTokenAddress();
+
+  // Get the wmas contract instance
+  const wmasToken = new IWMAS(new Address(wmasTokenAddressStored));
+
+  // check if the amount is less than or equal the contract balance
+  const contractBalance = wmasToken.balanceOf(Context.callee());
+
+  assert(amount <= contractBalance, 'INSUFFICIENT WMAS BALANCE IN CONTRACT');
+
+  // Unwrap WMAS into MAS
+  wmasToken.withdraw(amount.toU64(), to);
+
+  // Generate an event to indicate that WMAS has been unwrapped into MAS
+  generateEvent(
+    `UNWRAP_WMAS: ${amount.toString()} of WMAS unwrapped into MAS to ${to.toString()}`,
+  );
+}
+
+function _computeMintStorageCost(receiver: Address): u64 {
+  const STORAGE_BYTE_COST = 100_000;
+  const STORAGE_PREFIX_LENGTH = 4;
+  const BALANCE_KEY_PREFIX_LENGTH = 7;
+
+  const baseLength = STORAGE_PREFIX_LENGTH;
+  const keyLength = BALANCE_KEY_PREFIX_LENGTH + receiver.toString().length;
+  const valueLength = 4 * sizeof<u64>();
+  return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
 }
 
 /**
