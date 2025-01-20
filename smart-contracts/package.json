@@ -10,6 +10,7 @@
         "test:ui": "vitest --ui",
         "test:run": "vitest",
         "coverage": "vitest run --coverage",
+        "test:summary": "asp --summary",
         "test:verbose": "asp --verbose",
         "buildnet:registry": "npm run build && tsx src/builnet-tests/registry.ts",
         "buildnet:flashSwap": "npm run build && tsx src/builnet-tests/flashSwap.ts",
