@@ -35,7 +35,7 @@ import {
 import { HUNDRED_PERCENT, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
-import { transferRemaining } from '../utils';
+import { _computeMintStorageCost, transferRemaining } from '../utils';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -211,6 +211,10 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
 
   const args = new Args(binaryArgs);
 
+  const callerAddress = args
+    .nextString()
+    .expect('Caller is missing or invalid');
+
   let aAmount = args.nextU256().expect('Amount A is missing or invalid');
   let bAmount = args.nextU256().expect('Amount B is missing or invalid');
 
@@ -227,7 +231,15 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   }
 
   // Call the Internal function
-  _addLiquidity(aAmount, bAmount, minAmountA, minAmountB, true, isNativeCoin);
+  _addLiquidity(
+    aAmount,
+    bAmount,
+    minAmountA,
+    minAmountB,
+    true,
+    isNativeCoin,
+    new Address(callerAddress),
+  );
 }
 
 /**
@@ -253,6 +265,7 @@ function _addLiquidity(
   minAmountB: u256,
   isCalledByRegistry: bool = false,
   isWithMAS: bool = false,
+  callerAddress: Address = Context.caller(),
 ): void {
   // ensure that amountA and amountB are greater than 0
   assert(amountA > u256.Zero, 'Amount A must be greater than 0');
@@ -317,9 +330,6 @@ function _addLiquidity(
 
   // Address of the current contract
   const contractAddress = Context.callee();
-
-  // Address of the caller
-  const callerAddress = Context.caller();
 
   // check if it is called by the registry
   if (!isCalledByRegistry) {
@@ -1091,17 +1101,6 @@ function _unwrapWMASToMas(amount: u256, to: Address): void {
   generateEvent(
     `UNWRAP_WMAS: ${amount.toString()} of WMAS unwrapped into MAS to ${to.toString()}`,
   );
-}
-
-function _computeMintStorageCost(receiver: Address): u64 {
-  const STORAGE_BYTE_COST = 100_000;
-  const STORAGE_PREFIX_LENGTH = 4;
-  const BALANCE_KEY_PREFIX_LENGTH = 7;
-
-  const baseLength = STORAGE_PREFIX_LENGTH;
-  const keyLength = BALANCE_KEY_PREFIX_LENGTH + receiver.toString().length;
-  const valueLength = 4 * sizeof<u64>();
-  return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
 }
 
 /**
