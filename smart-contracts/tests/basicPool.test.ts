@@ -39,50 +39,41 @@ console.log('User2 address: ', user2Provider.address);
 
 const wmasAddress = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU';
 const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+const bTokenAddress = wmasAddress;
+let poolFeeRate = 0;
 
-/* describe('Scenario 1: Add liquidity, Swap, Remove liquidity without feees', async () => {
-  //   const bTokenAddress = 'AS1mb6djKDu2LnhQtajuLPGX1J2PNYgCY2LoUxQxa69ABUgedJXN';
-  const bTokenAddress = wmasAddress;
-  const poolFeeRate = 0;
+let registryContract: SmartContract;
+let poolContract: SmartContract;
+let poolAddress: string;
 
-  const registryContracct = await deployRegistryContract(
-    user1Provider,
-    wmasAddress,
-  );
+describe('Scenario 1: Add liquidity, Swap, Remove liquidity without feees', async () => {
+  beforeAll(async () => {
+    registryContract = await deployRegistryContract(user1Provider, wmasAddress);
+    // create new pool
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
 
-  // create new pool
-  await createNewPool(
-    registryContracct,
-    aTokenAddress,
-    bTokenAddress,
-    poolFeeRate,
-  );
+    const pools = await getPools(registryContract);
 
-  // get pools from registry
-  const poolsRes = await registryContracct.read('getPools');
+    console.log('Pools: ', pools);
 
-  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
-    Pool,
-  );
+    expect(pools.length > 0, 'No pools found');
 
-  console.log('Pools: ', pools);
+    // get the last pool address
+    poolAddress = pools[pools.length - 1].poolAddress;
 
-  expect(pools.length > 0, 'No pools found');
-
-  // get the last pool address
-  const poolAddress = pools[pools.length - 1].poolAddress;
-
-  let poolContract: SmartContract = new SmartContract(
-    user1Provider,
-    poolAddress,
-  );
-
+    poolContract = new SmartContract(user1Provider, poolAddress);
+  });
   test('User 1 Add liquidity to pool when its empty', async () => {
     // get all pool reserves and expect them to be 0
     const [reserveA, reserveB] = await getPoolReserves(poolContract);
 
-    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0);
-    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0);
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0n);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0n);
 
     const user1ATokenBalanceBefore = await getTokenBalance(
       aTokenAddress,
@@ -113,7 +104,7 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
     const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
 
     console.log('Reserve A after: ', formatMas(reserveAAfter));
-    console.log('Reserve B after: ', formatMas(reserveBAfter);
+    console.log('Reserve B after: ', formatMas(reserveBAfter));
 
     const user1ATokenBalanceAfter = await getTokenBalance(
       aTokenAddress,
@@ -141,11 +132,11 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
     ).toBeLessThan(user1BTokenBalanceBefore);
 
     expect(reserveAAfter, 'Reserve A should be 10 after adding liquidity').toBe(
-      10,
+      parseMas('10'),
     );
 
     expect(reserveBAfter, 'Reserve B should be 10 after adding liquidity').toBe(
-      10,
+      parseMas('10'),
     );
 
     // get the lp balance of user1
@@ -156,7 +147,9 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
 
     console.log('User1 LP balance: ', user1LPBalance);
 
-    expect(user1LPBalance, 'User1 LP balance should be 10').toBe(10);
+    expect(user1LPBalance, 'User1 LP balance should be 10').toBe(
+      parseMas('10'),
+    );
   });
 
   test("User 2 swaps B token for A token in pool's reserves", async () => {
@@ -169,8 +162,8 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
     console.log('Reserve A before swap: ', reserveA);
     console.log('Reserve B before swap: ', reserveB);
 
-    expect(reserveA, 'Reserve A should be 10 before swap').toBe(10);
-    expect(reserveB, 'Reserve B should be 10 before swap').toBe(10);
+    expect(reserveA, 'Reserve A should be 10 before swap').toBe(parseMas('10'));
+    expect(reserveB, 'Reserve B should be 10 before swap').toBe(parseMas('10'));
 
     const initialK = reserveA * reserveB;
 
@@ -214,7 +207,7 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
     const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
 
     console.log('Reserve A after swap: ', formatMas(reserveAAfter));
-    console.log('Reserve B after swap: ', formatMas(reserveBAfter);
+    console.log('Reserve B after swap: ', formatMas(reserveBAfter));
 
     // get user2 balances after swap
     const user2ATokenBalanceAfter = await getTokenBalance(
@@ -244,7 +237,7 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
   });
 
   test('User 1 removes its liquidity from pool', async () => {
-    // switch poolContrcat to user1 provider
+    // switch to user1
     poolContract = new SmartContract(user1Provider, poolAddress);
 
     // get all pool reserves
@@ -278,7 +271,7 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
     expect(
       user1LPBalanceBefore,
       'User1 LP balance should be equals to 10 before removing liquidity',
-    ).toBe(10);
+    ).toBe(parseMas('10'));
 
     const lpAmount = 10;
     const minAOutAmount = 0;
@@ -291,7 +284,7 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
     const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
 
     console.log('Reserve A after remove liquidity: ', formatMas(reserveAAfter));
-    console.log('Reserve B after remove liquidity: ', formatMas(reserveBAfter);
+    console.log('Reserve B after remove liquidity: ', formatMas(reserveBAfter));
 
     const user1ATokenBalanceAfter = await getTokenBalance(
       aTokenAddress,
@@ -328,49 +321,38 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
     expect(
       lpAmountAfter,
       'User1 LP balance should be 0 after removing liquidity',
-    ).toBe(0);
+    ).toBe(parseMas('0'));
   });
-}); */
+});
 
 describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using native coin', async () => {
-  const bTokenAddress = wmasAddress;
-  const poolFeeRate = 0;
+  beforeAll(async () => {
+    registryContract = await deployRegistryContract(user1Provider, wmasAddress);
+    // create new pool
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
 
-  const registryContracct = await deployRegistryContract(
-    user1Provider,
-    wmasAddress,
-  );
+    const pools = await getPools(registryContract);
 
-  // create new pool
-  await createNewPool(
-    registryContracct,
-    aTokenAddress,
-    bTokenAddress,
-    poolFeeRate,
-  );
+    console.log('Pools: ', pools);
 
-  const pools = await getPools(registryContracct);
+    expect(pools.length > 0, 'No pools found');
 
-  expect(pools.length > 0, 'No pools found');
+    // get the last pool address
+    poolAddress = pools[pools.length - 1].poolAddress;
 
-  // get the last pool address
-  const poolAddress = pools[pools.length - 1].poolAddress;
-
-  let poolContract: SmartContract = new SmartContract(
-    user1Provider,
-    poolAddress,
-  );
-
+    poolContract = new SmartContract(user1Provider, poolAddress);
+  });
   test('User 1 Add liquidity to pool using MAS when its empty', async () => {
     // get all pool reserves and expect them to be 0
     const [reserveA, reserveB] = await getPoolReserves(poolContract);
 
-    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(
-      parseMas('0'),
-    );
-    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(
-      parseMas('0'),
-    );
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0n);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0n);
 
     const user1ATokenBalanceBefore = await getTokenBalance(
       aTokenAddress,
@@ -398,12 +380,12 @@ describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using nati
     expect(
       contractATokenBalanceBefore,
       'Contract A Token balance should be 0 when pool is empty',
-    ).toBe(parseMas('0'));
+    ).toBe(0n);
 
     expect(
       contractBTokenBalanceBefore,
       'Contract B Token balance should be 0 when pool is empty',
-    ).toBe(parseMas('0'));
+    ).toBe(0n);
 
     const aAmount = 100;
     const bAmount = 1;
