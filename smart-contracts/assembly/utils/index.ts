@@ -95,3 +95,14 @@ export function transferRemaining(
 function _transferRemaining(to: Address, value: u64): void {
   transferCoins(to, value);
 }
+
+export function _computeMintStorageCost(receiver: Address): u64 {
+  const STORAGE_BYTE_COST = 100_000;
+  const STORAGE_PREFIX_LENGTH = 4;
+  const BALANCE_KEY_PREFIX_LENGTH = 7;
+
+  const baseLength = STORAGE_PREFIX_LENGTH;
+  const keyLength = BALANCE_KEY_PREFIX_LENGTH + receiver.toString().length;
+  const valueLength = 4 * sizeof<u64>();
+  return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
+}
