@@ -325,7 +325,7 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity without feees', asyn
   });
 });
 
-describe('Scenario 2: Add liquidity, Swap, Remove liquidity with fees using native coin', async () => {
+describe('Scenario 2: Add liquidity, Swap native coins in and out', async () => {
   beforeAll(async () => {
     registryContract = await deployRegistryContract(user1Provider, wmasAddress);
     // create new pool
