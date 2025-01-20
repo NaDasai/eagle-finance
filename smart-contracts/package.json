@@ -5,6 +5,7 @@
     "main": "index.js",
     "scripts": {
         "events": "tsx src/events.ts",
+        "rolls": "tsx src/rolls.ts",
         "test": "vitest run",
         "test:ui": "vitest --ui",
         "test:run": "vitest",
