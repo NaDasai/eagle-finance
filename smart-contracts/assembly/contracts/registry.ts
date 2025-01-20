@@ -166,11 +166,11 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
     assert(
       u256.fromU64(transferredCoins) >= bAmount,
-      'INSUFFICIENT MAS COINS TRANSFERRED',
+      'INSUFFICIENT MAS COINS TRANSFERRED ONE',
     );
 
     // If bTokenAddress is native mas, get the transferred coins and send them to the pool contract as coins
-    coinsToSendOnAddLiquidity = bAmount.toU64();
+    coinsToSendOnAddLiquidity = transferredCoins;
 
     // Get the wmas token address stored
     const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
@@ -186,9 +186,11 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     inputFeeRate,
   );
 
+  const callerAddress = Context.caller();
+
   // Transfer amount A to the pool contract
   new IMRC20(new Address(aTokenAddress)).transferFrom(
-    Context.caller(),
+    callerAddress,
     poolContract._origin,
     aAmount,
   );
@@ -196,7 +198,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   // Transfer amount B to the pool contract if bTokenAddress is not native mas
   if (!isBTokenNativeMas) {
     new IMRC20(new Address(bTokenAddress)).transferFrom(
-      Context.caller(),
+      callerAddress,
       poolContract._origin,
       bAmount,
     );
@@ -204,6 +206,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
 
   // Call the addLiquidityFromRegistry function inside the pool contract
   poolContract.addLiquidityFromRegistry(
+    callerAddress,
     aAmount,
     bAmount,
     minAmountA,
