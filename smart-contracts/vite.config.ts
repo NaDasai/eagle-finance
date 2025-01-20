@@ -8,6 +8,7 @@ export default defineConfig({
     environment: 'node', // Set to 'node' for backend testing.
     include: ['tests/**/*.test.ts'], // Define where your test files are located.
     testTimeout: 60_000, // Set a timeout for tests.
+    hookTimeout: 60_000,
     coverage: {
       provider: 'v8', // Enable coverage reports.
       enabled: false,
