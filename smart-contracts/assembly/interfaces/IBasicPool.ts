@@ -62,6 +62,7 @@ export class IBasicPool {
   }
 
   addLiquidityFromRegistry(
+    callerAddress: Address,
     amountA: u256,
     amountB: u256,
     minAmountA: u256,
@@ -70,6 +71,7 @@ export class IBasicPool {
     coins: u64 = 0,
   ): void {
     const args = new Args()
+      .add(callerAddress)
       .add(amountA)
       .add(amountB)
       .add(minAmountA)
