@@ -93,6 +93,5 @@ export function transferRemaining(
 }
 
 function _transferRemaining(to: Address, value: u64): void {
-  if (isAddressEoa(to.toString())) transferCoins(to, value);
-  else call(to, 'receiveCoins', new Args(), value);
+  transferCoins(to, value);
 }
