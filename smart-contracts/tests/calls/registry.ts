@@ -38,11 +38,12 @@ export async function createNewPool(
 export async function deployRegistryContract(
   user1Provider: Provider,
   wmasAddress: string,
+  fee: number = 0,
 ) {
   const registryByteCode = getScByteCode('build', 'registry.wasm');
 
   const constructorArgs = new Args()
-    .addF64(0) // 0% fee share protocol
+    .addF64(fee * 10000) // 0% fee share protocol
     .addString(wmasAddress) // WMAS address
     .serialize();
 
