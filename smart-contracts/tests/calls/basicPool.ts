@@ -261,21 +261,6 @@ export async function getPoolReserves(
   return [reserveA, reserveB];
 }
 
-export async function getPoolTWAP(
-  poolContract: SmartContract,
-  tokenAddress: string,
-): Promise<bigint> {
-  const twap = (
-    await poolContract.read(
-      'getTWAP',
-      new Args().addString(tokenAddress).addU64(0n).serialize(),
-    )
-  ).value;
-
-  const desTwap = new Args(twap).nextU256();
-  return desTwap;
-}
-
 export function computeMintStorageCost(receiver: string) {
   const STORAGE_BYTE_COST = 100_000;
   const STORAGE_PREFIX_LENGTH = 4;
