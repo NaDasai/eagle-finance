@@ -1,6 +1,6 @@
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
-import { HUNDRED_PERCENT } from '../utils/constants';
+import { ONE_PERCENT } from '../utils/constants';
 
 /**
  * Converts a floating-point number to a u256 integer by scaling it to a specified number of decimals.
@@ -76,5 +76,5 @@ export function normalizeToDecimals(
  * @returns A boolean indicating whether the value is greater than 0 and less than or equal to 10 percent.
  */
 export function isBetweenZeroAndTenPercent(value: f64): bool {
-  return value >= 0 && value <= 10 * f64(HUNDRED_PERCENT);
+  return value >= 0 && value <= 10 * f64(ONE_PERCENT);
 }
