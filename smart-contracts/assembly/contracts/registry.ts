@@ -7,6 +7,7 @@ import {
   Address,
   validateAddress,
   assertIsSmartContract,
+  balance,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -152,6 +153,9 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
 
+  const SCBalance = balance();
+  const transferredCoins = Context.transferredCoins();
+
   // Check if bTokenAddress is native mas
   // WMAS can only be used as bToken since token ordering during pool creation ensures WMAS if exists, it is always assigned as bToken.
   const isBTokenNativeMas = bTokenAddress == NATIVE_MAS_COIN_ADDRESS;
@@ -160,8 +164,10 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   let coinsToSendOnAddLiquidity = u64(0);
 
   if (isBTokenNativeMas) {
-    // Get the transferred coins
-    const transferredCoins = Context.transferredCoins();
+    // Get the current balance
+    const currentBalance = balance();
+
+    const spent = currentBalance - SCBalance;
 
     // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
     assert(
@@ -169,8 +175,8 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
       'INSUFFICIENT MAS COINS TRANSFERRED ONE',
     );
 
-    // If bTokenAddress is native mas, get the transferred coins and send them to the pool contract as coins
-    coinsToSendOnAddLiquidity = transferredCoins;
+    // If bTokenAddress is native mas, transfer the remainning from transferredCoins to the pool contract
+    coinsToSendOnAddLiquidity = transferredCoins - spent;
 
     // Get the wmas token address stored
     const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
