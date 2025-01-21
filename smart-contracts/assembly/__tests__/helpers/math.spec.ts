@@ -138,7 +138,7 @@ describe('test convertU256To18Decimals', () => {
 });
 
 describe('test getFeeFromAmount', () => {
-  test('getFeeFromAmount of 0.3%', () => {
+  test('getFeeFromAmount of 0.3% of 100 should be 0.3', () => {
     const inputAmount = parseMas(100);
     const fee = f64(0.3 * 10_000); // 0.3% ===> 3000
     const result = getFeeFromAmount(inputAmount, fee);
@@ -146,5 +146,25 @@ describe('test getFeeFromAmount', () => {
     print('Fee: ' + fee.toString());
     print('Result of fee amount: ' + result.toString());
     expect(result).toStrictEqual(parseMas(0.3));
+  });
+
+  test('getFeeFromAmount of 0.3% of 10 should be 0.03', () => {
+    const inputAmount = parseMas(10);
+    const fee = f64(0.3 * 10_000); // 0.3% ===> 3000
+    const result = getFeeFromAmount(inputAmount, fee);
+    print('Input amount: ' + inputAmount.toString());
+    print('Fee: ' + fee.toString());
+    print('Result of fee amount: ' + result.toString());
+    expect(result).toStrictEqual(parseMas(0.03));
+  });
+
+  test('getFeeFromAmount of 0.3% of 5 should be 0.015', () => {
+    const inputAmount = parseMas(5);
+    const fee = f64(0.3 * 10_000); // 0.3% ===> 3000
+    const result = getFeeFromAmount(inputAmount, fee);
+    print('Input amount: ' + inputAmount.toString());
+    print('Fee: ' + fee.toString());
+    print('Result of fee amount: ' + result.toString());
+    expect(result).toStrictEqual(parseMas(0.015));
   });
 });
