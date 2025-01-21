@@ -1256,5 +1256,29 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
   );
 }
 
+/**
+ * Gets the address of token A used in the basic pool.
+ * @returns The address of token A as a static array of 8-bit unsigned integers.
+ */
+export function getATokenAddress(): StaticArray<u8> {
+  return Storage.get(aTokenAddress);
+}
+
+/**
+ * Gets the address of token B used in the basic pool.
+ * @returns The address of token B as a static array of 8-bit unsigned integers.
+ */
+export function getBTokenAddress(): StaticArray<u8> {
+  return Storage.get(bTokenAddress);
+}
+
+/**
+ * Gets the current fee rate of the basic pool.
+ * @returns The fee rate as a static array of 8-bit unsigned integers.
+ */
+export function getFeeRate(): StaticArray<u8> {
+  return Storage.get(feeRate);
+}
+
 // Export ownership functions
 export * from '../utils/ownership';

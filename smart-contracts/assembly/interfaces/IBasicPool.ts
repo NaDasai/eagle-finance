@@ -1,4 +1,10 @@
-import { Args, bytesToU256, u256ToBytes } from '@massalabs/as-types';
+import {
+  Args,
+  bytesToF64,
+  bytesToString,
+  bytesToU256,
+  u256ToBytes,
+} from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
 import { u256 } from 'as-bignum/assembly';
 
@@ -171,5 +177,20 @@ export class IBasicPool {
   getPrice(): u256 {
     const result = call(this._origin, 'getPrice', new Args(), 0);
     return bytesToU256(result);
+  }
+
+  getATokenAddress(): string {
+    const result = call(this._origin, 'getATokenAddress', new Args(), 0);
+    return bytesToString(result);
+  }
+
+  getBTokenAddress(): string {
+    const result = call(this._origin, 'getBTokenAddress', new Args(), 0);
+    return bytesToString(result);
+  }
+
+  getFeeRate(): f64 {
+    const result = call(this._origin, 'getFeeRate', new Args(), 0);
+    return bytesToF64(result);
   }
 }
