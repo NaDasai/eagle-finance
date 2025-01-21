@@ -1129,7 +1129,7 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
   );
 
   // Ensure that the callback address is a smart contract address
-  assertIsSmartContract(callbackAddress);
+  // assertIsSmartContract(callbackAddress);
 
   // Ensure that the callback data is not empty
   assert(
@@ -1160,7 +1160,7 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
 
   // Ensure that the pool reserves are greater than the amounts to be swapped
   assert(
-    aReserve > aAmountOut || bReserve > bAmountOut,
+    aReserve > aAmountOut && bReserve > bAmountOut,
     'FLASH_SWAP_ERROR: INSUFFICIENT_LIQUIDITY',
   );
 
