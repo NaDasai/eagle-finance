@@ -33,7 +33,7 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { HUNDRED_PERCENT, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
+import { ONE_PERCENT, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
 import { _computeMintStorageCost, transferRemaining } from '../utils';
@@ -892,8 +892,8 @@ function _swap(
   );
 
   // Calculate fees
-  const feeRate = _getFeeRate(); // e.g., 0.003
-  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 0.05
+  const feeRate = _getFeeRate(); // e.g., 3000 ===> 0.3%
+  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 500 ====> 0.05
 
   // totalFee = amountIn * feeRate
   const totalFee = getFeeFromAmount(amountIn, feeRate);
@@ -902,7 +902,7 @@ function _swap(
   const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
 
   // lpFee = totalFee - protocolFee
-  const lpFee = SafeMath256.sub(totalFee, protocolFee);
+  const lpFee = u256.Zero;
 
   // amountInAfterFee = amountIn - totalFee
   const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
@@ -1229,12 +1229,12 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
 
   // Remove fees from the balances
   const aBalanceAdjusted = SafeMath256.sub(
-    SafeMath256.mul(aContractBalance, u256.fromU64(HUNDRED_PERCENT)),
+    SafeMath256.mul(aContractBalance, u256.fromU64(ONE_PERCENT)),
     SafeMath256.mul(aAmountIn, u256.fromF64(poolFeeRate)),
   );
 
   const bBalanceAdjusted = SafeMath256.sub(
-    SafeMath256.mul(bContractBalance, u256.fromU64(HUNDRED_PERCENT)),
+    SafeMath256.mul(bContractBalance, u256.fromU64(ONE_PERCENT)),
     SafeMath256.mul(bAmountIn, u256.fromF64(poolFeeRate)),
   );
 
