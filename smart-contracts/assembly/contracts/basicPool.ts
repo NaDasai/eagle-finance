@@ -707,56 +707,6 @@ export function getBPriceCumulativeLast(): StaticArray<u8> {
 }
 
 /**
- * Calculates the Time-Weighted Average Price (TWAP) for a given token over a specified duration.
- * @param binaryArgs - Arguments serialized with Args (tokenInAddress, duration)
- * - `tokenInAddress`: The address of the token for which to calculate the TWAP.
- * - `duration`: The duration over which to calculate the TWAP.
- * @returns The TWAP as a byte array, representing the average price of the token.
- *
- * @throws Will throw an error if the specified duration exceeds the available time since the last recorded timestamp.
- */
-export function getTWAP(binaryArgs: StaticArray<u8>): StaticArray<u8> {
-  const args = new Args(binaryArgs);
-
-  const tokenInAddress = args.nextString().expect('TokenInAddress is missing');
-  const duration = args.nextU64().expect('Duration is missing');
-
-  // Get the current timestamp in seconds
-  const currentTimestamp = Context.timestamp();
-
-  // Retrieve cumulative prices and timestamp
-  const cumulativeA = bytesToU256(Storage.get(aPriceCumulative));
-  const cumulativeB = bytesToU256(Storage.get(bPriceCumulative));
-  const lastTime = bytesToU64(Storage.get(lastTimestamp));
-
-  // Ensure duration does not exceed available time
-  assert(
-    currentTimestamp >= lastTime + duration,
-    'Duration exceeds available time',
-  );
-
-  // Calculate TWAP
-  const elapsedTime = currentTimestamp - lastTime;
-
-  // Get the price of token A in terms of token B
-  const priceA = SafeMath256.div(
-    SafeMath256.sub(cumulativeA, cumulativeB),
-    u256.fromU64(elapsedTime),
-  );
-
-  // Get the price of token B in terms of token A
-  const priceB = SafeMath256.div(
-    SafeMath256.sub(cumulativeB, cumulativeA),
-    u256.fromU64(elapsedTime),
-  );
-
-  // Return the TWAP for the given token
-  return tokenInAddress == bytesToString(Storage.get(aTokenAddress))
-    ? u256ToBytes(priceA)
-    : u256ToBytes(priceB);
-}
-
-/**
  * Retrieves the reserve of a token in the pool.
  * @param tokenAddress - The address of the token.
  * @returns The current reserve of the token in the pool.
@@ -1148,6 +1098,10 @@ function _updateCumulativePrices(): void {
 
     // Update last timestamp
     Storage.set(lastTimestamp, u64ToBytes(currentTimestamp));
+
+    generateEvent(
+      `UPDATE_CUMULATIVE_PRICES: ${elapsedTime.toString()} seconds`,
+    );
   }
 }
 
