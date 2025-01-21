@@ -55,5 +55,7 @@ export async function deployRegistryContract(
     },
   );
 
+  console.log('Registry contract deployed at:', contract.address);
+
   return contract;
 }
