@@ -264,7 +264,7 @@ export async function getPoolReserves(
 export async function getPoolTWAP(
   poolContract: SmartContract,
   tokenAddress: string,
-): Promise<number> {
+): Promise<bigint> {
   const twap = (
     await poolContract.read(
       'getTWAP',
@@ -273,7 +273,7 @@ export async function getPoolTWAP(
   ).value;
 
   const desTwap = new Args(twap).nextU256();
-  return Number(formatMas(desTwap));
+  return desTwap;
 }
 
 export function computeMintStorageCost(receiver: string) {
@@ -299,4 +299,16 @@ export async function getPools(registryContract: SmartContract) {
   console.log('Pools: ', pools);
 
   return pools;
+}
+
+export async function getAPriceCumulativeLast(poolContract: SmartContract) {
+  return new Args(
+    (await poolContract.read('getAPriceCumulativeLast')).value,
+  ).nextU256();
+}
+
+export async function getBPriceCumulativeLast(poolContract: SmartContract) {
+  return new Args(
+    (await poolContract.read('getBPriceCumulativeLast')).value,
+  ).nextU256();
 }
