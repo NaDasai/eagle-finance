@@ -101,7 +101,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  assertIsSmartContract(registryAddress);
+  // assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
@@ -708,17 +708,19 @@ export function getBPriceCumulativeLast(): StaticArray<u8> {
 
 /**
  * Calculates the Time-Weighted Average Price (TWAP) for a given token over a specified duration.
- *
- * @param tokenInAddress - The address of the token for which the TWAP is calculated.
- * @param duration - The time period over which the TWAP is calculated, in seconds.
+ * @param binaryArgs - Arguments serialized with Args (tokenInAddress, duration)
+ * - `tokenInAddress`: The address of the token for which to calculate the TWAP.
+ * - `duration`: The duration over which to calculate the TWAP.
  * @returns The TWAP as a byte array, representing the average price of the token.
  *
  * @throws Will throw an error if the specified duration exceeds the available time since the last recorded timestamp.
  */
-export function getTWAP(
-  tokenInAddress: string,
-  duration: u64,
-): StaticArray<u8> {
+export function getTWAP(binaryArgs: StaticArray<u8>): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const tokenInAddress = args.nextString().expect('TokenInAddress is missing');
+  const duration = args.nextU64().expect('Duration is missing');
+
   // Get the current timestamp in seconds
   const currentTimestamp = Context.timestamp();
 
