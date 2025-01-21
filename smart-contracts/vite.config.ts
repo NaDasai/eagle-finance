@@ -15,5 +15,6 @@ export default defineConfig({
       include: ['assembly/**/*.ts'],
       reporter: ['text', 'html', 'json'], // Output types for coverage reports.
     },
+    logHeapUsage: true,
   },
 });
