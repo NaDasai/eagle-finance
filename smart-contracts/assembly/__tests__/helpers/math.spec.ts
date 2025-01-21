@@ -2,6 +2,8 @@ import { print, resetStorage } from '@massalabs/massa-as-sdk';
 import { SafeMath256 } from '../../lib/safeMath';
 import { u128, u256 } from 'as-bignum/assembly';
 import { f64ToU256, normalizeToDecimals } from '../../lib/math';
+import { parseMas } from '../utils';
+import { getFeeFromAmount } from '../../lib/basicPoolMath';
 
 beforeEach(() => {
   resetStorage();
@@ -132,5 +134,17 @@ describe('test convertU256To18Decimals', () => {
       `normalizeTo18Decimals(${input.toString()}, ${currentDecimals}): ${result.toString()}`,
     );
     expect(result).toStrictEqual(expected);
+  });
+});
+
+describe('test getFeeFromAmount', () => {
+  test('getFeeFromAmount of 0.3%', () => {
+    const inputAmount = parseMas(100);
+    const fee = f64(0.3 * 10_000); // 0.3% ===> 3000
+    const result = getFeeFromAmount(inputAmount, fee);
+    print('Input amount: ' + inputAmount.toString());
+    print('Fee: ' + fee.toString());
+    print('Result of fee amount: ' + result.toString());
+    expect(result).toStrictEqual(parseMas(0.3));
   });
 });

@@ -1,15 +1,17 @@
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
-import { HUNDRED_PERCENT } from '../utils/constants';
+import { ONE_PERCENT, SCALING_FACTOR } from '../utils/constants';
+import { print } from '@massalabs/massa-as-sdk';
 
 export function getFeeFromAmount(inputAmount: u256, feeRate: f64): u256 {
-  const feeRateScaled = u256.fromF64(feeRate);
+  // convert fee rate to u256
+  const feeRate256 = u256.fromF64(feeRate);
 
-  // Calculate the fee as: (inputAmount * feeRateScaled)
-  const product = SafeMath256.mul(inputAmount, feeRateScaled);
+  // Calculate the fee as: (inputAmount * feeRate256)
+  const product = SafeMath256.mul(inputAmount, feeRate256);
 
-  // Calculate the fee as: (inputAmount * feeRateScaled) / HUNDRED_PERCENT
-  const fee = SafeMath256.div(product, u256.fromU64(HUNDRED_PERCENT));
+  // Calculate the fee as: (inputAmount * feeRate256) / SCALING_FACTOR (1_000_000)
+  const fee = SafeMath256.div(product, SCALING_FACTOR);
 
   return fee;
 }
