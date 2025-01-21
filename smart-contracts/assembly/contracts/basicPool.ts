@@ -147,6 +147,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
  *  @param binaryArgs - Arguments serialized with Args
  *  - `amountA`: The amount of token A to add to the pool.
  *  - `amountB`: The amount of token B to add to the pool.
+ * - `minAmountA`: The minimum amount of token A to add to the pool.
+ * - `minAmountB`: The minimum amount of token B to add to the pool.
  * @returns void
  */
 export function addLiquidity(binaryArgs: StaticArray<u8>): void {
@@ -1099,9 +1101,7 @@ function _updateCumulativePrices(): void {
     // Update last timestamp
     Storage.set(lastTimestamp, u64ToBytes(currentTimestamp));
 
-    generateEvent(
-      `UPDATE_CUMULATIVE_PRICES: ${elapsedTime.toString()} seconds`,
-    );
+    generateEvent(`UPDATE_CUMULATIVE_PRICES: ${elapsedTime.toString()}`);
   }
 }
 
