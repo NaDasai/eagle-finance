@@ -8,6 +8,7 @@ import {
   Address,
   assertIsSmartContract,
   balance,
+  print,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -1236,6 +1237,23 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
     SafeMath256.mul(bContractBalance, u256.fromU64(HUNDRED_PERCENT)),
     SafeMath256.mul(bAmountIn, u256.fromF64(poolFeeRate)),
   );
+
+  print('aBalanceAdjusted  :' + aBalanceAdjusted.toString());
+  print('bBalanceAdjusted : ' + bBalanceAdjusted.toString());
+  print(
+    'NEW K VALUE : ' +
+      SafeMath256.mul(aBalanceAdjusted, bBalanceAdjusted).toString(),
+  );
+  print('poolK : ' + poolK.toString());
+  print('1000**2 : ' + u256.fromU64(1000 ** 2).toString());
+  print(
+    'K * 1000**2 : ' +
+      SafeMath256.mul(poolK, u256.fromU64(1000 ** 2)).toString(),
+  );
+  print('aAmountIn ' + aAmountIn.toString());
+  print('bAmountIn ' + bAmountIn.toString());
+  print('aAmountOut ' + aAmountOut.toString());
+  print('bAmountOut ' + bAmountOut.toString());
 
   // Ensure the new k value is greater or equal to the pool K value
   assert(
