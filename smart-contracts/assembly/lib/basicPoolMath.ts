@@ -1,7 +1,6 @@
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
-import { ONE_PERCENT, SCALING_FACTOR } from '../utils/constants';
-import { print } from '@massalabs/massa-as-sdk';
+import { SCALING_FACTOR } from '../utils/constants';
 
 export function getFeeFromAmount(inputAmount: u256, feeRate: f64): u256 {
   // convert fee rate to u256
