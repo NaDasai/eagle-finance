@@ -178,4 +178,23 @@ export class IRegistery {
     const args = new Args().add(wmasTokenAddress);
     call(this._origin, 'setWmasTokenAddress', args, 0);
   }
+
+  /**
+   * Checks if a pool exists with the given token addresses and fee rate.
+   * @param aTokenAddress - The address of the first token in the pool.
+   * @param bTokenAddress - The address of the second token in the pool.
+   * @param inputFeeRate - The fee rate for the pool.
+   * @returns True if the pool exists, false otherwise.
+   */
+  isPoolExists(
+    aTokenAddress: string,
+    bTokenAddress: string,
+    inputFeeRate: f64,
+  ): bool {
+    const args = new Args()
+      .add(aTokenAddress)
+      .add(bTokenAddress)
+      .add(inputFeeRate);
+    return byteToBool(call(this._origin, 'isPoolExists', args, 0));
+  }
 }

@@ -11,6 +11,7 @@ import {
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
+  boolToByte,
   bytesToF64,
   bytesToString,
   f64ToBytes,
@@ -292,6 +293,7 @@ export function getWmasTokenAddress(): StaticArray<u8> {
  * @param binaryArgs  The wmas token address
  * @returns  void
  */
+
 export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
   // Only owner of registery can set wmas token address
   onlyOwner();
@@ -310,6 +312,25 @@ export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
 
   // Emit an event
   generateEvent(`WMAS address updated to ${wmasTokenAddressInput}`);
+}
+
+/**
+ * Checks if a pool with the given token addresses and input fee rate exists in the registry.
+ * @param binaryArgs - An array of binary arguments containing the token addresses and input fee rate.
+ * @returns - A byte array indicating whether the pool exists (1) or not (0).
+ */
+export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const aTokenAddress = args.nextString().expect('aTokenAddress is missing');
+  const bTokenAddress = args.nextString().expect('bTokenAddress is missing');
+  const inputFeeRate = args.nextF64().expect('inputFeeRate is missing');
+
+  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
+
+  const poolExists = pools.contains(poolKey);
+
+  return boolToByte(poolExists);
 }
 
 /**
