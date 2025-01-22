@@ -194,9 +194,16 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     const currentBalance = balance();
 
     const spent = SCBalance - currentBalance;
+    generateEvent(
+      `Transferred ${spent} coins from ${callerAddress} to ${Context.callee().toString()}`,
+    );
 
     // If bTokenAddress is native mas, transfer the remainning from transferredCoins to the pool contract
     coinsToSendOnAddLiquidity = transferredCoins - spent;
+
+    generateEvent(
+      `Transferred ${coinsToSendOnAddLiquidity} coins from ${callerAddress} to ${poolContract._origin}`,
+    );
 
     // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
     assert(
