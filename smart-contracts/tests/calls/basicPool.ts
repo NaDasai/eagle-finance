@@ -20,6 +20,8 @@ export async function addLiquidity(
   bAmount: number,
   minAmountA: number,
   minAmountB: number,
+  aDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  bDecimals: number = TOKEN_DEFAULT_DECIMALS,
 ) {
   console.log(
     `Add liquidity: ${aAmount} A, ${bAmount} B (min: ${minAmountA} A, ${minAmountB} B) to pool...`,
@@ -27,10 +29,10 @@ export async function addLiquidity(
   const operation = await poolContract.call(
     'addLiquidity',
     new Args()
-      .addU256(parseUnits(aAmount.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(bAmount.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountA.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountB.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(aAmount.toString(), aDecimals))
+      .addU256(parseUnits(bAmount.toString(), bDecimals))
+      .addU256(parseUnits(minAmountA.toString(), aDecimals))
+      .addU256(parseUnits(minAmountB.toString(), bDecimals))
       .serialize(),
     { coins: Mas.fromString('0.1') },
   );
@@ -227,6 +229,7 @@ export async function increaseAllownace(
   spenderAddress: string,
   amount: number,
   provider: Provider,
+  tokenDecimals: number = TOKEN_DEFAULT_DECIMALS,
 ): Promise<void> {
   const tokenContract = new MRC20(provider, tokenAddress);
 
@@ -234,7 +237,7 @@ export async function increaseAllownace(
 
   const operation = await tokenContract.increaseAllowance(
     spenderAddress,
-    parseUnits(amount.toString(), TOKEN_DEFAULT_DECIMALS),
+    parseUnits(amount.toString(), tokenDecimals),
     { coins: Mas.fromString('0.1') },
   );
 
