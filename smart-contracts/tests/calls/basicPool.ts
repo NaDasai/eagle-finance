@@ -138,14 +138,16 @@ export async function swap(
   tokenInAddress: string,
   amountIn: number,
   minAmountOut: number,
+  inDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  outDecimals: number = TOKEN_DEFAULT_DECIMALS,
 ) {
   console.log(`Swap ${amountIn} ${tokenInAddress} to pool...`);
   const operation = await poolContract.call(
     'swap',
     new Args()
       .addString(tokenInAddress)
-      .addU256(parseUnits(amountIn.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(amountIn.toString(), inDecimals))
+      .addU256(parseUnits(minAmountOut.toString(), outDecimals))
       .serialize(),
     { coins: Mas.fromString('0.1') },
   );
@@ -160,11 +162,54 @@ export async function swap(
   }
 }
 
+export async function removeLiquidityUsingPercentage(
+  poolContract: SmartContract,
+  userProvider: Provider,
+  percentage: number,
+  minAmountA: number,
+  minAmountB: number,
+  aDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  bDecimals: number = TOKEN_DEFAULT_DECIMALS,
+) {
+  console.log(
+    `Remove liquidity using percentage: ${percentage}% (min: ${minAmountA} A, ${minAmountB} B) from pool...`,
+  );
+
+  // get the user lpBalance
+  const userLPBalance = await getLPBalance(poolContract, userProvider.address);
+
+  console.log('User LP balance:', userLPBalance);
+
+  const lpRemoveAmount = (userLPBalance * BigInt(percentage)) / 100n;
+
+  console.log('LP amount:', lpRemoveAmount);
+
+  const operation = await poolContract.call(
+    'removeLiquidity',
+    new Args()
+      .addU256(lpRemoveAmount)
+      .addU256(parseUnits(minAmountA.toString(), aDecimals))
+      .addU256(parseUnits(minAmountB.toString(), bDecimals))
+      .serialize(),
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Liquidity removed');
+  } else {
+    console.log('Status:', status);
+    throw new Error('Failed to remove liquidity');
+  }
+}
+
 export async function removeLiquidity(
   poolContract: SmartContract,
   lpAmount: number,
   minAmountA: number,
   minAmountB: number,
+  aDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  bDecimals: number = TOKEN_DEFAULT_DECIMALS,
 ) {
   console.log(
     `Remove liquidity: ${lpAmount} LP (min: ${minAmountA} A, ${minAmountB} B) from pool...`,
@@ -174,8 +219,8 @@ export async function removeLiquidity(
     'removeLiquidity',
     new Args()
       .addU256(parseUnits(lpAmount.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountA.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountB.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(minAmountA.toString(), aDecimals))
+      .addU256(parseUnits(minAmountB.toString(), bDecimals))
       .serialize(),
   );
 
