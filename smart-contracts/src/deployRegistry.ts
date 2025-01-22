@@ -25,7 +25,7 @@ const contract = await SmartContract.deploy(
   byteCode,
   constructorArgs,
   {
-    coins: Mas.fromString('10'),
+    coins: Mas.fromString('5'),
   },
 );
 
