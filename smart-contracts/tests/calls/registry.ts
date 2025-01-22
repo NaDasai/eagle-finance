@@ -22,7 +22,7 @@ export async function createNewPool(
       .addString(bTokenAddress)
       .addF64(inputFeeRate)
       .serialize(),
-    { coins: Mas.fromString('0.1') },
+    { coins: Mas.fromString('8') },
   );
 
   const status = await operation.waitSpeculativeExecution();
@@ -52,7 +52,7 @@ export async function deployRegistryContract(
     registryByteCode,
     constructorArgs,
     {
-      coins: Mas.fromString('8'),
+      coins: Mas.fromString('0.1'),
     },
   );
 
