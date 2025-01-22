@@ -154,30 +154,14 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     .expect('InputFeeRate is missing or invalid');
 
   const SCBalance = balance();
+
   const transferredCoins = Context.transferredCoins();
 
   // Check if bTokenAddress is native mas
   // WMAS can only be used as bToken since token ordering during pool creation ensures WMAS if exists, it is always assigned as bToken.
   const isBTokenNativeMas = bTokenAddress == NATIVE_MAS_COIN_ADDRESS;
 
-  // Coins To Send on addLiquidityFromRegistry function
-  let coinsToSendOnAddLiquidity = u64(0);
-
   if (isBTokenNativeMas) {
-    // Get the current balance
-    const currentBalance = balance();
-
-    const spent = currentBalance - SCBalance;
-
-    // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
-    assert(
-      u256.fromU64(transferredCoins) >= bAmount,
-      'INSUFFICIENT MAS COINS TRANSFERRED ONE',
-    );
-
-    // If bTokenAddress is native mas, transfer the remainning from transferredCoins to the pool contract
-    coinsToSendOnAddLiquidity = transferredCoins - spent;
-
     // Get the wmas token address stored
     const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
 
@@ -185,12 +169,31 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     bTokenAddress = wmasTokenAddressStored;
   }
 
+  // Coins To Send on addLiquidityFromRegistry function
+  let coinsToSendOnAddLiquidity = u64(0);
+
   // Call the internal function
   const poolContract = _createNewPool(
     aTokenAddress,
     bTokenAddress,
     inputFeeRate,
   );
+
+  if (isBTokenNativeMas) {
+    // Get the current balance
+    const currentBalance = balance();
+
+    const spent = SCBalance - currentBalance;
+
+    // If bTokenAddress is native mas, transfer the remainning from transferredCoins to the pool contract
+    coinsToSendOnAddLiquidity = transferredCoins - spent;
+
+    // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
+    assert(
+      u256.fromU64(coinsToSendOnAddLiquidity) >= bAmount,
+      'INSUFFICIENT COINS TO SEND',
+    );
+  }
 
   const callerAddress = Context.caller();
 
