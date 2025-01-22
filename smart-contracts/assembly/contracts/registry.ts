@@ -179,6 +179,15 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     inputFeeRate,
   );
 
+  const callerAddress = Context.caller();
+
+  // Transfer amount A to the pool contract
+  new IMRC20(new Address(aTokenAddress)).transferFrom(
+    callerAddress,
+    poolContract._origin,
+    aAmount,
+  );
+
   if (isBTokenNativeMas) {
     // Get the current balance
     const currentBalance = balance();
@@ -193,19 +202,8 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
       u256.fromU64(coinsToSendOnAddLiquidity) >= bAmount,
       'INSUFFICIENT COINS TO SEND',
     );
-  }
-
-  const callerAddress = Context.caller();
-
-  // Transfer amount A to the pool contract
-  new IMRC20(new Address(aTokenAddress)).transferFrom(
-    callerAddress,
-    poolContract._origin,
-    aAmount,
-  );
-
-  // Transfer amount B to the pool contract if bTokenAddress is not native mas
-  if (!isBTokenNativeMas) {
+  } else {
+    // Transfer amount B to the pool contract if bTokenAddress is not native mas
     new IMRC20(new Address(bTokenAddress)).transferFrom(
       callerAddress,
       poolContract._origin,
