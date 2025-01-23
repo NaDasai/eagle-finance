@@ -3,6 +3,7 @@ import { DEFAULT_BUILDNET_WMAS_ADDRESS } from './constants';
 import {
   Address,
   call,
+  generateEvent,
   isAddressEoa,
   transferCoins,
 } from '@massalabs/massa-as-sdk';
@@ -22,13 +23,34 @@ export function _buildPoolKey(
 ): string {
   // sort the addresses to ensure that the key of the pool is always the same
   // Ensure WMAS if exists, it is always tokenB
-  if (tokenA === wmasAddress || (tokenB !== wmasAddress && tokenA > tokenB)) {
+  const sortedTokens = sortPoolTokenAddresses(tokenA, tokenB, wmasAddress);
+
+  const sortedTokenA = sortedTokens[0];
+  const sortedTokenB = sortedTokens[1];
+
+  const key = `${sortedTokenA}-${sortedTokenB}-${inputFeeRate.toString()}`;
+  return key;
+}
+
+export function sortPoolTokenAddresses(
+  tokenA: string,
+  tokenB: string,
+  wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
+): string[] {
+  // If either token is wmasAddress, ensure it is always tokenB
+  if (tokenA == wmasAddress) {
+    // Swap if tokenA is wmasAddress
+    const temp = tokenA;
+    tokenA = tokenB;
+    tokenB = temp;
+  } else if (tokenB != wmasAddress && tokenA > tokenB) {
+    // Sort tokens lexicographically if neither is wmasAddress
     const temp = tokenA;
     tokenA = tokenB;
     tokenB = temp;
   }
-  const key = `${tokenA}-${tokenB}-${inputFeeRate.toString()}`;
-  return key;
+
+  return [tokenA, tokenB];
 }
 
 /**
