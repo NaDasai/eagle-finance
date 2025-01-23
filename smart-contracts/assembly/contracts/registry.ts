@@ -20,8 +20,11 @@ import {
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
-import { _buildPoolKey } from '../utils';
-import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
+import { _buildPoolKey, sortPoolTokenAddresses } from '../utils';
+import {
+  DEFAULT_BUILDNET_WMAS_ADDRESS,
+  NATIVE_MAS_COIN_ADDRESS,
+} from '../utils/constants';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
@@ -96,7 +99,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 export function createNewPool(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  const aTokenAddress = args
+  let aTokenAddress = args
     .nextString()
     .expect('TokenAddress A is missing or invalid');
 
@@ -115,10 +118,18 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
   if (bTokenAddress == NATIVE_MAS_COIN_ADDRESS) {
     // Change bTokenAddress to wmasTokenAddress
     bTokenAddress = wmasTokenAddressStored;
+  } else if (aTokenAddress == NATIVE_MAS_COIN_ADDRESS) {
+    // Change aTokenAddress to wmasTokenAddress
+    aTokenAddress = wmasTokenAddressStored;
   }
 
   // Call the internal function
-  _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
+  _createNewPool(
+    aTokenAddress,
+    bTokenAddress,
+    inputFeeRate,
+    wmasTokenAddressStored,
+  );
 }
 
 /**
@@ -351,6 +362,7 @@ function _createNewPool(
   aTokenAddress: string,
   bTokenAddress: string,
   inputFeeRate: f64,
+  wmasTokenAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
 ): IBasicPool {
   // Ensure that the input fee rate is between 0 and 10%
   assert(
@@ -364,6 +376,16 @@ function _createNewPool(
   // Ensure taht the aTokenAddress and bTokenAddress are smart contract addresses
   assertIsSmartContract(aTokenAddress);
   assertIsSmartContract(bTokenAddress);
+
+  // sort aTokenAddress and bTokenAddress
+  const sortedTokens = sortPoolTokenAddresses(
+    aTokenAddress,
+    bTokenAddress,
+    wmasTokenAddress,
+  );
+
+  aTokenAddress = sortedTokens[0];
+  bTokenAddress = sortedTokens[1];
 
   //  check if the pool is already in the registery
   const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
