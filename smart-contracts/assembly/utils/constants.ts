@@ -7,6 +7,6 @@ export const ONE_PERCENT = u64(10_000);
 export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
 
 export const DEFAULT_BUILDNET_WMAS_ADDRESS =
-  "'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU'";
+  "AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU";
 
 export const SCALING_FACTOR = u256.fromU64(1_000_000); // scaling factor representing 1 on a 6 decimals precision
