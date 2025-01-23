@@ -321,19 +321,6 @@ export function computeMintStorageCost(receiver: string) {
   return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
 }
 
-export async function getPools(registryContract: SmartContract) {
-  // get pools from registry
-  const poolsRes = await registryContract.read('getPools');
-
-  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
-    Pool,
-  );
-
-  console.log('Pools: ', pools);
-
-  return pools;
-}
-
 export async function getAPriceCumulativeLast(poolContract: SmartContract) {
   return new Args(
     (await poolContract.read('getAPriceCumulativeLast')).value,

@@ -6,6 +6,7 @@ import {
   SmartContract,
 } from '@massalabs/massa-web3';
 import { getScByteCode } from '../utils';
+import { Pool } from '../../src/builnet-tests/structs/pool';
 
 export async function createNewPool(
   contract: SmartContract,
@@ -59,4 +60,17 @@ export async function deployRegistryContract(
   console.log('Registry contract deployed at:', contract.address);
 
   return contract;
+}
+
+export async function getPools(registryContract: SmartContract) {
+  // get pools from registry
+  const poolsRes = await registryContract.read('getPools');
+
+  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
+    Pool,
+  );
+
+  console.log('Pools: ', pools);
+
+  return pools;
 }

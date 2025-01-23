@@ -12,7 +12,11 @@ import {
   SmartContract,
   Web3Provider,
 } from '@massalabs/massa-web3';
-import { createNewPool, deployRegistryContract } from './calls/registry';
+import {
+  createNewPool,
+  deployRegistryContract,
+  getPools,
+} from './calls/registry';
 import { Pool } from '../src/builnet-tests/structs/pool';
 import { getScByteCode, NATIVE_MAS_COIN_ADDRESS } from './utils';
 import {
@@ -22,7 +26,6 @@ import {
   getBPriceCumulativeLast,
   getLPBalance,
   getPoolReserves,
-  getPools,
   getTokenBalance,
   increaseAllownace,
   removeLiquidity,
