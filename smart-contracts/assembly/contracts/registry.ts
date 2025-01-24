@@ -123,13 +123,18 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     aTokenAddress = wmasTokenAddressStored;
   }
 
-  // Call the internal function
-  _createNewPool(
+  // sort aTokenAddress and bTokenAddress
+  const sortedTokens = sortPoolTokenAddresses(
     aTokenAddress,
     bTokenAddress,
-    inputFeeRate,
     wmasTokenAddressStored,
   );
+
+  aTokenAddress = sortedTokens[0];
+  bTokenAddress = sortedTokens[1];
+
+  // Call the internal function
+  _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
 }
 
 /**
@@ -140,14 +145,17 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
  *   - bTokenAddress: The address of token B.
  *   - aAmount: The initial amount of token A to add as liquidity.
  *   - bAmount: The initial amount of token B to add as liquidity.
+ *   - minAmountA: The minimum amount of token A to add as liquidity.
+ *   - minAmountB: The minimum amount of token B to add as liquidity.
  *   - inputFeeRate: The fee rate for the pool.
+ *   - isBNative: A boolean indicating whether token B is a native token.
  *
  * @throws Will throw an error if any of the required arguments are missing or invalid.
  */
 export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  const aTokenAddress = args
+  let aTokenAddress = args
     .nextString()
     .expect('TokenAddress A is missing or invalid');
 
@@ -155,31 +163,67 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('TokenAddress B is missing or invalid');
 
-  const aAmount = args.nextU256().expect('TokenAmount A is missing or invalid');
-  const bAmount = args.nextU256().expect('TokenAmount B is missing or invalid');
+  let aAmount = args.nextU256().expect('TokenAmount A is missing or invalid');
+  let bAmount = args.nextU256().expect('TokenAmount B is missing or invalid');
 
-  const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
-  const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
+  let minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
+  let minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
   const inputFeeRate = args
     .nextF64()
     .expect('InputFeeRate is missing or invalid');
 
-  const SCBalance = balance();
+  // Default value of a boolean is false
+  const isBTokenNativeMas = args.nextBool().unwrapOrDefault();
 
-  const transferredCoins = Context.transferredCoins();
+  // Get the wmas token address stored
+  const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
 
-  // Check if bTokenAddress is native mas
-  // WMAS can only be used as bToken since token ordering during pool creation ensures WMAS if exists, it is always assigned as bToken.
-  const isBTokenNativeMas = bTokenAddress == NATIVE_MAS_COIN_ADDRESS;
+  generateEvent(
+    `CREATE_NEW_POOL_WITH_LIQUIDITY: aTokenAddress: ${aTokenAddress}, bTokenAddress: ${bTokenAddress}, aAmount: ${aAmount}, bAmount: ${bAmount}, minAmountA: ${minAmountA}, minAmountB: ${minAmountB}, inputFeeRate: ${inputFeeRate}, isBNative: ${isBTokenNativeMas}`,
+  );
+
+  // Check if
 
   if (isBTokenNativeMas) {
-    // Get the wmas token address stored
-    const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
-
-    // Change bTokenAddress to wmasTokenAddress
-    bTokenAddress = wmasTokenAddressStored;
+    // Throw error if bTokenAddress is not native mas
+    if (bTokenAddress != NATIVE_MAS_COIN_ADDRESS) {
+      throw new Error(
+        'CREATE_NEW_POOL_WITH_LIQUIDITY: bTokenAddress must be native mas',
+      );
+    } else {
+      // Change bTokenAddress to wmasTokenAddress
+      bTokenAddress = wmasTokenAddressStored;
+    }
   }
+
+  // Get the balance of the contract when the transaction was initiated
+  const SCBalance = balance();
+
+  // Get the calller transferred coins
+  const transferredCoins = Context.transferredCoins();
+
+  // Sort the tokens based on the token addresses
+  const sortedTokens = sortPoolTokenAddresses(aTokenAddress, bTokenAddress);
+
+  const aSortedToken = sortedTokens[0];
+  const bSortedToken = sortedTokens[1];
+
+  // if Tokens are reversed on the sortedTokens array, reverse the amounts and min amounts
+  if (aTokenAddress != aSortedToken) {
+    // Reverse the amounts
+    const temp = aAmount;
+    aAmount = bAmount;
+    bAmount = temp;
+    // Reverse the min amounts
+    const tempMin = minAmountA;
+    minAmountA = minAmountB;
+    minAmountB = tempMin;
+  }
+
+  // Updates the tokens based on the sort order
+  aTokenAddress = aSortedToken;
+  bTokenAddress = bSortedToken;
 
   // Coins To Send on addLiquidityFromRegistry function
   let coinsToSendOnAddLiquidity = u64(0);
@@ -204,7 +248,9 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     // Get the current balance
     const currentBalance = balance();
 
+    // Calculate the spent coins
     const spent = SCBalance - currentBalance;
+
     generateEvent(
       `Transferred ${spent} coins from ${callerAddress} to ${Context.callee().toString()}`,
     );
@@ -362,7 +408,6 @@ function _createNewPool(
   aTokenAddress: string,
   bTokenAddress: string,
   inputFeeRate: f64,
-  wmasTokenAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
 ): IBasicPool {
   // Ensure that the input fee rate is between 0 and 10%
   assert(
@@ -375,17 +420,7 @@ function _createNewPool(
 
   // Ensure taht the aTokenAddress and bTokenAddress are smart contract addresses
   assertIsSmartContract(aTokenAddress);
-  assertIsSmartContract(bTokenAddress);
-
-  // sort aTokenAddress and bTokenAddress
-  const sortedTokens = sortPoolTokenAddresses(
-    aTokenAddress,
-    bTokenAddress,
-    wmasTokenAddress,
-  );
-
-  aTokenAddress = sortedTokens[0];
-  bTokenAddress = sortedTokens[1];
+  // assertIsSmartContract(bTokenAddress);
 
   //  check if the pool is already in the registery
   const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
@@ -401,6 +436,7 @@ function _createNewPool(
 
   //  Init the pool contract
   const poolContract = new IBasicPool(poolAddress);
+  
   poolContract.init(
     aTokenAddress,
     bTokenAddress,
