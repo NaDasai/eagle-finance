@@ -1,12 +1,19 @@
-import { Account, SmartContract, Web3Provider } from '@massalabs/massa-web3';
+import {
+  Account,
+  parseMas,
+  SmartContract,
+  Web3Provider,
+} from '@massalabs/massa-web3';
 import { beforeAll, describe, expect, it, test } from 'vitest';
 import {
   createNewPool,
+  createNewPoolWithLiquidity,
   deployRegistryContract,
   getPools,
 } from './calls/registry';
 import * as dotenv from 'dotenv';
 import { NATIVE_MAS_COIN_ADDRESS } from './utils';
+import { getPoolReserves, increaseAllownace } from './calls/basicPool';
 
 dotenv.config();
 
@@ -173,6 +180,214 @@ describe('Create new pool without liquidity', async () => {
       inputFeeRate,
     );
   });
+});
 
-  test('should throws an error if both tokens re the same');
+describe('Create new pool with liquidity', async () => {
+  beforeAll(async () => {
+    registryContract = await deployRegistryContract(user1Provider, wmasAddress);
+  });
+
+  test('should create a new pool with liquidity using B as wmas', async () => {
+    const aTokenAddress =
+      'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+    const bTokenAddress = wmasAddress;
+    const inputFeeRate = 0.3 * 10_000;
+
+    const aAmount = 5;
+    const bAmount = 5;
+
+    // Increase allownace for both tokens
+    await increaseAllownace(
+      aTokenAddress,
+      registryContract.address,
+      aAmount,
+      user1Provider,
+    );
+
+    await increaseAllownace(
+      bTokenAddress,
+      registryContract.address,
+      bAmount,
+      user1Provider,
+    );
+
+    // Create a new pool with liquidity
+    await createNewPoolWithLiquidity(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      aAmount,
+      bAmount,
+      0,
+      0,
+      inputFeeRate,
+    );
+
+    const pools = await getPools(registryContract);
+
+    expect(pools.length, 'No pools found').toBeGreaterThan(0);
+
+    const pool = pools[pools.length - 1];
+
+    const poolContract = new SmartContract(user1Provider, pool.poolAddress);
+
+    expect(pool.aTokenddress, 'A token address is not correct').toBe(
+      aTokenAddress,
+    );
+
+    expect(pool.bTokenAddress, 'B token address is not correct').toBe(
+      bTokenAddress,
+    );
+
+    expect(pool.inputFeeRate, 'Input fee rate is not correct').toBe(
+      inputFeeRate,
+    );
+
+    // get pool reserves
+    const [aReserve, bReserve] = await getPoolReserves(poolContract);
+
+    expect(aReserve, 'A reserve is not correct').toBe(
+      parseMas(aAmount.toString()),
+    );
+
+    expect(bReserve, 'B reserve is not correct').toBe(
+      parseMas(bAmount.toString()),
+    );
+  });
+
+  test("should create a new pool with liquidity using B as wmas even if I'm passing it as A token", async () => {
+    const aTokenAddress = wmasAddress;
+    const bTokenAddress =
+      'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+    const inputFeeRate = 0.03 * 10_000;
+
+    const aAmount = 2;
+    const bAmount = 3;
+    const minAAmount = 0;
+    const minBAmount = 0;
+
+    // Increase allownace for both tokens
+    await increaseAllownace(
+      aTokenAddress,
+      registryContract.address,
+      aAmount,
+      user1Provider,
+    );
+
+    await increaseAllownace(
+      bTokenAddress,
+      registryContract.address,
+      bAmount,
+      user1Provider,
+    );
+
+    // Create a new pool with liquidity
+    await createNewPoolWithLiquidity(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      aAmount,
+      bAmount,
+      minAAmount,
+      minBAmount,
+      inputFeeRate,
+    );
+
+    const pools = await getPools(registryContract);
+
+    expect(pools.length, 'No pools found').toBeGreaterThan(1);
+
+    const pool = pools[pools.length - 1];
+
+    const poolContract = new SmartContract(user1Provider, pool.poolAddress);
+
+    expect(
+      pool.aTokenddress,
+      'A token address should be the b token address',
+    ).toBe(bTokenAddress);
+
+    expect(pool.bTokenAddress, 'B token address should be wmas address').toBe(
+      wmasAddress,
+    );
+
+    expect(pool.inputFeeRate, 'Input fee rate is not correct').toBe(
+      inputFeeRate,
+    );
+
+    // get pool reserves
+    const [aReserve, bReserve] = await getPoolReserves(poolContract);
+
+    expect(aReserve, 'A reserve should be equals to bAmount').toBe(
+      parseMas(bAmount.toString()),
+    );
+
+    expect(bReserve, 'B reserve should be equals to aAmount').toBe(
+      parseMas(aAmount.toString()),
+    );
+  });
+
+  test('should create a new pool with liquidity using B as a native coin', async () => {
+    const aTokenAddress =
+      'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+    const bTokenAddress = NATIVE_MAS_COIN_ADDRESS;
+    const inputFeeRate = 0.08 * 10_000;
+
+    const aAmount = 2;
+    const bAmount = 3;
+    const minAAmount = 0;
+    const minBAmount = 0;
+
+    // increase allownace for tokenA
+    await increaseAllownace(
+      aTokenAddress,
+      registryContract.address,
+      aAmount,
+      user1Provider,
+    );
+
+    // Create a new pool with liquidity
+    await createNewPoolWithLiquidity(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      aAmount,
+      bAmount,
+      minAAmount,
+      minBAmount,
+      inputFeeRate,
+      true,
+    );
+
+    const pools = await getPools(registryContract);
+
+    expect(pools.length, 'No pools found').toBeGreaterThan(0);
+
+    const pool = pools[pools.length - 1];
+
+    const poolContract = new SmartContract(user1Provider, pool.poolAddress);
+
+    expect(
+      pool.aTokenddress,
+      'A token address should be the A token address',
+    ).toBe(aTokenAddress);
+
+    expect(pool.bTokenAddress, 'B token address should be wmas address').toBe(
+      wmasAddress,
+    );
+
+    expect(pool.inputFeeRate, 'Input fee rate is not correct').toBe(
+      inputFeeRate,
+    );
+
+    // get pool reserves
+    const [aReserve, bReserve] = await getPoolReserves(poolContract);
+
+    expect(aReserve, 'A reserve should be equals to aAmount').toBe(
+      parseMas(aAmount.toString()),
+    );
+
+    expect(bReserve, 'B reserve should be equals to bAmount').toBe(
+      parseMas(bAmount.toString()),
+    );
+  });
 });
