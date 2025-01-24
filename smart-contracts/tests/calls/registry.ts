@@ -2,10 +2,12 @@ import {
   Args,
   Mas,
   OperationStatus,
+  parseMas,
+  parseUnits,
   Provider,
   SmartContract,
 } from '@massalabs/massa-web3';
-import { getScByteCode } from '../utils';
+import { getScByteCode, TOKEN_DEFAULT_DECIMALS } from '../utils';
 import { Pool } from '../../src/builnet-tests/structs/pool';
 
 export async function createNewPool(
@@ -33,6 +35,54 @@ export async function createNewPool(
   } else {
     console.log('Status:', status);
     throw new Error('Failed to create new pool');
+  }
+}
+
+export async function createNewPoolWithLiquidity(
+  contract: SmartContract,
+  aTokenAddress: string,
+  bTokenAddress: string,
+  aAmount: number,
+  bAmount: number,
+  minAAmount: number,
+  minBAmount: number,
+  inputFeeRate: number,
+  isBNativeMas: boolean = false,
+  aDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  bDecimals: number = TOKEN_DEFAULT_DECIMALS,
+) {
+  console.log('Creating new pool with liquidity...');
+
+  const coinsToSendOnAddLiquidity = isBNativeMas
+    ? parseMas(Number(bAmount + 10).toString())
+    : Mas.fromString('10');
+  try {
+    const operation = await contract.call(
+      'createNewPoolWithLiquidity',
+      new Args()
+        .addString(aTokenAddress)
+        .addString(bTokenAddress)
+        .addU256(parseUnits(aAmount.toString(), aDecimals))
+        .addU256(parseUnits(bAmount.toString(), bDecimals))
+        .addU256(parseUnits(minAAmount.toString(), aDecimals))
+        .addU256(parseUnits(minBAmount.toString(), bDecimals))
+        .addF64(inputFeeRate)
+        .addBool(isBNativeMas)
+        .serialize(),
+      { coins: coinsToSendOnAddLiquidity },
+    );
+
+    const status = await operation.waitSpeculativeExecution();
+
+    if (status === OperationStatus.SpeculativeSuccess) {
+      console.log('Pool created successfully');
+    } else {
+      console.log('Status:', status);
+      throw new Error('Failed to create new pool');
+    }
+  } catch (error) {
+    console.log('Error:', error);
+    throw error;
   }
 }
 
