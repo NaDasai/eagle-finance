@@ -42,7 +42,7 @@ export class IBasicPool {
       .add(feeRate)
       .add(feeShareProtocol)
       .add(registryAddress);
-    call(this._origin, 'constructor', args, u64(500000000));
+    call(this._origin, 'constructor', args, u64(100000000));
   }
 
   /**
