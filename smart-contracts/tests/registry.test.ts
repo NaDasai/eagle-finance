@@ -180,6 +180,41 @@ describe('Create new pool without liquidity', async () => {
       inputFeeRate,
     );
   });
+
+  test('should create pool using 2 mrc20 tokens', async () => {
+    let aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+    let bTokenAddress = 'AS12kpwomkZRNWRUgYT2e9AJ3Qun9jByTfmLdS7Xo6dWX4u9rG6bb';
+    const inputFeeRate = 0.35 * 10_000;
+
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
+
+    // sort the tokens according
+    const aSortedToken = bTokenAddress;
+    const bSortedToken = aTokenAddress;
+
+    const pools = await getPools(registryContract);
+
+    expect(pools.length, 'No pools found').toBeGreaterThan(0);
+
+    const pool = pools[pools.length - 1];
+
+    expect(pool.aTokenddress, 'A token address is not correct').toBe(
+      aSortedToken,
+    );
+
+    expect(pool.bTokenAddress, 'B token address is not correct').toBe(
+      bSortedToken,
+    );
+
+    expect(pool.inputFeeRate, 'Input fee rate is not correct').toBe(
+      inputFeeRate,
+    );
+  });
 });
 
 describe('Create new pool with liquidity', async () => {
@@ -390,4 +425,70 @@ describe('Create new pool with liquidity', async () => {
       parseMas(bAmount.toString()),
     );
   });
+
+  // test case that should throw an error.This is why it is commented
+  // test('Should throw error if native token is A token', async () => {
+  //   const aTokenAddress = NATIVE_MAS_COIN_ADDRESS;
+  //   const bTokenAddress =
+  //     'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+  //   const inputFeeRate = 0.89 * 10_000;
+
+  //   const aAmount = 2;
+  //   const bAmount = 3;
+  //   const minAAmount = 0;
+  //   const minBAmount = 0;
+
+  //   // increase allownace for tokenA
+  //   await increaseAllownace(
+  //     bTokenAddress,
+  //     registryContract.address,
+  //     aAmount,
+  //     user1Provider,
+  //   );
+
+  //   // Create a new pool with liquidity
+  //   await createNewPoolWithLiquidity(
+  //     registryContract,
+  //     aTokenAddress,
+  //     bTokenAddress,
+  //     aAmount,
+  //     bAmount,
+  //     minAAmount,
+  //     minBAmount,
+  //     inputFeeRate,
+  //     true,
+  //   );
+
+  //   const pools = await getPools(registryContract);
+
+  //   expect(pools.length, 'No pools found').toBeGreaterThan(0);
+
+  //   const pool = pools[pools.length - 1];
+
+  //   const poolContract = new SmartContract(user1Provider, pool.poolAddress);
+
+  //   expect(
+  //     pool.aTokenddress,
+  //     'A token address should be the B token Address',
+  //   ).toBe(bTokenAddress);
+
+  //   expect(pool.bTokenAddress, 'B token address should be wmas address').toBe(
+  //     wmasAddress,
+  //   );
+
+  //   expect(pool.inputFeeRate, 'Input fee rate is not correct').toBe(
+  //     inputFeeRate,
+  //   );
+
+  //   // get pool reserves
+  //   const [aReserve, bReserve] = await getPoolReserves(poolContract);
+
+  //   expect(aReserve, 'A reserve should be equals to aAmount').toBe(
+  //     parseMas(aAmount.toString()),
+  //   );
+
+  //   expect(bReserve, 'B reserve should be equals to bAmount').toBe(
+  //     parseMas(bAmount.toString()),
+  //   );
+  // });
 });
