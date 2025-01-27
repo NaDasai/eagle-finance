@@ -3,10 +3,13 @@ import { DEFAULT_BUILDNET_WMAS_ADDRESS } from './constants';
 import {
   Address,
   call,
+  Context,
   generateEvent,
   isAddressEoa,
   transferCoins,
 } from '@massalabs/massa-as-sdk';
+import { IMRC20 } from '../interfaces/IMRC20';
+import { u256 } from 'as-bignum/assembly';
 
 /**
  * Builds a pool key using the token addresses and the input fee rate.
@@ -37,6 +40,7 @@ export function sortPoolTokenAddresses(
   tokenB: string,
   wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
 ): string[] {
+  generateEvent(`Sorting tokens ${tokenA} and ${tokenB}`);
   // If either token is wmasAddress, ensure it is always tokenB
   if (tokenA == wmasAddress) {
     // Swap if tokenA is wmasAddress
@@ -50,20 +54,9 @@ export function sortPoolTokenAddresses(
     tokenB = temp;
   }
 
-  return [tokenA, tokenB];
-}
+  generateEvent(`Tokens sorted: ${tokenA} and ${tokenB}`);
 
-/**
- * Asserts that the token decimals are either 9 or 18.
- * @param decimals - Decimals of the token.
- * @returns void
- * @throws if the token decimals are not 9 or 18.
- */
-export function assertIsValidTokenDecimals(decimals: u8): void {
-  assert(
-    decimals == 6 || decimals == 9 || decimals == 18,
-    'Invalid token decimals. Must be 6 or 9 or 18.',
-  );
+  return [tokenA, tokenB];
 }
 
 /**
@@ -127,4 +120,9 @@ export function _computeMintStorageCost(receiver: Address): u64 {
   const keyLength = BALANCE_KEY_PREFIX_LENGTH + receiver.toString().length;
   const valueLength = 4 * sizeof<u64>();
   return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
+}
+
+export function getTokenBalance(address: Address): u256 {
+  const token = new IMRC20(address);
+  return token.balanceOf(Context.callee());
 }

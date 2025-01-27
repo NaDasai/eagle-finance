@@ -24,7 +24,6 @@ import {
 import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
-import { getTokenBalance } from '../utils/token';
 import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
@@ -36,7 +35,7 @@ import {
 import { ONE_PERCENT, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
-import { _computeMintStorageCost, transferRemaining } from '../utils';
+import { _computeMintStorageCost, getTokenBalance, transferRemaining } from '../utils';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
