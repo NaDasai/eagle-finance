@@ -22,6 +22,7 @@ import { IRegistery } from '../interfaces/IRegistry';
 import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { SafeMath256 } from '../lib/safeMath';
 import { u256 } from 'as-bignum/assembly';
+import { getFeeFromAmount } from '../lib/basicPoolMath';
 
 // Storage key for the pool address
 const poolAddressKey = stringToBytes('poolAddress');
@@ -57,17 +58,22 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
 /**
  * This function is called by the pool contract during a flash swap.
- * @param sender - The address that initiated the flash swap.
- * @param amountA - The amount of token A borrowed.
- * @param amountB - The amount of token B borrowed.
- * @param data - Additional data passed by the caller.
+ * @param binaryArgs - The arguments passed to the function.
+ * - `sender`: The address that initiated the flash swap.
+ * - `amountA`: The amount of token A borrowed.
+ * - `amountB`: The amount of token B borrowed.
+ * - `data`: Additional data passed by the caller.
+ * @returns void
  */
-export function eagleCall(
-  sender: Address,
-  amountA: u256,
-  amountB: u256,
-  data: StaticArray<u8>,
-): void {
+export function eagleCall(binaryArgs: StaticArray<u8>): void {
+  const binArgs = new Args(binaryArgs);
+
+  const sender = binArgs.nextString().expect('Sender is missing or invalid');
+
+  let amountA = binArgs.nextU256().expect('Amount A is missing or invalid');
+  let amountB = binArgs.nextU256().expect('Amount B is missing or invalid');
+  let data = binArgs.nextBytes().expect('Data is missing or invalid');
+
   // Get the pool address from storage
   const poolAddress = bytesToString(Storage.get(poolAddressKey));
   // Get the registry address from storage
@@ -100,9 +106,6 @@ export function eagleCall(
   const tokenA = new IMRC20(new Address(tokenAAddress));
   const tokenB = new IMRC20(new Address(tokenBAddress));
 
-  const tokenABalance = tokenA.balanceOf(contractAddress);
-  const tokenBBalance = tokenB.balanceOf(contractAddress);
-
   // Decode the minAmountOut from the data
   const args = new Args(data);
 
@@ -110,26 +113,80 @@ export function eagleCall(
     .nextU256()
     .expect('minAmountOut is missing or invalid');
 
+  generateEvent(`FLASH_SWAP_CONTRACT: Flash swap contract called with amountA: ${amountA}, amountB: ${amountB},
+        minAmountOut: ${minAmountOut},
+        tokenAAddress: ${tokenAAddress},
+        tokenBAddress: ${tokenBAddress},
+        poolFeeRate: ${poolFeeRate},
+        contractAddress: ${contractAddress},
+        wmasTokenAddress: ${wmasTokenAddress}`);
+
   // Perform the swap on the V1 exchange
   if (amountA > u256.Zero) {
-    // If amountA is greater than 0, it means we borrowed token A
-    _swapOnOtherExchange(
-      tokenAAddress,
-      tokenBAddress,
+    const aAmountWithProfit = SafeMath256.add(
       amountA,
-      minAmountOut,
-      sender,
-      poolFeeRate,
+      u256.fromU64(1000000000),
+    );
+
+    const aAmountFee = getFeeFromAmount(amountA, poolFeeRate);
+
+    const amountToRepay = SafeMath256.add(amountA, aAmountFee);
+
+    assert(
+      aAmountWithProfit > amountToRepay,
+      'FLASH_SWAP_ERROR: Not enough profit to repay',
+    );
+
+    const profit = SafeMath256.sub(aAmountWithProfit, amountToRepay);
+
+    const contractATokenBalance = tokenA.balanceOf(contractAddress);
+
+    assert(
+      contractATokenBalance >= aAmountWithProfit,
+      'FLASH_SWAP_ERROR: Not enough balance',
+    );
+
+    tokenA.transfer(new Address(poolAddress), amountToRepay);
+
+    if (profit > u256.Zero) {
+      tokenA.transfer(new Address(sender), profit);
+    }
+
+    generateEvent(
+      `FLASH_SWAP_CONTRACT: Token A transferred: ${amountToRepay}, profit: ${profit}, sender: ${sender}`,
     );
   } else if (amountB > u256.Zero) {
-    // If amountB is greater than 0, it means we borrowed token B
-    _swapOnOtherExchange(
-      tokenBAddress,
-      tokenAAddress,
+    const bAmountWithProfit = SafeMath256.add(
       amountB,
-      minAmountOut,
-      sender,
-      poolFeeRate,
+      u256.fromU64(1000000000),
+    );
+
+    const bAmountFee = getFeeFromAmount(amountB, poolFeeRate);
+
+    const amountToRepay = SafeMath256.add(amountB, bAmountFee);
+
+    assert(
+      bAmountWithProfit > amountToRepay,
+      'FLASH_SWAP_ERROR: Not enough profit to repay',
+    );
+
+    const profit = SafeMath256.sub(bAmountWithProfit, amountToRepay);
+
+    const contractBTokenBalance = tokenA.balanceOf(contractAddress);
+
+    assert(
+      contractBTokenBalance >= bAmountWithProfit,
+      'FLASH_SWAP_ERROR: Not enough balance',
+    );
+
+    tokenB.transfer(new Address(poolAddress), amountToRepay);
+
+    if (profit > u256.Zero) {
+      tokenB.transfer(new Address(sender), profit);
+    }
+
+    generateEvent(
+      `FLASH_SWAP_CONTRACT: Token A transferred: ${amountToRepay}, profit: ${profit}, sender: ${sender}`,
     );
   } else {
     // If both amountA and amountB are 0, it means something went wrong
@@ -137,67 +194,6 @@ export function eagleCall(
     return;
   }
   generateEvent('FLASH_SWAP_SUCCESS: Flash swap completed successfully');
-}
-
-/**
- * Swaps tokens on a hypothetical V1 exchange.
- * @param tokenInAddress - The address of the token to swap in.
- * @param tokenOutAddress - The address of the token to swap out.
- * @param amountIn - The amount of the token to swap in.
- * @param minAmountOut - The minimum amount of the token to swap out.
- * @param sender - The address that initiated the flash swap.
- * @param feeRate - The fee rate to apply to the swap.
- */
-function _swapOnOtherExchange(
-  tokenInAddress: string,
-  tokenOutAddress: string,
-  amountIn: u256,
-  minAmountOut: u256,
-  sender: Address,
-  feeRate: f64,
-): void {
-  // Get the contract address
-  const contractAddress = Context.callee();
-
-  // Get the token instances
-  const tokenIn = new IMRC20(new Address(tokenInAddress));
-  const tokenOut = new IMRC20(new Address(tokenOutAddress));
-
-  // Get the amount of tokenOut to swap
-  let amountOut: u256;
-
-  // we just simulate the other exchange by returning the amountIn + 2 for simplicity
-  amountOut = amountIn + u256.fromU64(2);
-
-  // Ensure that the amountOut is greater than or equal to minAmountOut
-  assert(
-    amountOut >= minAmountOut,
-    'FLASH_SWAP_ERROR: minAmountOut not reached',
-  );
-
-  // Calculate the amount to return to the pool (amountIn + fee)
-  const amountToRepay = SafeMath256.add(
-    amountIn,
-    SafeMath256.mul(amountIn, u256.fromF64(feeRate / 1000)),
-  );
-
-  // Transfer the amountToRepay of tokenIn back to the pool
-  tokenIn.transfer(
-    new Address(bytesToString(Storage.get(poolAddressKey))),
-    amountToRepay,
-  );
-
-  // Calculate the profit
-  const profit = SafeMath256.sub(amountOut, amountToRepay);
-
-  // Transfer the profit to the sender
-  if (profit > u256.Zero) {
-    tokenOut.transfer(sender, profit);
-  }
-
-  generateEvent(
-    `FLASH_SWAP_V1: Swapped ${amountIn.toString()} of ${tokenInAddress} for ${amountOut.toString()} of ${tokenOutAddress}. Profit: ${profit.toString()}`,
-  );
 }
 
 // Export ownership functions
