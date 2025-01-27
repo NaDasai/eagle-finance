@@ -183,8 +183,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     `CREATE_NEW_POOL_WITH_LIQUIDITY: aTokenAddress: ${aTokenAddress}, bTokenAddress: ${bTokenAddress}, aAmount: ${aAmount}, bAmount: ${bAmount}, minAmountA: ${minAmountA}, minAmountB: ${minAmountB}, inputFeeRate: ${inputFeeRate}, isBNative: ${isBTokenNativeMas}`,
   );
 
-  // Check if
-
+  // Check if bTokenAddress is native mas, if so, change it to wmasTokenAddress else throw error
   if (isBTokenNativeMas) {
     // Throw error if bTokenAddress is not native mas
     if (bTokenAddress != NATIVE_MAS_COIN_ADDRESS) {
@@ -436,7 +435,7 @@ function _createNewPool(
 
   //  Init the pool contract
   const poolContract = new IBasicPool(poolAddress);
-  
+
   poolContract.init(
     aTokenAddress,
     bTokenAddress,
