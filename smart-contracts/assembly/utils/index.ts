@@ -2,10 +2,7 @@ import { Args, SafeMath } from '@massalabs/as-types';
 import { DEFAULT_BUILDNET_WMAS_ADDRESS } from './constants';
 import {
   Address,
-  call,
   Context,
-  generateEvent,
-  isAddressEoa,
   transferCoins,
 } from '@massalabs/massa-as-sdk';
 import { IMRC20 } from '../interfaces/IMRC20';
