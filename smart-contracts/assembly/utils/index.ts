@@ -40,7 +40,6 @@ export function sortPoolTokenAddresses(
   tokenB: string,
   wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
 ): string[] {
-  generateEvent(`Sorting tokens ${tokenA} and ${tokenB}`);
   // If either token is wmasAddress, ensure it is always tokenB
   if (tokenA == wmasAddress) {
     // Swap if tokenA is wmasAddress
@@ -53,8 +52,6 @@ export function sortPoolTokenAddresses(
     tokenA = tokenB;
     tokenB = temp;
   }
-
-  generateEvent(`Tokens sorted: ${tokenA} and ${tokenB}`);
 
   return [tokenA, tokenB];
 }
