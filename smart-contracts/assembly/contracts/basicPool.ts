@@ -9,6 +9,7 @@ import {
   assertIsSmartContract,
   balance,
   print,
+  validateAddress,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -1109,36 +1110,67 @@ function _updateCumulativePrices(): void {
   }
 }
 
-export function flashSwap(binaryArgs: StaticArray<u8>): void {
+/**
+ * Executes a flash swap operation, allowing a user or smart contract to borrow tokens
+ * from the pool and return them in the same transaction, potentially profiting from
+ * arbitrage opportunities.
+ *
+ * @param binaryArgs - A serialized array of bytes containing the input arguments for the flash swap.
+ *  - `aAmount`: The amount of token A to swap in.
+ *  - `bAmount`: The amount of token B to swap in.
+ *  - `profitAddress`: The address of the profit to be received.
+ *  - `callbackData`: The data to be passed to the callback function.
+ *
+ * @throws Will throw an error if any of the following conditions are not met:
+ * - `aAmount` or `bAmount` is missing or invalid.
+ * - `profitAddress` is missing or invalid.
+ * - `callbackData` is missing or invalid.
+ * - The callback address is not a smart contract.
+ * - The profit address is invalid.
+ * - Both `aAmount` and `bAmount` are zero.
+ * - The callback address is one of the token addresses in the pool.
+ * - Insufficient liquidity in the pool.
+ * - The returned token amounts after the callback do not match the expected values.
+ * - The new pool K value is less than the old pool K value.
+ *
+ * The function performs the following steps:
+ * - Deserializes input arguments.
+ * - Validates the callback and profit addresses.
+ * - Transfers the specified token amounts to the callback address.
+ * - Invokes the callback function on the specified smart contract.
+ * - Validates the returned token balances and calculates fees.
+ * - Updates the pool reserves and cumulative prices.
+ * - Generates events for the old and new pool K values and the flash swap execution.
+ */
+export function flash(binaryArgs: StaticArray<u8>): void {
   // read args
   const args = new Args(binaryArgs);
 
-  const aAmountIn = args.nextU256().expect('aAmountIn is missing or invalid');
-  const bAmountIn = args.nextU256().expect('bAmountIn is missing or invalid');
+  const aAmount = args.nextU256().expect('aAmount is missing or invalid');
+  const bAmount = args.nextU256().expect('bAmount is missing or invalid');
 
-  // Is the smart contract address that will use the borrowed tokens
-  const callbackAddress = args
+  // Address of the user or the smart contract that will receive the profit
+  const profitAddress = args
     .nextString()
-    .expect('callbackAddress is missing or invalid');
+    .expect('profitAddress is missing or invalid');
 
-  // Is the data that will be passed to the callback function
   const callbackData = args
     .nextBytes()
     .expect('callbackData is missing or invalid');
 
-  // Enusre that bAmountIn or aAmountIn is greater than 0
-  assert(
-    bAmountIn > u256.Zero || aAmountIn > u256.Zero,
-    'FLASH_SWAP_ERROR: AMOUNTS MUST BE GREATER THAN 0',
-  );
+  // The current caller is the callback address which should be a smart contract
+  const callbackAddress = Context.caller();
 
-  // Ensure that the callback address is a smart contract address
-  assertIsSmartContract(callbackAddress);
+  // Ensure that the callback address is a smart contract
+  assertIsSmartContract(callbackAddress.toString());
 
-  // Ensure that the callback data is not empty
+  // Ensure that the profit address is a valid address
+  assert(validateAddress(profitAddress), 'INVALID PROFIT ADDRESS');
+
+  // Enusre that bAmount or aAmount is greater than 0
   assert(
-    callbackData.length > 0,
-    'FLASH_SWAP_ERROR: CALLBACK DATA MUST NOT BE EMPTY',
+    bAmount > u256.Zero || aAmount > u256.Zero,
+    'FLASH_ERROR: AMOUNTS MUST BE GREATER THAN 0',
   );
 
   // Get the stored token addresses
@@ -1147,9 +1179,9 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
 
   // Ensure that the callbackAddress is not one of the two tokens in the pool
   assert(
-    callbackAddress != aTokenAddressStored &&
-      callbackAddress != bTokenAddressStored,
-    'FLASH_SWAP_ERROR: INVALID_CALLBACK_ADDRESS',
+    callbackAddress.toString() != aTokenAddressStored &&
+      callbackAddress.toString() != bTokenAddressStored,
+    'FLASH_ERROR: INVALID_CALLBACK_ADDRESS',
   );
 
   // Get the pool reserves
@@ -1164,8 +1196,8 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
 
   // Ensure that the pool reserves are greater or equals than the amounts to be swapped
   assert(
-    aReserve >= aAmountIn && bReserve >= bAmountIn,
-    'FLASH_SWAP_ERROR: INSUFFICIENT_LIQUIDITY',
+    aReserve >= aAmount && bReserve >= bAmount,
+    'FLASH_ERROR: INSUFFICIENT_LIQUIDITY',
   );
 
   // Get the current contract address
@@ -1180,21 +1212,21 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
   const bContractBalanceBefore = bToken.balanceOf(contractAddress);
 
   // Transfer the amounts to the callback address
-  if (aAmountIn > u256.Zero) {
-    // Transfer aAmountIn from the contract to the callbackAddress
-    aToken.transfer(new Address(callbackAddress), aAmountIn);
+  if (aAmount > u256.Zero) {
+    // Transfer aAmount from the contract to the callbackAddress
+    aToken.transfer(callbackAddress, aAmount);
   }
 
-  if (bAmountIn > u256.Zero) {
-    // Transfer bAmountIn from the contract to the callbackAddress
-    bToken.transfer(new Address(callbackAddress), bAmountIn);
+  if (bAmount > u256.Zero) {
+    // Transfer bAmount from the contract to the callbackAddress
+    bToken.transfer(callbackAddress, bAmount);
   }
 
   // Call the callback function of the contract
-  new IEagleCallee(new Address(callbackAddress)).eagleCall(
-    Context.caller(),
-    aAmountIn,
-    bAmountIn,
+  new IEagleCallee(callbackAddress).eagleCall(
+    new Address(profitAddress),
+    aAmount,
+    bAmount,
     callbackData,
   );
 
@@ -1203,16 +1235,16 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
   const bContractBalanceAfter = bToken.balanceOf(contractAddress);
 
   // Get Fees from the amounts
-  const aFee = getFeeFromAmount(aAmountIn, poolFeeRate);
-  const bFee = getFeeFromAmount(bAmountIn, poolFeeRate);
+  const aFee = getFeeFromAmount(aAmount, poolFeeRate);
+  const bFee = getFeeFromAmount(bAmount, poolFeeRate);
 
   assert(
     SafeMath256.add(aContractBalanceBefore, aFee) == aContractBalanceAfter,
-    'FLASH_SWAP_ERROR: WRONG_RETURN_VALUE',
+    'FLASH_ERROR: WRONG_RETURN_VALUE',
   );
   assert(
     SafeMath256.add(bContractBalanceBefore, bFee) == bContractBalanceAfter,
-    'FLASH_SWAP_ERROR: WRONG_RETURN_VALUE',
+    'FLASH_ERROR: WRONG_RETURN_VALUE',
   );
 
   // Get the new pool K value
@@ -1225,7 +1257,7 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
   generateEvent(`New K value : ${newPoolK.toString()}`);
 
   // Ensure that the new pool K value is greater than or equal to the old pool K value
-  assert(newPoolK >= poolK, 'FLASH_SWAP_ERROR: INVALID_POOL_K_VALUE');
+  assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
 
   // Update the reserves of the pool
   _updateReserveA(aContractBalanceAfter);
@@ -1235,7 +1267,7 @@ export function flashSwap(binaryArgs: StaticArray<u8>): void {
   _updateCumulativePrices();
 
   generateEvent(
-    `FLASH_SWAP: User ${Context.caller()} executed a flash swap. he swapped ${aAmountIn} ${aTokenAddressStored} for ${bAmountIn} ${bTokenAddressStored} and ${aAmountIn} ${aTokenAddressStored} for ${bAmountIn} ${bTokenAddressStored}.`,
+    `FLASH_SWAP: User ${Context.caller()} executed a flash swap. he swapped ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored} and ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored}.`,
   );
 }
 
