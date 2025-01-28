@@ -61,6 +61,34 @@ export async function deployFlashMaliciousContract(
   return contract;
 }
 
+export async function deployFlashReentrancyContract(
+  userProvider: Provider,
+  poolAddress: string,
+  registryAddress: string,
+) {
+  console.log('Deploying Malicious Flash Contract...');
+
+  const flashSwapByteCode = getScByteCode('build', 'ReentrancyFlash.wasm');
+
+  const constructorArgs = new Args()
+    .addString(poolAddress)
+    .addString(registryAddress)
+    .serialize();
+
+  const contract = await SmartContract.deploy(
+    userProvider,
+    flashSwapByteCode,
+    constructorArgs,
+    {
+      coins: Mas.fromString('2'),
+    },
+  );
+
+  console.log('FlashSwap malicious contract deployed at:', contract.address);
+
+  return contract;
+}
+
 export async function initFlash(
   flashContract: SmartContract,
   aAmount: bigint,
