@@ -106,15 +106,7 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
   const tokenA = new IMRC20(new Address(tokenAAddress));
   const tokenB = new IMRC20(new Address(tokenBAddress));
 
-  // Decode the minAmountOut from the data
-  const args = new Args(data);
-
-  const minAmountOut = args
-    .nextU256()
-    .expect('minAmountOut is missing or invalid');
-
   generateEvent(`FLASH_SWAP_CONTRACT: Flash swap contract called with amountA: ${amountA}, amountB: ${amountB},
-          minAmountOut: ${minAmountOut},
           tokenAAddress: ${tokenAAddress},
           tokenBAddress: ${tokenBAddress},
           poolFeeRate: ${poolFeeRate},
@@ -194,6 +186,44 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
     return;
   }
   generateEvent('FLASH_SWAP_SUCCESS: Flash swap completed successfully');
+}
+
+/**
+ * Initializes a flash loan operation using the provided binary arguments.
+ *
+ * @param binaryArgs - A serialized array of bytes containing the necessary arguments for the flash loan.
+ *  - aAmount: The amount of aTokens to loan.
+ *  - bAmount: The amount of bTokens to loan.
+ *  - profitAddress: The address of the profit destination.
+ *  - data: Additional data to be passed to the flash loan.
+ *
+ *
+ * @remarks
+ * This function deserializes the binary arguments to extract the profit address,
+ * amounts for two assets (aAmount and bAmount), and additional data. It retrieves
+ * the pool address from storage and initiates a flash loan operation on the pool
+ * contract with the specified parameters.
+ *
+ * @throws Will throw an error if any of the required arguments are missing or invalid.
+ */
+export function initFlash(binaryArgs: StaticArray<u8>): void {
+  const args = new Args(binaryArgs);
+
+  const aAmount = args.nextU256().expect('aAmount is missing or invalid');
+  const bAmount = args.nextU256().expect('bAmount is missing or invalid');
+
+  const profitAddress = args
+    .nextString()
+    .expect('profitAddress is missing or invalid');
+
+  const data = args.nextBytes().expect('data is missing or invalid');
+
+  // Get the pool address from storage
+  const poolAddress = bytesToString(Storage.get(poolAddressKey));
+
+  const poolContract = new IBasicPool(new Address(poolAddress));
+
+  poolContract.flash(aAmount, bAmount, profitAddress, data);
 }
 
 // Export ownership functions
