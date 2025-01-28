@@ -333,7 +333,7 @@ export async function getBPriceCumulativeLast(poolContract: SmartContract) {
   ).nextU256();
 }
 
-export async function flashSwap(
+export async function flash(
   poolContract: SmartContract,
   flashContractAddress: string,
   flashSwapData: Uint8Array,
@@ -345,7 +345,7 @@ export async function flashSwap(
   );
 
   const operation = await poolContract.call(
-    'flashSwap',
+    'flash',
     new Args()
       .addU256(aAmountOut)
       .addU256(bAmountOut)
@@ -358,9 +358,9 @@ export async function flashSwap(
   const operationStatus = await operation.waitSpeculativeExecution();
 
   if (operationStatus === OperationStatus.SpeculativeSuccess) {
-    console.log('Flash swap successful');
+    console.log('Flash successful');
   } else {
-    console.log('Flash swap failed');
-    throw new Error('Failed to execute flash swap');
+    console.log('Flash  failed');
+    throw new Error('Failed to execute flash');
   }
 }

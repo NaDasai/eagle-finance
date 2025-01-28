@@ -1,4 +1,10 @@
-import { Args, Mas, Provider, SmartContract } from '@massalabs/massa-web3';
+import {
+  Args,
+  Mas,
+  OperationStatus,
+  Provider,
+  SmartContract,
+} from '@massalabs/massa-web3';
 import { getScByteCode } from '../utils';
 
 export async function deployFlashSwapContract(
@@ -53,4 +59,36 @@ export async function deployFlashMaliciousContract(
   console.log('FlashSwap malicious contract deployed at:', contract.address);
 
   return contract;
+}
+
+export async function initFlash(
+  flashContract: SmartContract,
+  aAmount: bigint,
+  bAmount: bigint,
+  profitAddress: string,
+  data: Uint8Array,
+) {
+  console.log('Initializing flash...');
+
+  const operation = await flashContract.call(
+    'initFlash',
+    new Args()
+      .addU256(aAmount)
+      .addU256(bAmount)
+      .addString(profitAddress)
+      .addUint8Array(data)
+      .serialize(),
+    {
+      coins: Mas.fromString('0.1'),
+    },
+  );
+
+  const operationStatus = await operation.waitSpeculativeExecution();
+
+  if (operationStatus === OperationStatus.SpeculativeSuccess) {
+    console.log('Initialization successful');
+  } else {
+    console.log('Status:', operationStatus);
+    throw new Error('Failed to initialize flash');
+  }
 }
