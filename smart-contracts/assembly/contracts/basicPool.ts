@@ -923,6 +923,16 @@ export function getLPBalance(binaryArgs: StaticArray<u8>): StaticArray<u8> {
 }
 
 /**
+ * Retrieves the total supply of liquidity pool token as a byte array.
+ *
+ * @returns {StaticArray<u8>} The total supply of liquidity pool token
+ * converted to a byte array using the u256ToBytes function.
+ */
+export function getLPTotalSupply(): StaticArray<u8> {
+  return u256ToBytes(liquidityManager.getTotalSupply());
+}
+
+/**
  * Retrieves the local reserve of token A.
  * @returns The current reserve of token A in the pool.
  */
