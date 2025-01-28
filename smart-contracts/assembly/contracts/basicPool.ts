@@ -162,7 +162,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
  */
 export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   const args = new Args(binaryArgs);
 
@@ -191,7 +191,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
  */
 export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   const args = new Args(binaryArgs);
 
@@ -222,7 +222,7 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
  */
 export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   // Get the registry contract address
   const registeryAddressStored = bytesToString(
@@ -404,7 +404,7 @@ function _addLiquidity(
  */
 export function swap(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   const args = new Args(binaryArgs);
 
@@ -440,7 +440,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
  */
 export function swapWithMas(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   // Get the tokenIn address and amountIn from the args
   const args = new Args(binaryArgs);
@@ -498,7 +498,7 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
  */
 export function claimProtocolFees(): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
@@ -559,7 +559,7 @@ export function claimProtocolFees(): void {
  */
 export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   const args = new Args(binaryArgs);
 
@@ -691,7 +691,7 @@ export function getSwapOutEstimation(
  */
 export function syncReserves(): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   // only owner of registery contract can call this function
   _onlyOwner();
@@ -748,7 +748,7 @@ export function syncReserves(): void {
  */
 export function flash(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   // read args
   const args = new Args(binaryArgs);

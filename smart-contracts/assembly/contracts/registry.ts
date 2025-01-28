@@ -101,7 +101,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
  */
 export function createNewPool(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   const args = new Args(binaryArgs);
 
@@ -163,7 +163,7 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
  */
 export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
+  ReentrancyGuard.nonReentrant();
 
   const args = new Args(binaryArgs);
 
