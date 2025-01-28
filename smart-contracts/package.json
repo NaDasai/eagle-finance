@@ -16,7 +16,7 @@
         "buildnet:flashSwap": "npm run build && tsx src/builnet-tests/flashSwap.ts",
         "buildnet:wrapMas": "tsx src/builnet-tests/WrapMas.ts",
         "buildnet:tokenDeployer": "npm run build && tsx src/builnet-tests/tokenDeployer.ts",
-        "build": "massa-as-compile",
+        "build": "massa-as-compile -r",
         "clean": "rimraf build",
         "deploy:token": "npm run build && tsx src/deployToken.ts",
         "deploy:registry": "npm run build && tsx src/deployRegistry.ts",

@@ -15,14 +15,14 @@ import {
   bytesToU256,
   u64ToBytes,
 } from '@massalabs/as-types';
-import { IMRC20 } from '../interfaces/IMRC20';
-import { IEagleCallee } from '../interfaces/IEagleCallee';
-import { IBasicPool } from '../interfaces/IBasicPool';
-import { IRegistery } from '../interfaces/IRegistry';
-import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
-import { SafeMath256 } from '../lib/safeMath';
+import { IMRC20 } from '../../interfaces/IMRC20';
+import { IEagleCallee } from '../../interfaces/IEagleCallee';
+import { IBasicPool } from '../../interfaces/IBasicPool';
+import { IRegistery } from '../../interfaces/IRegistry';
+import { NATIVE_MAS_COIN_ADDRESS } from '../../utils/constants';
+import { SafeMath256 } from '../../lib/safeMath';
 import { u256 } from 'as-bignum/assembly';
-import { getFeeFromAmount } from '../lib/basicPoolMath';
+import { getFeeFromAmount } from '../../lib/basicPoolMath';
 
 // Storage key for the pool address
 const poolAddressKey = stringToBytes('poolAddress');
@@ -197,4 +197,4 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
 }
 
 // Export ownership functions
-export * from '../utils/ownership';
+export * from '../../utils/ownership';
