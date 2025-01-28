@@ -30,6 +30,7 @@ import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { isBetweenZeroAndTenPercent } from '../lib/math';
 import { u256 } from 'as-bignum/assembly';
+import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
@@ -89,6 +90,8 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(poolsKeys, new Args().add(new Array<string>()).serialize());
 
   generateEvent(`Registry Contract Deployed.`);
+
+  ReentrancyGuard.__ReentrancyGuard_init();
 }
 
 /**
@@ -97,6 +100,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
  * @returns void
  */
 export function createNewPool(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   const args = new Args(binaryArgs);
 
   let aTokenAddress = args
@@ -135,6 +141,9 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
 
   // Call the internal function
   _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
+
+  // End reentrancy guard
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**
@@ -153,6 +162,9 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
  * @throws Will throw an error if any of the required arguments are missing or invalid.
  */
 export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   const args = new Args(binaryArgs);
 
   let aTokenAddress = args
@@ -285,6 +297,9 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     isBTokenNativeMas,
     coinsToSendOnAddLiquidity,
   );
+
+  // End reentrancy guard
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**

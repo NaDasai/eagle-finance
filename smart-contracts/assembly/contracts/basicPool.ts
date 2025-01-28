@@ -41,6 +41,7 @@ import {
   getTokenBalance,
   transferRemaining,
 } from '../utils';
+import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -142,6 +143,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Set the current timestamp
   Storage.set(lastTimestamp, u64ToBytes(Context.timestamp()));
 
+  // Initialize the reentrancy guard
+  ReentrancyGuard.__ReentrancyGuard_init();
+
   generateEvent(
     `New pool deployed at ${Context.callee()}. Token A: ${aAddress}. Token B: ${bAddress}. Registry: ${registryAddress}.`,
   );
@@ -157,6 +161,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
  * @returns void
  */
 export function addLiquidity(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   const args = new Args(binaryArgs);
 
   let amountA = args.nextU256().expect('Amount A is missing or invalid');
@@ -165,6 +172,9 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
   _addLiquidity(amountA, amountB, minAmountA, minAmountB);
+
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
 }
 
 /**
@@ -180,6 +190,9 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
  * Throws an error if the amounts are missing or invalid.
  */
 export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   const args = new Args(binaryArgs);
 
   const aAmount = args.nextU256().expect('Amount A is missing or invalid');
@@ -192,6 +205,9 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
 
   // Add liquidity with WMAS
   _addLiquidity(aAmount, bAmount, minAmountA, minAmountB, false, true);
+
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
 }
 
 /**
@@ -205,6 +221,9 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
  * The amounts of tokens A and B must be greater than zero.
  */
 export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   // Get the registry contract address
   const registeryAddressStored = bytesToString(
     Storage.get(registryContractAddress),
@@ -247,6 +266,9 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
     isNativeCoin,
     new Address(callerAddress),
   );
+
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
 }
 
 /**
@@ -381,6 +403,9 @@ function _addLiquidity(
  * @returns void
  */
 export function swap(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   const args = new Args(binaryArgs);
 
   // Get the tokenIn address
@@ -404,6 +429,9 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // Call the internal swap function
   _swap(tokenInAddress, amountIn, minAmountOut);
+
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
 }
 
 /**
@@ -411,6 +439,9 @@ export function swap(binaryArgs: StaticArray<u8>): void {
  * @returns void
  */
 export function swapWithMas(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   // Get the tokenIn address and amountIn from the args
   const args = new Args(binaryArgs);
 
@@ -456,6 +487,9 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
     // Call the swap internal function
     _swap(tokenInAddress, amountIn, minAmountOut, false, true);
   }
+
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
 }
 
 /**
@@ -463,6 +497,9 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
  * @returns void
  */
 export function claimProtocolFees(): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -509,6 +546,9 @@ export function claimProtocolFees(): void {
     _setTokenAccumulatedProtocolFee(bTokenAddressStored, u256.Zero);
   }
 
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
+
   generateEvent(`Protocol fees claimed by ${callerAddress.toString()}`);
 }
 
@@ -518,6 +558,9 @@ export function claimProtocolFees(): void {
  *  @returns void
  */
 export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   const args = new Args(binaryArgs);
 
   // Get the amount of LP tokens to remove from params
@@ -585,6 +628,9 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   _updateReserveA(SafeMath256.sub(reserveA, amountAOut));
   _updateReserveB(SafeMath256.sub(reserveB, amountBOut));
 
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
+
   generateEvent(
     `Removed liquidity: ${lpAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
   );
@@ -644,6 +690,9 @@ export function getSwapOutEstimation(
  * @returns void
  */
 export function syncReserves(): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   // only owner of registery contract can call this function
   _onlyOwner();
 
@@ -660,6 +709,9 @@ export function syncReserves(): void {
   // update reserves
   _updateReserveA(balanceA);
   _updateReserveB(balanceB);
+
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
 }
 
 /**
@@ -1143,6 +1195,9 @@ function _updateCumulativePrices(): void {
  * - Generates events for the old and new pool K values and the flash swap execution.
  */
 export function flash(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
   // read args
   const args = new Args(binaryArgs);
 
@@ -1265,6 +1320,9 @@ export function flash(binaryArgs: StaticArray<u8>): void {
 
   // Update the cumulative prices
   _updateCumulativePrices();
+
+  // End reentrancy guard
+  ReentrancyGuard.endstartNonReentrant();
 
   generateEvent(
     `FLASH_SWAP: User ${Context.caller()} executed a flash swap. he swapped ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored} and ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored}.`,
