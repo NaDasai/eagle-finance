@@ -193,4 +193,18 @@ export class IBasicPool {
     const result = call(this._origin, 'getFeeRate', new Args(), 0);
     return bytesToF64(result);
   }
+
+  flash(
+    aAmount: u256,
+    bAmount: u256,
+    profitAddress: string,
+    callbackData: StaticArray<u8>,
+  ): void {
+    const args = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(profitAddress)
+      .add(callbackData);
+    call(this._origin, 'flash', args, 0);
+  }
 }
