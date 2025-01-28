@@ -37,6 +37,7 @@ import {
 } from './calls/basicPool';
 import {
   deployFlashMaliciousContract,
+  deployFlashReentrancyContract,
   deployFlashSwapContract,
   initFlash,
 } from './calls/flash';
@@ -441,6 +442,199 @@ describe('Scenario 2: User 1 Add liquidity, and then flash  using malicious flas
         new Args().addU256(0n).serialize(),
       ),
       'should throw that error : Wrong return value',
+    ).rejects.toThrow();
+  });
+});
+
+describe('Scenario 2: Testing Flash for Reentrancy attack', async () => {
+  beforeAll(async () => {
+    // Deploying Registry Contract
+    registryContract = await deployRegistryContract(
+      user1Provider,
+      wmasAddress,
+      0.05,
+    );
+
+    regisrtyAddress = registryContract.address;
+
+    // create new pool
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    const pools = await getPools(registryContract);
+
+    expect(pools.length > 0, 'No pools found');
+
+    // get the last pool address
+    poolAddress = pools[pools.length - 1].poolAddress;
+
+    poolContract = new SmartContract(user1Provider, poolAddress);
+
+    // Deploy flash exemple Contract and transfer amount to it
+    flashSwapContract = await deployFlashReentrancyContract(
+      user1Provider,
+      poolAddress,
+      regisrtyAddress,
+    );
+
+    flashSwapContractAddress = flashSwapContract.address;
+  });
+
+  test('User 1 adds liquidity to the pool unisng native coin', async () => {
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    // Reserves should be empty
+    expect(reserveA, 'Reserve A should be 0').toBe(0n);
+    expect(reserveB, 'Reserve B should be 0').toBe(0n);
+
+    const aAmount = 5;
+    const bAmount = 1;
+
+    // increase allowance of both tokerns amoutns first before adding liquidity
+    await increaseAllownace(aTokenAddress, poolAddress, aAmount, user1Provider);
+
+    // add liquidity using native coin
+    await addLiquidityWithMAS(poolContract, aAmount, bAmount, 0, 0);
+
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    expect(reserveAAfter, 'Reserve A should equals to aAmount').toBe(
+      parseUnits(aAmount.toString(), 9),
+    );
+
+    expect(reserveBAfter, 'Reserve B should be equals to bAmount').toBe(
+      parseUnits(bAmount.toString(), 9),
+    );
+  });
+
+  // should throw an error when user 2 uses flash swap contract to loan aTokens WRONG_RETURN_VALUE
+  test('User2 uses flash swap contract to loan aTokens using ReentrancyFlash contract that will call the flash of poolContract again', async () => {
+    // switch to user 2
+    flashSwapContract = new SmartContract(
+      user2Provider,
+      flashSwapContractAddress,
+    );
+
+    poolContract = new SmartContract(user2Provider, poolAddress);
+
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A: ', reserveA);
+    console.log('Reserve B: ', reserveB);
+
+    const tokenA = new MRC20(user1Provider, aTokenAddress);
+    const tokenB = new MRC20(user1Provider, bTokenAddress);
+
+    // user 1 transfer 3 aTokens to teh flash swap contract for testign purpose
+    const trasnferOperation = await tokenA.transfer(
+      flashSwapContractAddress,
+      parseUnits('3', 9),
+    );
+
+    const status = await trasnferOperation.waitSpeculativeExecution();
+
+    if (status === OperationStatus.SpeculativeSuccess) {
+      console.log('Transfer To flash swap contract successful');
+    } else {
+      console.log('Status:', status);
+      throw new Error('Failed to transfer');
+    }
+
+    // Confirm that the flash swap contract a balance before flash swap is 3
+    const aFlashBalanceBefore = await tokenA.balanceOf(
+      flashSwapContractAddress,
+    );
+
+    expect(aFlashBalanceBefore, 'aFlashBalanceBefore should be 3').toBe(
+      parseUnits('3', 9),
+    );
+
+    console.log('A Flash Balance: ', aFlashBalanceBefore);
+
+    const aAmount = parseMas('2');
+    const bAmount = 0n;
+
+    // Get user2 aToken balance before flash swap
+    const aTokenBalanceBefore = await tokenA.balanceOf(user2Provider.address);
+    const bTokenBalanceBefore = await tokenB.balanceOf(user2Provider.address);
+
+    console.log(
+      'User2 A Token balance before: ',
+      formatUnits(aTokenBalanceBefore, 9),
+    );
+
+    console.log(
+      'User2 B Token balance before: ',
+      formatUnits(bTokenBalanceBefore, 9),
+    );
+
+    // Now user2 calls flash swap contract to loan aTokens
+    await expect(
+      await initFlash(
+        flashSwapContract,
+        aAmount,
+        bAmount,
+        user2Provider.address,
+        new Args().addU256(0n).serialize(),
+      ),
+      'should throw that error : Wrong return value',
+    ).rejects.toThrow();
+  });
+
+  test('User2 uses flash swap contract to loan bTokens using ReentrancyFlash contract that will call the swap of poolContract', async () => {
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A: ', reserveA);
+    console.log('Reserve B: ', reserveB);
+
+    const tokenA = new MRC20(user1Provider, aTokenAddress);
+    const tokenB = new MRC20(user1Provider, bTokenAddress);
+
+    // user 1 transfer 2 bTokens to the flash swap contract for testign purpose
+    const trasnferOperation = await tokenB.transfer(
+      flashSwapContractAddress,
+      parseUnits('2', 9),
+    );
+
+    const status = await trasnferOperation.waitSpeculativeExecution();
+
+    if (status === OperationStatus.SpeculativeSuccess) {
+      console.log('Transfer To flash swap contract successful');
+    } else {
+      console.log('Status:', status);
+      throw new Error('Failed to transfer');
+    }
+
+    // Confirm that the flash swap contract b balance before flash swap is 2
+    const bFlashBalanceBefore = await tokenB.balanceOf(
+      flashSwapContractAddress,
+    );
+
+    expect(bFlashBalanceBefore, 'bFlashBalanceBefore should be 2').toBe(
+      parseUnits('2', 9),
+    );
+
+    const user2BTokenBalanceBefore = await tokenB.balanceOf(
+      user2Provider.address,
+    );
+
+    console.log('User2 B Token balance before: ', user2BTokenBalanceBefore);
+
+    const flashSwapData = new Args().addU256(0n).serialize();
+
+    // user 2 calls the flash contract to loan bTokens
+    await expect(
+      await initFlash(
+        flashSwapContract,
+        0n,
+        parseUnits('1', 9),
+        user2Provider.address,
+        new Args().addU256(0n).serialize(),
+      ),
     ).rejects.toThrow();
   });
 });
