@@ -42,6 +42,7 @@ import {
   transferRemaining,
 } from '../utils';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
+import { GetSwapOutResult } from '../types/basicPool';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -637,54 +638,6 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
 }
 
 /**
- *  Retrieves the swap estimation for a given input amount.
- *  @param binaryArgs - Arguments serialized with Args (tokenInAddress, amountIn)
- * @returns The estimated output amount.
- */
-export function getSwapOutEstimation(
-  binaryArgs: StaticArray<u8>,
-): StaticArray<u8> {
-  const args = new Args(binaryArgs);
-  const tokenInAddress = args
-    .nextString()
-    .expect('TokenInAddress is missing or invalid');
-  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
-
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-  // Validate tokenIn is either tokenA or tokenB
-  assert(
-    tokenInAddress == aTokenAddressStored ||
-      tokenInAddress == bTokenAddressStored,
-    'Invalid token address for input',
-  );
-
-  const tokenOutAddress =
-    tokenInAddress == aTokenAddressStored
-      ? bTokenAddressStored
-      : aTokenAddressStored;
-
-  // Get current reserves
-  const reserveIn = _getReserve(tokenInAddress);
-  const reserveOut = _getReserve(tokenOutAddress);
-
-  // Calculate fees
-  const feeRate = _getFeeRate(); // e.g. if it will be 30 it actually means 0.03% (30 / 1000)
-
-  // totalFee = amountIn * feeRate
-  const totalFee = getFeeFromAmount(amountIn, feeRate);
-
-  // amountInAfterFee = amountIn - totalFee
-  const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
-
-  // Calculate amountOut
-  const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
-
-  return u256ToBytes(amountOut);
-}
-
-/**
  * Synchronizes the reserves of the pool with the current balances of the tokens.
  * This function ensures that the reserves are always up-to-date with the current balances of the tokens.
  * @returns void
@@ -967,58 +920,26 @@ export function getBPriceCumulativeLast(): StaticArray<u8> {
 }
 
 /**
- * Retrieves the reserve of a token in the pool.
- * @param tokenAddress - The address of the token.
- * @returns The current reserve of the token in the pool.
+ *  Retrieves the swap estimation for a given input amount.
+ *  @param binaryArgs - Arguments serialized with Args (tokenInAddress, amountIn)
+ * @returns The estimated output amount.
  */
-function _getReserve(tokenAddress: string): u256 {
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+export function getSwapOutEstimation(
+  binaryArgs: StaticArray<u8>,
+): StaticArray<u8> {
+  const args = new Args(binaryArgs);
 
-  if (tokenAddress == aTokenAddressStored) {
-    return _getLocalReserveA();
-  } else if (tokenAddress == bTokenAddressStored) {
-    return _getLocalReserveB();
-  } else {
-    return u256.Zero;
-  }
+  const tokenInAddress = args
+    .nextString()
+    .expect('TokenInAddress is missing or invalid');
+  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+
+  const swapOutData = _getSwapOut(amountIn, tokenInAddress);
+
+  return u256ToBytes(swapOutData.amountOut);
 }
 
-/**
- * Retrieves the local reserve of token A.
- *
- * @returns The current reserve of token A in the pool.
- */
-function _getLocalReserveA(): u256 {
-  return bytesToU256(Storage.get(aTokenReserve));
-}
-
-/**
- * Retrieves the local reserve of token B.
- *
- * @returns The current reserve of token B in the pool.
- */
-function _getLocalReserveB(): u256 {
-  return bytesToU256(Storage.get(bTokenReserve));
-}
-
-/**
- * Retrieves the accumulated protocol fee for a token.
- * @param tokenAddress The address of the token for which to retrieve the accumulated protocol fee.
- * @returns The accumulated protocol fee for the specified token.
- */
-function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-  if (tokenAddress == aTokenAddressStored) {
-    return bytesToU256(Storage.get(aProtocolFee));
-  } else if (tokenAddress == bTokenAddressStored) {
-    return bytesToU256(Storage.get(bProtocolFee));
-  } else {
-    return u256.Zero;
-  }
-}
+// INTERNAL FUNCTIONS
 
 /**
  * Adds the accumulated protocol fee for a token.
@@ -1053,40 +974,6 @@ function _setTokenAccumulatedProtocolFee(
   } else if (tokenAddress == bTokenAddressStored) {
     Storage.set(bProtocolFee, u256ToBytes(amount));
   }
-}
-
-/**
- * Retrieves the current fee rate for the protocol.
- *
- * @returns The current fee rate for the protocol.
- */
-function _getFeeRate(): f64 {
-  return bytesToF64(Storage.get(feeRate));
-}
-
-/**
- * Retrieves the current fee share for the protocol.
- *
- * @returns The current fee share for the protocol.
- */
-function _getFeeShareProtocol(): f64 {
-  return bytesToF64(Storage.get(feeShareProtocol));
-}
-
-/**
- * Retrieves the protocol fee receiver from the registry contract
- * @returns The protocol fee receiver address
- */
-function _getProtocolFeeReceiver(): Address {
-  // Get the registry contract address from storage
-  const registeryAddressStored = bytesToString(
-    Storage.get(registryContractAddress),
-  );
-
-  // Wrap the registry contract address in an IRegistery interface
-  const registery = new IRegistery(new Address(registeryAddressStored));
-
-  return new Address(registery.getFeeShareProtocolReceiver());
 }
 
 /**
@@ -1138,44 +1025,16 @@ function _swap(
   isTokenInNative: bool = false,
   isTokenOutNative: bool = false,
 ): u256 {
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+  const swapOutData = _getSwapOut(amountIn, tokenInAddress);
 
-  // Check if the token address is one of the two tokens in the pool
-  assert(
-    tokenInAddress == aTokenAddressStored ||
-      tokenInAddress == bTokenAddressStored,
-    'Invalid token address',
-  );
-
-  // Calculate fees
-  const feeRate = _getFeeRate(); // e.g., 3000 ===> 0.3%
-  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 500 ====> 0.05
-
-  // totalFee = amountIn * feeRate
-  const totalFee = getFeeFromAmount(amountIn, feeRate);
-
-  // protocolFee = totalFee * feeShareProtocol
-  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
-
-  // lpFee = totalFee - protocolFee
-  const lpFee = u256.Zero;
-
-  // amountInAfterFee = amountIn - totalFee
-  const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
-
-  // Get the address of the other token in the pool
-  const tokenOutAddress =
-    tokenInAddress == aTokenAddressStored
-      ? bTokenAddressStored
-      : aTokenAddressStored;
-
-  // Get the reserves of the two tokens in the pool
-  const reserveIn = _getReserve(tokenInAddress);
-  const reserveOut = _getReserve(tokenOutAddress);
-
-  // Calculate the amount of tokens to be swapped
-  const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
+  const amountOut = swapOutData.amountOut;
+  const tokenOutAddress = swapOutData.tokenOutAddress;
+  const reserveIn = swapOutData.reserveIn;
+  const reserveOut = swapOutData.reserveOut;
+  const totalFee = swapOutData.totalFee;
+  const lpFee = swapOutData.lpFee;
+  const protocolFee = swapOutData.protocolFee;
+  const amountInAfterFee = swapOutData.amountInAfterFee;
 
   // Ensure that the amountOut is greater than or equal to minAmountOut
   assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
@@ -1206,6 +1065,7 @@ function _swap(
     reserveIn,
     SafeMath256.add(amountInAfterFee, lpFee),
   );
+
   const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
 
   // Update the pool reserves
@@ -1360,6 +1220,148 @@ function _updateCumulativePrices(): void {
     Storage.set(lastTimestamp, u64ToBytes(currentTimestamp));
 
     generateEvent(`UPDATE_CUMULATIVE_PRICES: ${elapsedTime.toString()}`);
+  }
+}
+
+// INTERNAL GETTERS
+
+function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  // Check if the token address is one of the two tokens in the pool
+  assert(
+    tokenInAddress == aTokenAddressStored ||
+      tokenInAddress == bTokenAddressStored,
+    'Invalid token address',
+  );
+
+  // Calculate fees
+  const feeRate = _getFeeRate(); // e.g., 3000 ===> 0.3%
+  const feeShareProtocol = _getFeeShareProtocol(); // e.g., 500 ====> 0.05
+
+  // totalFee = amountIn * feeRate
+  const totalFee = getFeeFromAmount(amountIn, feeRate);
+
+  // protocolFee = totalFee * feeShareProtocol
+  const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
+
+  // lpFee = totalFee - protocolFee
+  const lpFee = u256.Zero;
+
+  // amountInAfterFee = amountIn - totalFee
+  const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
+
+  // Get the address of the other token in the pool
+  const tokenOutAddress =
+    tokenInAddress == aTokenAddressStored
+      ? bTokenAddressStored
+      : aTokenAddressStored;
+
+  // Get the reserves of the two tokens in the pool
+  const reserveIn = _getReserve(tokenInAddress);
+  const reserveOut = _getReserve(tokenOutAddress);
+
+  // Calculate the amount of tokens to be swapped
+  const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
+
+  return new GetSwapOutResult(
+    amountOut,
+    tokenOutAddress,
+    reserveIn,
+    reserveOut,
+    totalFee,
+    lpFee,
+    protocolFee,
+    amountInAfterFee,
+  );
+}
+
+/**
+ * Retrieves the current fee rate for the protocol.
+ *
+ * @returns The current fee rate for the protocol.
+ */
+function _getFeeRate(): f64 {
+  return bytesToF64(Storage.get(feeRate));
+}
+
+/**
+ * Retrieves the current fee share for the protocol.
+ *
+ * @returns The current fee share for the protocol.
+ */
+function _getFeeShareProtocol(): f64 {
+  return bytesToF64(Storage.get(feeShareProtocol));
+}
+
+/**
+ * Retrieves the protocol fee receiver from the registry contract
+ * @returns The protocol fee receiver address
+ */
+function _getProtocolFeeReceiver(): Address {
+  // Get the registry contract address from storage
+  const registeryAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Wrap the registry contract address in an IRegistery interface
+  const registery = new IRegistery(new Address(registeryAddressStored));
+
+  return new Address(registery.getFeeShareProtocolReceiver());
+}
+
+/**
+ * Retrieves the reserve of a token in the pool.
+ * @param tokenAddress - The address of the token.
+ * @returns The current reserve of the token in the pool.
+ */
+function _getReserve(tokenAddress: string): u256 {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  if (tokenAddress == aTokenAddressStored) {
+    return _getLocalReserveA();
+  } else if (tokenAddress == bTokenAddressStored) {
+    return _getLocalReserveB();
+  } else {
+    return u256.Zero;
+  }
+}
+
+/**
+ * Retrieves the local reserve of token A.
+ *
+ * @returns The current reserve of token A in the pool.
+ */
+function _getLocalReserveA(): u256 {
+  return bytesToU256(Storage.get(aTokenReserve));
+}
+
+/**
+ * Retrieves the local reserve of token B.
+ *
+ * @returns The current reserve of token B in the pool.
+ */
+function _getLocalReserveB(): u256 {
+  return bytesToU256(Storage.get(bTokenReserve));
+}
+
+/**
+ * Retrieves the accumulated protocol fee for a token.
+ * @param tokenAddress The address of the token for which to retrieve the accumulated protocol fee.
+ * @returns The accumulated protocol fee for the specified token.
+ */
+function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  if (tokenAddress == aTokenAddressStored) {
+    return bytesToU256(Storage.get(aProtocolFee));
+  } else if (tokenAddress == bTokenAddressStored) {
+    return bytesToU256(Storage.get(bProtocolFee));
+  } else {
+    return u256.Zero;
   }
 }
 
