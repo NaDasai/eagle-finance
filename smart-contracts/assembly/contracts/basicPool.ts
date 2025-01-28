@@ -174,7 +174,7 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   _addLiquidity(amountA, amountB, minAmountA, minAmountB);
 
   // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**
@@ -207,7 +207,7 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
   _addLiquidity(aAmount, bAmount, minAmountA, minAmountB, false, true);
 
   // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**
@@ -268,7 +268,7 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   );
 
   // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**
@@ -431,7 +431,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   _swap(tokenInAddress, amountIn, minAmountOut);
 
   // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**
@@ -489,7 +489,7 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
   }
 
   // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**
@@ -547,7 +547,7 @@ export function claimProtocolFees(): void {
   }
 
   // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
+  ReentrancyGuard.endNonReentrant();
 
   generateEvent(`Protocol fees claimed by ${callerAddress.toString()}`);
 }
@@ -629,7 +629,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   _updateReserveB(SafeMath256.sub(reserveB, amountBOut));
 
   // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
+  ReentrancyGuard.endNonReentrant();
 
   generateEvent(
     `Removed liquidity: ${lpAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
@@ -711,7 +711,198 @@ export function syncReserves(): void {
   _updateReserveB(balanceB);
 
   // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
+  ReentrancyGuard.endNonReentrant();
+}
+
+/**
+ * Executes a flash swap operation, allowing a user or smart contract to borrow tokens
+ * from the pool and return them in the same transaction, potentially profiting from
+ * arbitrage opportunities.
+ *
+ * @param binaryArgs - A serialized array of bytes containing the input arguments for the flash swap.
+ *  - `aAmount`: The amount of token A to swap in.
+ *  - `bAmount`: The amount of token B to swap in.
+ *  - `profitAddress`: The address of the profit to be received.
+ *  - `callbackData`: The data to be passed to the callback function.
+ *
+ * @throws Will throw an error if any of the following conditions are not met:
+ * - `aAmount` or `bAmount` is missing or invalid.
+ * - `profitAddress` is missing or invalid.
+ * - `callbackData` is missing or invalid.
+ * - The callback address is not a smart contract.
+ * - The profit address is invalid.
+ * - Both `aAmount` and `bAmount` are zero.
+ * - The callback address is one of the token addresses in the pool.
+ * - Insufficient liquidity in the pool.
+ * - The returned token amounts after the callback do not match the expected values.
+ * - The new pool K value is less than the old pool K value.
+ *
+ * The function performs the following steps:
+ * - Deserializes input arguments.
+ * - Validates the callback and profit addresses.
+ * - Transfers the specified token amounts to the callback address.
+ * - Invokes the callback function on the specified smart contract.
+ * - Validates the returned token balances and calculates fees.
+ * - Updates the pool reserves and cumulative prices.
+ * - Generates events for the old and new pool K values and the flash swap execution.
+ */
+export function flash(binaryArgs: StaticArray<u8>): void {
+  // Start reentrancy guard
+  ReentrancyGuard.startNonReentrant();
+
+  // read args
+  const args = new Args(binaryArgs);
+
+  const aAmount = args.nextU256().expect('aAmount is missing or invalid');
+  const bAmount = args.nextU256().expect('bAmount is missing or invalid');
+
+  // Address of the user or the smart contract that will receive the profit
+  const profitAddress = args
+    .nextString()
+    .expect('profitAddress is missing or invalid');
+
+  const callbackData = args
+    .nextBytes()
+    .expect('callbackData is missing or invalid');
+
+  // The current caller is the callback address which should be a smart contract
+  const callbackAddress = Context.caller();
+
+  // Ensure that the callback address is a smart contract
+  assertIsSmartContract(callbackAddress.toString());
+
+  // Ensure that the profit address is a valid address
+  assert(validateAddress(profitAddress), 'INVALID PROFIT ADDRESS');
+
+  // Enusre that bAmount or aAmount is greater than 0
+  assert(
+    bAmount > u256.Zero || aAmount > u256.Zero,
+    'FLASH_ERROR: AMOUNTS MUST BE GREATER THAN 0',
+  );
+
+  // Get the stored token addresses
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  // Ensure that the callbackAddress is not one of the two tokens in the pool
+  assert(
+    callbackAddress.toString() != aTokenAddressStored &&
+      callbackAddress.toString() != bTokenAddressStored,
+    'FLASH_ERROR: INVALID_CALLBACK_ADDRESS',
+  );
+
+  // Get the pool reserves
+  const aReserve = _getLocalReserveA();
+  const bReserve = _getLocalReserveB();
+
+  // Get the pool K value that will be used later to ensure that the flash swap is valid
+  const poolK = SafeMath256.mul(aReserve, bReserve);
+
+  // Get the pool fee rate
+  const poolFeeRate = _getFeeRate();
+
+  // Ensure that the pool reserves are greater or equals than the amounts to be swapped
+  assert(
+    aReserve >= aAmount && bReserve >= bAmount,
+    'FLASH_ERROR: INSUFFICIENT_LIQUIDITY',
+  );
+
+  // Get the current contract address
+  const contractAddress = Context.callee();
+
+  // Get the token instances
+  const aToken = new IMRC20(new Address(aTokenAddressStored));
+  const bToken = new IMRC20(new Address(bTokenAddressStored));
+
+  // Get the contract balances before the swap
+  const aContractBalanceBefore = aToken.balanceOf(contractAddress);
+  const bContractBalanceBefore = bToken.balanceOf(contractAddress);
+
+  // Transfer the amounts to the callback address
+  if (aAmount > u256.Zero) {
+    // Transfer aAmount from the contract to the callbackAddress
+    aToken.transfer(callbackAddress, aAmount);
+  }
+
+  if (bAmount > u256.Zero) {
+    // Transfer bAmount from the contract to the callbackAddress
+    bToken.transfer(callbackAddress, bAmount);
+  }
+
+  // Call the callback function of the contract
+  new IEagleCallee(callbackAddress).eagleCall(
+    new Address(profitAddress),
+    aAmount,
+    bAmount,
+    callbackData,
+  );
+
+  // get contract tokens balance after callback
+  const aContractBalanceAfter = aToken.balanceOf(contractAddress);
+  const bContractBalanceAfter = bToken.balanceOf(contractAddress);
+
+  // Get Fees from the amounts
+  const aFee = getFeeFromAmount(aAmount, poolFeeRate);
+  const bFee = getFeeFromAmount(bAmount, poolFeeRate);
+
+  assert(
+    SafeMath256.add(aContractBalanceBefore, aFee) == aContractBalanceAfter,
+    'FLASH_ERROR: WRONG_RETURN_VALUE',
+  );
+  assert(
+    SafeMath256.add(bContractBalanceBefore, bFee) == bContractBalanceAfter,
+    'FLASH_ERROR: WRONG_RETURN_VALUE',
+  );
+
+  // Get the new pool K value
+  const newPoolK = SafeMath256.mul(
+    aContractBalanceAfter,
+    bContractBalanceAfter,
+  );
+
+  generateEvent(`Old K value : ${poolK.toString()}`);
+  generateEvent(`New K value : ${newPoolK.toString()}`);
+
+  // Ensure that the new pool K value is greater than or equal to the old pool K value
+  assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
+
+  // Update the reserves of the pool
+  _updateReserveA(aContractBalanceAfter);
+  _updateReserveB(bContractBalanceAfter);
+
+  // Update the cumulative prices
+  _updateCumulativePrices();
+
+  // End reentrancy guard
+  ReentrancyGuard.endNonReentrant();
+
+  generateEvent(
+    `FLASH_SWAP: User ${Context.caller()} executed a flash swap. he swapped ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored} and ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored}.`,
+  );
+}
+
+/**
+ * Gets the address of token A used in the basic pool.
+ * @returns The address of token A as a static array of 8-bit unsigned integers.
+ */
+export function getATokenAddress(): StaticArray<u8> {
+  return Storage.get(aTokenAddress);
+}
+
+/**
+ * Gets the address of token B used in the basic pool.
+ * @returns The address of token B as a static array of 8-bit unsigned integers.
+ */
+export function getBTokenAddress(): StaticArray<u8> {
+  return Storage.get(bTokenAddress);
+}
+
+/**
+ * Gets the current fee rate of the basic pool.
+ * @returns The fee rate as a static array of 8-bit unsigned integers.
+ */
+export function getFeeRate(): StaticArray<u8> {
+  return Storage.get(feeRate);
 }
 
 /**
@@ -1160,197 +1351,6 @@ function _updateCumulativePrices(): void {
 
     generateEvent(`UPDATE_CUMULATIVE_PRICES: ${elapsedTime.toString()}`);
   }
-}
-
-/**
- * Executes a flash swap operation, allowing a user or smart contract to borrow tokens
- * from the pool and return them in the same transaction, potentially profiting from
- * arbitrage opportunities.
- *
- * @param binaryArgs - A serialized array of bytes containing the input arguments for the flash swap.
- *  - `aAmount`: The amount of token A to swap in.
- *  - `bAmount`: The amount of token B to swap in.
- *  - `profitAddress`: The address of the profit to be received.
- *  - `callbackData`: The data to be passed to the callback function.
- *
- * @throws Will throw an error if any of the following conditions are not met:
- * - `aAmount` or `bAmount` is missing or invalid.
- * - `profitAddress` is missing or invalid.
- * - `callbackData` is missing or invalid.
- * - The callback address is not a smart contract.
- * - The profit address is invalid.
- * - Both `aAmount` and `bAmount` are zero.
- * - The callback address is one of the token addresses in the pool.
- * - Insufficient liquidity in the pool.
- * - The returned token amounts after the callback do not match the expected values.
- * - The new pool K value is less than the old pool K value.
- *
- * The function performs the following steps:
- * - Deserializes input arguments.
- * - Validates the callback and profit addresses.
- * - Transfers the specified token amounts to the callback address.
- * - Invokes the callback function on the specified smart contract.
- * - Validates the returned token balances and calculates fees.
- * - Updates the pool reserves and cumulative prices.
- * - Generates events for the old and new pool K values and the flash swap execution.
- */
-export function flash(binaryArgs: StaticArray<u8>): void {
-  // Start reentrancy guard
-  ReentrancyGuard.startNonReentrant();
-
-  // read args
-  const args = new Args(binaryArgs);
-
-  const aAmount = args.nextU256().expect('aAmount is missing or invalid');
-  const bAmount = args.nextU256().expect('bAmount is missing or invalid');
-
-  // Address of the user or the smart contract that will receive the profit
-  const profitAddress = args
-    .nextString()
-    .expect('profitAddress is missing or invalid');
-
-  const callbackData = args
-    .nextBytes()
-    .expect('callbackData is missing or invalid');
-
-  // The current caller is the callback address which should be a smart contract
-  const callbackAddress = Context.caller();
-
-  // Ensure that the callback address is a smart contract
-  assertIsSmartContract(callbackAddress.toString());
-
-  // Ensure that the profit address is a valid address
-  assert(validateAddress(profitAddress), 'INVALID PROFIT ADDRESS');
-
-  // Enusre that bAmount or aAmount is greater than 0
-  assert(
-    bAmount > u256.Zero || aAmount > u256.Zero,
-    'FLASH_ERROR: AMOUNTS MUST BE GREATER THAN 0',
-  );
-
-  // Get the stored token addresses
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-  // Ensure that the callbackAddress is not one of the two tokens in the pool
-  assert(
-    callbackAddress.toString() != aTokenAddressStored &&
-      callbackAddress.toString() != bTokenAddressStored,
-    'FLASH_ERROR: INVALID_CALLBACK_ADDRESS',
-  );
-
-  // Get the pool reserves
-  const aReserve = _getLocalReserveA();
-  const bReserve = _getLocalReserveB();
-
-  // Get the pool K value that will be used later to ensure that the flash swap is valid
-  const poolK = SafeMath256.mul(aReserve, bReserve);
-
-  // Get the pool fee rate
-  const poolFeeRate = _getFeeRate();
-
-  // Ensure that the pool reserves are greater or equals than the amounts to be swapped
-  assert(
-    aReserve >= aAmount && bReserve >= bAmount,
-    'FLASH_ERROR: INSUFFICIENT_LIQUIDITY',
-  );
-
-  // Get the current contract address
-  const contractAddress = Context.callee();
-
-  // Get the token instances
-  const aToken = new IMRC20(new Address(aTokenAddressStored));
-  const bToken = new IMRC20(new Address(bTokenAddressStored));
-
-  // Get the contract balances before the swap
-  const aContractBalanceBefore = aToken.balanceOf(contractAddress);
-  const bContractBalanceBefore = bToken.balanceOf(contractAddress);
-
-  // Transfer the amounts to the callback address
-  if (aAmount > u256.Zero) {
-    // Transfer aAmount from the contract to the callbackAddress
-    aToken.transfer(callbackAddress, aAmount);
-  }
-
-  if (bAmount > u256.Zero) {
-    // Transfer bAmount from the contract to the callbackAddress
-    bToken.transfer(callbackAddress, bAmount);
-  }
-
-  // Call the callback function of the contract
-  new IEagleCallee(callbackAddress).eagleCall(
-    new Address(profitAddress),
-    aAmount,
-    bAmount,
-    callbackData,
-  );
-
-  // get contract tokens balance after callback
-  const aContractBalanceAfter = aToken.balanceOf(contractAddress);
-  const bContractBalanceAfter = bToken.balanceOf(contractAddress);
-
-  // Get Fees from the amounts
-  const aFee = getFeeFromAmount(aAmount, poolFeeRate);
-  const bFee = getFeeFromAmount(bAmount, poolFeeRate);
-
-  assert(
-    SafeMath256.add(aContractBalanceBefore, aFee) == aContractBalanceAfter,
-    'FLASH_ERROR: WRONG_RETURN_VALUE',
-  );
-  assert(
-    SafeMath256.add(bContractBalanceBefore, bFee) == bContractBalanceAfter,
-    'FLASH_ERROR: WRONG_RETURN_VALUE',
-  );
-
-  // Get the new pool K value
-  const newPoolK = SafeMath256.mul(
-    aContractBalanceAfter,
-    bContractBalanceAfter,
-  );
-
-  generateEvent(`Old K value : ${poolK.toString()}`);
-  generateEvent(`New K value : ${newPoolK.toString()}`);
-
-  // Ensure that the new pool K value is greater than or equal to the old pool K value
-  assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
-
-  // Update the reserves of the pool
-  _updateReserveA(aContractBalanceAfter);
-  _updateReserveB(bContractBalanceAfter);
-
-  // Update the cumulative prices
-  _updateCumulativePrices();
-
-  // End reentrancy guard
-  ReentrancyGuard.endstartNonReentrant();
-
-  generateEvent(
-    `FLASH_SWAP: User ${Context.caller()} executed a flash swap. he swapped ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored} and ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored}.`,
-  );
-}
-
-/**
- * Gets the address of token A used in the basic pool.
- * @returns The address of token A as a static array of 8-bit unsigned integers.
- */
-export function getATokenAddress(): StaticArray<u8> {
-  return Storage.get(aTokenAddress);
-}
-
-/**
- * Gets the address of token B used in the basic pool.
- * @returns The address of token B as a static array of 8-bit unsigned integers.
- */
-export function getBTokenAddress(): StaticArray<u8> {
-  return Storage.get(bTokenAddress);
-}
-
-/**
- * Gets the current fee rate of the basic pool.
- * @returns The fee rate as a static array of 8-bit unsigned integers.
- */
-export function getFeeRate(): StaticArray<u8> {
-  return Storage.get(feeRate);
 }
 
 // Export ownership functions
