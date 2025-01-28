@@ -1,4 +1,4 @@
-// ExampleFlashSwap.ts
+// This contract is used for testing purposes and is not intended to be used in production.
 import {
   Address,
   Context,

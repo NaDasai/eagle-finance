@@ -1,4 +1,4 @@
-// ExampleFlashSwap.ts
+// This contract is used for testing purposes and is not intended to be used in production.
 import {
   Address,
   Context,
@@ -130,7 +130,8 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
 
     const aAmountFee = getFeeFromAmount(amountA, poolFeeRate);
 
-    const amountToRepay = SafeMath256.add(amountA, aAmountFee);
+    // amountToRepay = amountA + aAmountFee but it is malicious so we set it to amountA
+    const amountToRepay = amountA;
 
     assert(
       aAmountWithProfit > amountToRepay,
@@ -146,8 +147,13 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
       'FLASH_SWAP_ERROR: Not enough balance',
     );
 
-    // Transfer all the amount to the caller instead of repaying it back to the pool
-    tokenA.transfer(new Address(sender), aAmountWithProfit);
+    // TRnasfer amountToRepay to the contract(it is malicious so we 'll return the amount without fees)
+    tokenA.transfer(new Address(poolAddress), amountToRepay);
+
+    if (profit) {
+      // transfer the profit to the sender
+      tokenA.transfer(new Address(sender), profit);
+    }
 
     generateEvent(
       `FLASH_SWAP_CONTRACT:  profit: ${aAmountWithProfit}, sender: ${sender}`,
