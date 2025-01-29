@@ -25,7 +25,12 @@ import {
 import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
-import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
+import {
+  getAmountIn,
+  getAmountOut,
+  getAmountWithoutFee,
+  getFeeFromAmount,
+} from '../lib/basicPoolMath';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
@@ -921,7 +926,9 @@ export function getBPriceCumulativeLast(): StaticArray<u8> {
 
 /**
  *  Retrieves the swap estimation for a given input amount.
- *  @param binaryArgs - Arguments serialized with Args (tokenInAddress, amountIn)
+ *  @param binaryArgs - A serialized array of bytes containing the arguments for the function.
+ *  - `tokenInAddress`: The address of the token to swap in.
+ *  - `amountIn`: The amount of the token to swap in.
  * @returns The estimated output amount.
  */
 export function getSwapOutEstimation(
@@ -932,11 +939,37 @@ export function getSwapOutEstimation(
   const tokenInAddress = args
     .nextString()
     .expect('TokenInAddress is missing or invalid');
+
   let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   const swapOutData = _getSwapOut(amountIn, tokenInAddress);
 
   return u256ToBytes(swapOutData.amountOut);
+}
+
+/**
+ * Estimates the amount of input tokens required for a swap given the desired output amount.
+ *
+ * @param binaryArgs - A serialized array of bytes containing the token output address and the desired output amount.
+ *  - `tokenOutAddress`: The address of the token to be swapped out.
+ *  - `amountOut`: The desired output amount.
+ * @returns A serialized array of bytes representing the estimated input amount required for the swap.
+ * @throws Will throw an error if the token output address or the desired output amount is missing or invalid.
+ */
+export function getSwapInEstimation(
+  binaryArgs: StaticArray<u8>,
+): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const tokenOutAddress = args
+    .nextString()
+    .expect('TokenInAddress is missing or invalid');
+
+  let amountOut = args.nextU256().expect('AmountIn is missing or invalid');
+
+  const amountIn = _getSwapIn(amountOut, tokenOutAddress);
+
+  return u256ToBytes(amountIn);
 }
 
 // INTERNAL FUNCTIONS
@@ -1225,6 +1258,17 @@ function _updateCumulativePrices(): void {
 
 // INTERNAL GETTERS
 
+/**
+ * Calculates the output amount of tokens to be swapped in a liquidity pool,
+ * considering the input amount, token addresses, and applicable fees.
+ *
+ * @param amountIn - The amount of input tokens to be swapped.
+ * @param tokenInAddress - The address of the input token.
+ * @returns An instance of GetSwapOutResult containing the calculated output amount,
+ *          the address of the output token, reserves of both tokens, total fee,
+ *          liquidity provider fee, protocol fee, and the input amount after fees.
+ * @throws Will throw an error if the input token address is not part of the pool.
+ */
 function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
   const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
@@ -1275,6 +1319,58 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
     protocolFee,
     amountInAfterFee,
   );
+}
+
+/**
+ * Calculates the amount of input tokens required for a swap given the desired output amount.
+ *
+ * This function checks if the provided token address is valid within the pool,
+ * retrieves the current fee rate, and determines the reserves of the tokens in the pool.
+ * It then calculates the required input amount after accounting for fees and generates
+ * events to log the swap details.
+ *
+ * @param amountOut - The desired amount of output tokens.
+ * @param tokenOutAddress - The address of the token to be swapped out.
+ * @returns The amount of input tokens required before fees.
+ * @throws Will throw an error if the token address is invalid.
+ */
+function _getSwapIn(amountOut: u256, tokenOutAddress: string): u256 {
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  // Check if the token address is one of the two tokens in the pool
+  assert(
+    tokenOutAddress == aTokenAddressStored ||
+      tokenOutAddress == bTokenAddressStored,
+    'Invalid token address',
+  );
+
+  // Get fees
+  const feeRate = _getFeeRate();
+
+  // Get the address of the other token in the pool
+  const tokenInAddress =
+    tokenOutAddress == aTokenAddressStored
+      ? bTokenAddressStored
+      : aTokenAddressStored;
+
+  // Get the reserves of the two tokens in the pool
+  const reserveIn = _getReserve(tokenInAddress);
+  const reserveOut = _getReserve(tokenOutAddress);
+
+  // Calculate the amount of In token based on the out amount
+  const amountInAfterFee = getAmountIn(amountOut, reserveIn, reserveOut);
+
+  // Get the amount In before fees
+  const amountInWithoutFees = getAmountWithoutFee(amountInAfterFee, feeRate);
+
+  generateEvent(`AmountInAfterFee: ${amountInAfterFee.toString()} `);
+
+  generateEvent(
+    `SWAP_IN: ${amountInWithoutFees.toString()} of ${tokenOutAddress} swapped into ${amountOut} of ${tokenInAddress}`,
+  );
+
+  return amountInWithoutFees;
 }
 
 /**
