@@ -992,6 +992,15 @@ export function getBPriceCumulativeLast(): StaticArray<u8> {
 }
 
 /**
+ * Retrieves the timestamp of the last recorded timestamp from storage.
+ *
+ * @returns The timestamp of the last recorded timestamp as a byte array.
+ */
+export function getLastTimestamp(): StaticArray<u8> {
+  return Storage.get(lastTimestamp);
+}
+
+/**
  *  Retrieves the swap estimation for a given input amount.
  *  @param binaryArgs - A serialized array of bytes containing the arguments for the function.
  *  - `tokenInAddress`: The address of the token to swap in.
