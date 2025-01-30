@@ -26,6 +26,7 @@ import {
   getBPriceCumulativeLast,
   getLPBalance,
   getPoolReserves,
+  getSwapOutEstimation,
   getTokenBalance,
   increaseAllownace,
   removeLiquidity,
@@ -1704,6 +1705,287 @@ describe('Scenario 5: Add liquidity and swap with different token decimals wmas(
   });
 });
 
-describe('Scenario 6: Add liquidity, swap and remove using low amounts', async () => {});
+describe('Scenario 6: Add liquidity, swap and remove using low amounts', async () => {
+  beforeAll(async () => {
+    poolFeeRate = 0.3 * 10_000;
 
-describe('Scenario 7: Add liquidity, swap and remove using high amounts', async () => {});
+    registryContract = await deployRegistryContract(
+      user1Provider,
+      wmasAddress,
+      0.05,
+    );
+
+    // create new pool
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    const pools = await getPools(registryContract);
+
+    console.log('Pools: ', pools);
+
+    expect(pools.length > 0, 'No pools found');
+
+    // get the last pool address
+    poolAddress = pools[pools.length - 1].poolAddress;
+
+    poolContract = new SmartContract(user1Provider, poolAddress);
+  });
+
+  test('User 1 Add liquidity to pool when its empty', async () => {
+    // get all pool reserves and expect them to be 0
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0n);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0n);
+
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const aAmount = 0.00001;
+    const bAmount = 0.00001;
+
+    // increase allowance of both tokerns amoutns first before adding liquidity
+    await increaseAllownace(aTokenAddress, poolAddress, aAmount, user1Provider);
+    await increaseAllownace(bTokenAddress, poolAddress, bAmount, user1Provider);
+
+    // add liquidity
+    await addLiquidity(poolContract, aAmount, bAmount, 0, 0);
+
+    // get teh reserves
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    expect(
+      user1ATokenBalanceAfter,
+      'User1 A Token balance should decrease after adding liquidity',
+    ).toBe(user1ATokenBalanceBefore - parseMas(aAmount.toString()));
+
+    expect(
+      user1BTokenBalanceAfter,
+      'User1 B Token balance should decrease after adding liquidity',
+    ).toBe(user1BTokenBalanceBefore - parseMas(bAmount.toString()));
+
+    expect(
+      reserveAAfter,
+      'Reserve A should be aAmount after adding liquidity',
+    ).toBe(parseMas(aAmount.toString()));
+
+    expect(
+      reserveBAfter,
+      'Reserve B should be bAmount after adding liquidity',
+    ).toBe(parseMas(bAmount.toString()));
+
+    // get the lp balance of user1
+    const user1LPBalance = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    expect(user1LPBalance, 'User1 LP balance should be 0.1').toBe(
+      parseMas(Math.sqrt(aAmount * bAmount).toString()),
+    );
+  });
+
+  test("User 2 swaps B token for A token in pool's reserves", async () => {
+    // switch poolContract to user2
+    poolContract = new SmartContract(user2Provider, poolAddress);
+
+    // get all pool reserves
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    const initialK = reserveA * reserveB;
+
+    console.log('Initial K: ', initialK);
+    console.log('Reserve A: ', reserveA);
+    console.log('Reserve B: ', reserveB);
+
+    // swap B token for A token
+    const bSwapAmount = 0.00001;
+
+    const expectedaAmountOut = await getSwapOutEstimation(
+      poolContract,
+      bSwapAmount,
+      bTokenAddress,
+    );
+
+    const minAmountOut = 0.000001;
+
+    const user2ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    expect(
+      user2BTokenBalanceBefore,
+      'User2 B Token balance should be greater than or equals to swap amount',
+    ).toBeGreaterThanOrEqual(parseMas(bSwapAmount.toString()));
+
+    // increase allownace for BToken
+    await increaseAllownace(
+      bTokenAddress,
+      poolAddress,
+      bSwapAmount,
+      user2Provider,
+    );
+
+    // swap B token for A token
+    await swap(poolContract, bTokenAddress, bSwapAmount, minAmountOut);
+
+    // get reserves after swap
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    // get user2 balances after swap
+    const user2ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const finalK = reserveAAfter * reserveBAfter;
+
+    expect(
+      reserveAAfter,
+      'Reserve A After should be equals to initial reserve A - expectedOutAmount',
+    ).toBe(reserveA - expectedaAmountOut);
+
+    expect(
+      reserveBAfter,
+      'Reserve B After should be equals to initial reserve B + swap amount',
+    ).toBe(reserveB + parseMas(bSwapAmount.toString()));
+
+    expect(finalK, 'Final K should be greater than initial K').toBeGreaterThan(
+      initialK,
+    );
+
+    expect(
+      user2ATokenBalanceAfter,
+      'User2 A Token balance should increase after swap',
+    ).toBe(user2ATokenBalanceBefore + expectedaAmountOut);
+
+    expect(
+      user2BTokenBalanceAfter,
+      'User2 B Token balance should increase after swap',
+    ).toBe(user2BTokenBalanceBefore - parseMas(bSwapAmount.toString()));
+  });
+
+  test('User 1 removes its full liquidity', async () => {
+    // switch poolContract to user1
+    poolContract = new SmartContract(user1Provider, poolAddress);
+
+    // get all pool reserves
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1LPBalance = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    expect(
+      user1LPBalance,
+      'User1 LP balance should be greater than 0',
+    ).toBeGreaterThan(0n);
+
+    const lpPercentage = 100; // 100%
+
+    await removeLiquidityUsingPercentage(
+      poolContract,
+      user1Provider,
+      lpPercentage,
+      0,
+      0,
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1LPBalanceAfter = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    expect(
+      reserveAAfter,
+      'Reserve A should be 0 after removing all liquidity',
+    ).toBe(0n);
+
+    expect(
+      reserveBAfter,
+      'Reserve B should be 0 after removing all liquidity',
+    ).toBe(0n);
+
+    expect(
+      user1LPBalanceAfter,
+      'User1 A Token balance should be 0 after removing full liquidity',
+    ).toBe(0n);
+
+    expect(
+      user1ATokenBalanceAfter,
+      'User1 A Token balance should increased by the total resreve A amount',
+    ).toBe(reserveA + user1ATokenBalanceBefore);
+
+    expect(
+      user1BTokenBalanceAfter,
+      'User1 B Token balance should increased by the total resreve B amount',
+    ).toBe(reserveB + user1BTokenBalanceBefore);
+  });
+});
