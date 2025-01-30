@@ -3,6 +3,7 @@ import {
   bytesToF64,
   bytesToString,
   bytesToU256,
+  bytesToU64,
   u256ToBytes,
 } from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
@@ -192,6 +193,21 @@ export class IBasicPool {
   getFeeRate(): f64 {
     const result = call(this._origin, 'getFeeRate', new Args(), 0);
     return bytesToF64(result);
+  }
+
+  getAPriceCumulativeLast(): u256 {
+    const result = call(this._origin, 'getAPriceCumulativeLast', new Args(), 0);
+    return bytesToU256(result);
+  }
+
+  getBPriceCumulativeLast(): u256 {
+    const result = call(this._origin, 'getBPriceCumulativeLast', new Args(), 0);
+    return bytesToU256(result);
+  }
+
+  getLastTimestamp(): u64 {
+    const result = call(this._origin, 'getLastTimestamp', new Args(), 0);
+    return bytesToU64(result);
   }
 
   flash(
