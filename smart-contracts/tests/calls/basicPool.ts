@@ -364,3 +364,20 @@ export async function flash(
     throw new Error('Failed to execute flash');
   }
 }
+
+export async function getSwapOutEstimation(
+  poolContract: SmartContract,
+  amountIn: number,
+  tokenInAddress: string,
+  tokenInDecimals: number = TOKEN_DEFAULT_DECIMALS,
+) {
+  const operation = await poolContract.read(
+    'getSwapOutEstimation',
+    new Args()
+      .addString(tokenInAddress)
+      .addU256(parseUnits(amountIn.toString(), tokenInDecimals))
+      .serialize(),
+  );
+
+  return new Args(operation.value).nextU256();
+}
