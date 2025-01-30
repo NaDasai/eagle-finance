@@ -20,10 +20,12 @@ import { u256 } from 'as-bignum/assembly';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 import { SafeMath256 } from '../lib/safeMath';
 
+// Storage key for pool address
 export const poolAddress = stringToBytes('poolAddress');
+// Storage key for token A address
 export const aTokenAddress = stringToBytes('aTokenAddress');
+// Storage key for token B address
 export const bTokenAddress = stringToBytes('bTokenAddress');
-export const feeRate = stringToBytes('feeRate');
 // Storage keys for cumulative prices
 export const aPriceCumulativeLast = stringToBytes('aPriceCumulativeLast');
 export const bPriceCumulativeLast = stringToBytes('bPriceCumulativeLast');
@@ -36,6 +38,18 @@ export const bPriceAverage = stringToBytes('bPriceAverage');
 // Strorage key for the period of time should be passed before updating the price in milliseconds
 export const period = stringToBytes('period');
 
+/**
+ * Initializes the Oracle contract with the provided pool address and period.
+ *
+ * This constructor function is called during the deployment of the Oracle contract.
+ * It sets up the necessary storage values for the contract, including the pool address,
+ * token addresses, cumulative prices, last timestamp, and average prices.
+ *
+ * @param binaryArgs - The binary arguments passed to the constructor function.
+ *  - poolAddress: The address of the pool contract.
+ *  - period: The period of time in milliseconds for which the price should be updated.
+ *
+ */
 export function constructor(binaryArgs: StaticArray<u8>): void {
   // This line is important. It ensures that this function can't be called in the future.
   // If you remove this check, someone could call your constructor function and reset your smart contract.
@@ -47,22 +61,15 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('PoolAddress is missing or invalid');
 
-  const aTokenAddressInput = args
-    .nextString()
-    .expect('ATokenAddress is missing or invalid');
-
-  const bTokenAddressInput = args
-    .nextString()
-    .expect('BTokenAddress is missing or invalid');
-
-  const inputFeeRate = args
-    .nextF64()
-    .expect('InputFeeRate is missing or invalid');
-
   const periodInput = args.nextU64().expect('Period is missing or invalid');
 
   // Init the pool contract
   const poolContract = new IBasicPool(new Address(poolAddressInput));
+
+  // Get  the token A address
+  const aPoolTokenAddress = poolContract.getATokenAddress();
+  // Get the token B address
+  const bPoolTokenAddress = poolContract.getBTokenAddress();
 
   // Get the last commulative prices
   const aPoolPriceCumulativeLast = poolContract.getAPriceCumulativeLast();
@@ -82,11 +89,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Store the pool address
   Storage.set(poolAddress, stringToBytes(poolAddressInput));
   // Store the token A address
-  Storage.set(aTokenAddress, stringToBytes(aTokenAddressInput));
+  Storage.set(aTokenAddress, stringToBytes(aPoolTokenAddress));
   // Store the token B address
-  Storage.set(bTokenAddress, stringToBytes(bTokenAddressInput));
-  // Store the fee rate
-  Storage.set(feeRate, f64ToBytes(inputFeeRate));
+  Storage.set(bTokenAddress, stringToBytes(bPoolTokenAddress));
   // Store the cumulative prices
   Storage.set(aPriceCumulativeLast, u256ToBytes(aPoolPriceCumulativeLast));
   Storage.set(bPriceCumulativeLast, u256ToBytes(bPoolPriceCumulativeLast));
@@ -105,14 +110,14 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 /**
  * Updates the oracle's stored data by recalculating average prices and updating timestamps.
  *
- * @param binaryArgs - The binary arguments passed to the function.
+ * @param _ - The binary arguments passed to the function.
  *
  * This function retrieves the current timestamp and compares it with the last stored timestamp
  * to ensure the required period has elapsed. It fetches new cumulative prices from the pool contract,
  * calculates the average prices for tokens A and B, and updates the stored cumulative prices,
  * last timestamp, and average prices in the storage.
  */
-export function update(binaryArgs: StaticArray<u8>): void {
+export function update(_: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
