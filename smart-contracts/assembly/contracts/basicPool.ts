@@ -1367,7 +1367,7 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
   const protocolFee = getFeeFromAmount(totalFee, feeShareProtocol);
 
   // lpFee = totalFee - protocolFee
-  const lpFee = u256.Zero;
+  const lpFee = SafeMath256.sub(totalFee, protocolFee);
 
   // amountInAfterFee = amountIn - totalFee
   const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
