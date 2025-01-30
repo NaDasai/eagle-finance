@@ -62,24 +62,22 @@ describe('Create new pool without liquidity', async () => {
     );
   });
 
-  // test('Registry should not allow to create a pool with same params', async () => {
-  //   const aTokenAddress =
-  //     'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
-  //   const bTokenAddress = wmasAddress;
-  //   const inputFeeRate = 0.3 * 10_000;
+  test('Registry should not allow to create a pool with same params', async () => {
+    const aTokenAddress =
+      'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+    const bTokenAddress = wmasAddress;
+    const inputFeeRate = 0.3 * 10_000;
 
-  //   await expect(
-  //     await createNewPool(
-  //       registryContract,
-  //       aTokenAddress,
-  //       bTokenAddress,
-  //       inputFeeRate,
-  //     ),
-  //     'Should throw an error when creating a pool with same params',
-  //   ).rejects.toThrow(
-
-  //   );
-  // });
+    await expect(
+      await createNewPool(
+        registryContract,
+        aTokenAddress,
+        bTokenAddress,
+        inputFeeRate,
+      ),
+      'Should throw an error when creating a pool with same params',
+    ).rejects.toThrow();
+  });
 
   test('Resgistry when creating pool should sort the tokens and pass the wmas address as bToken even when it passed reversed', async () => {
     const aTokenAddress = wmasAddress;
@@ -193,7 +191,7 @@ describe('Create new pool without liquidity', async () => {
       inputFeeRate,
     );
 
-    // sort the tokens according
+    //  sort the tokens according
     const aSortedToken = bTokenAddress;
     const bSortedToken = aTokenAddress;
 
@@ -231,7 +229,7 @@ describe('Create new pool with liquidity', async () => {
     const aAmount = 5;
     const bAmount = 5;
 
-    // Increase allownace for both tokens
+    //  Increase allownace for both tokens
     await increaseAllownace(
       aTokenAddress,
       registryContract.address,
@@ -246,7 +244,7 @@ describe('Create new pool with liquidity', async () => {
       user1Provider,
     );
 
-    // Create a new pool with liquidity
+    //  Create a new pool with liquidity
     await createNewPoolWithLiquidity(
       registryContract,
       aTokenAddress,
@@ -278,7 +276,7 @@ describe('Create new pool with liquidity', async () => {
       inputFeeRate,
     );
 
-    // get pool reserves
+    //  get pool reserves
     const [aReserve, bReserve] = await getPoolReserves(poolContract);
 
     expect(aReserve, 'A reserve is not correct').toBe(
@@ -301,7 +299,7 @@ describe('Create new pool with liquidity', async () => {
     const minAAmount = 0;
     const minBAmount = 0;
 
-    // Increase allownace for both tokens
+    //  Increase allownace for both tokens
     await increaseAllownace(
       aTokenAddress,
       registryContract.address,
@@ -316,7 +314,7 @@ describe('Create new pool with liquidity', async () => {
       user1Provider,
     );
 
-    // Create a new pool with liquidity
+    //  Create a new pool with liquidity
     await createNewPoolWithLiquidity(
       registryContract,
       aTokenAddress,
@@ -349,7 +347,7 @@ describe('Create new pool with liquidity', async () => {
       inputFeeRate,
     );
 
-    // get pool reserves
+    //  get pool reserves
     const [aReserve, bReserve] = await getPoolReserves(poolContract);
 
     expect(aReserve, 'A reserve should be equals to bAmount').toBe(
@@ -372,7 +370,7 @@ describe('Create new pool with liquidity', async () => {
     const minAAmount = 0;
     const minBAmount = 0;
 
-    // increase allownace for tokenA
+    //  increase allownace for tokenA
     await increaseAllownace(
       aTokenAddress,
       registryContract.address,
@@ -380,7 +378,7 @@ describe('Create new pool with liquidity', async () => {
       user1Provider,
     );
 
-    // Create a new pool with liquidity
+    //  Create a new pool with liquidity
     await createNewPoolWithLiquidity(
       registryContract,
       aTokenAddress,
@@ -414,7 +412,7 @@ describe('Create new pool with liquidity', async () => {
       inputFeeRate,
     );
 
-    // get pool reserves
+    //  get pool reserves
     const [aReserve, bReserve] = await getPoolReserves(poolContract);
 
     expect(aReserve, 'A reserve should be equals to aAmount').toBe(
@@ -426,69 +424,69 @@ describe('Create new pool with liquidity', async () => {
     );
   });
 
-  // test case that should throw an error.This is why it is commented
-  // test('Should throw error if native token is A token', async () => {
-  //   const aTokenAddress = NATIVE_MAS_COIN_ADDRESS;
-  //   const bTokenAddress =
-  //     'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
-  //   const inputFeeRate = 0.89 * 10_000;
+  //    test case that should throw an error.This is why it is commented
+  test('Should throw error if native token is A token', async () => {
+    const aTokenAddress = NATIVE_MAS_COIN_ADDRESS;
+    const bTokenAddress =
+      'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+    const inputFeeRate = 0.89 * 10_000;
 
-  //   const aAmount = 2;
-  //   const bAmount = 3;
-  //   const minAAmount = 0;
-  //   const minBAmount = 0;
+    const aAmount = 2;
+    const bAmount = 3;
+    const minAAmount = 0;
+    const minBAmount = 0;
 
-  //   // increase allownace for tokenA
-  //   await increaseAllownace(
-  //     bTokenAddress,
-  //     registryContract.address,
-  //     aAmount,
-  //     user1Provider,
-  //   );
+    //   increase allownace for tokenA
+    await increaseAllownace(
+      bTokenAddress,
+      registryContract.address,
+      aAmount,
+      user1Provider,
+    );
 
-  //   // Create a new pool with liquidity
-  //   await createNewPoolWithLiquidity(
-  //     registryContract,
-  //     aTokenAddress,
-  //     bTokenAddress,
-  //     aAmount,
-  //     bAmount,
-  //     minAAmount,
-  //     minBAmount,
-  //     inputFeeRate,
-  //     true,
-  //   );
+    //   Create a new pool with liquidity
+    await createNewPoolWithLiquidity(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      aAmount,
+      bAmount,
+      minAAmount,
+      minBAmount,
+      inputFeeRate,
+      true,
+    );
 
-  //   const pools = await getPools(registryContract);
+    const pools = await getPools(registryContract);
 
-  //   expect(pools.length, 'No pools found').toBeGreaterThan(0);
+    expect(pools.length, 'No pools found').toBeGreaterThan(0);
 
-  //   const pool = pools[pools.length - 1];
+    const pool = pools[pools.length - 1];
 
-  //   const poolContract = new SmartContract(user1Provider, pool.poolAddress);
+    const poolContract = new SmartContract(user1Provider, pool.poolAddress);
 
-  //   expect(
-  //     pool.aTokenddress,
-  //     'A token address should be the B token Address',
-  //   ).toBe(bTokenAddress);
+    expect(
+      pool.aTokenddress,
+      'A token address should be the B token Address',
+    ).toBe(bTokenAddress);
 
-  //   expect(pool.bTokenAddress, 'B token address should be wmas address').toBe(
-  //     wmasAddress,
-  //   );
+    expect(pool.bTokenAddress, 'B token address should be wmas address').toBe(
+      wmasAddress,
+    );
 
-  //   expect(pool.inputFeeRate, 'Input fee rate is not correct').toBe(
-  //     inputFeeRate,
-  //   );
+    expect(pool.inputFeeRate, 'Input fee rate is not correct').toBe(
+      inputFeeRate,
+    );
 
-  //   // get pool reserves
-  //   const [aReserve, bReserve] = await getPoolReserves(poolContract);
+    //   get pool reserves
+    const [aReserve, bReserve] = await getPoolReserves(poolContract);
 
-  //   expect(aReserve, 'A reserve should be equals to aAmount').toBe(
-  //     parseMas(aAmount.toString()),
-  //   );
+    expect(aReserve, 'A reserve should be equals to aAmount').toBe(
+      parseMas(aAmount.toString()),
+    );
 
-  //   expect(bReserve, 'B reserve should be equals to bAmount').toBe(
-  //     parseMas(bAmount.toString()),
-  //   );
-  // });
+    expect(bReserve, 'B reserve should be equals to bAmount').toBe(
+      parseMas(bAmount.toString()),
+    );
+  });
 });

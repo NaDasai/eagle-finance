@@ -25,7 +25,7 @@ export async function createNewPool(
       .addString(bTokenAddress)
       .addF64(inputFeeRate)
       .serialize(),
-    { coins: Mas.fromString('8') },
+    { coins: Mas.fromString('8.5') },
   );
 
   const status = await operation.waitSpeculativeExecution();
@@ -54,8 +54,8 @@ export async function createNewPoolWithLiquidity(
   console.log('Creating new pool with liquidity...');
 
   const coinsToSendOnAddLiquidity = isBNativeMas
-    ? parseMas(Number(bAmount + 8).toString())
-    : Mas.fromString('8');
+    ? parseMas(Number(bAmount + 8.5).toString())
+    : Mas.fromString('8.5');
   try {
     const operation = await contract.call(
       'createNewPoolWithLiquidity',
