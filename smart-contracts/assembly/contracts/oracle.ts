@@ -10,6 +10,7 @@ import {
 } from '@massalabs/as-types';
 import {
   Address,
+  assertIsSmartContract,
   Context,
   createEvent,
   generateEvent,
@@ -62,6 +63,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .expect('PoolAddress is missing or invalid');
 
   const periodInput = args.nextU64().expect('Period is missing or invalid');
+
+  // Ensure that the poolAddress is a smart contract address
+  assertIsSmartContract(poolAddressInput);
 
   // Init the pool contract
   const poolContract = new IBasicPool(new Address(poolAddressInput));
