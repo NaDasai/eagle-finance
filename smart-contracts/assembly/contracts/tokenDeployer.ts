@@ -1,14 +1,23 @@
-import { Args, Result, stringToBytes } from '@massalabs/as-types';
 import {
+  Args,
+  Result,
+  serializableObjectsArrayToBytes,
+  stringToBytes,
+} from '@massalabs/as-types';
+import {
+  Address,
   Context,
   createSC,
   fileToByteArray,
   generateEvent,
   generateRawEvent,
   Storage,
+  validateAddress,
 } from '@massalabs/massa-as-sdk';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { deserializeStringArray, serializeStringArray } from '../utils';
+import { UserToken } from '../structs/userToken';
+import { u256 } from 'as-bignum/assembly';
 
 // Array of all tokens addresses deployed
 export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
@@ -72,7 +81,6 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     coinsToUseOnDeploy,
   );
 
-
   // Get the tokens array stored in storage
   const tokensStored = Storage.get(tokenAddresses);
 
@@ -98,4 +106,38 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
  */
 export function getTokens(): StaticArray<u8> {
   return Storage.get(tokenAddresses);
+}
+
+export function getUserTokenBalances(
+  binaryArgs: StaticArray<u8>,
+): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const userAddress = args.nextString().expect('Invalid user address');
+
+  assert(validateAddress(userAddress), 'Invalid user address');
+
+  // Get the tokens array stored in storage
+  const tokensStored = deserializeStringArray(Storage.get(tokenAddresses));
+
+  const userTokens: UserToken[] = [];
+
+  // loop on the tokens array and get the user token balance for each token
+  for (let i = 0; i < tokensStored.length; i++) {
+    const tokenAddress = new Address(tokensStored[i]);
+
+    const tokenContract = new IMRC20(tokenAddress);
+
+    const userTokenBalance = tokenContract.balanceOf(new Address(userAddress));
+
+    // Store only the user token if it's greater than 0
+    if (userTokenBalance > u256.Zero) {
+      userTokens.push(
+        new UserToken(new Address(userAddress), tokenAddress, userTokenBalance),
+      );
+    }
+  }
+
+  // Serialize the user tokens array
+  return serializableObjectsArrayToBytes(userTokens);
 }
