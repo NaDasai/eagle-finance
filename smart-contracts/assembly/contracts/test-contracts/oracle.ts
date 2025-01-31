@@ -1,3 +1,4 @@
+// This contract is used for testing purposes and is not intended to be used in production.
 import {
   Args,
   bytesToString,
@@ -16,10 +17,10 @@ import {
   generateEvent,
   Storage,
 } from '@massalabs/massa-as-sdk';
-import { IBasicPool } from '../interfaces/IBasicPool';
+import { IBasicPool } from '../../interfaces/IBasicPool';
 import { u256 } from 'as-bignum/assembly';
-import { ReentrancyGuard } from '../lib/ReentrancyGuard';
-import { SafeMath256 } from '../lib/safeMath';
+import { ReentrancyGuard } from '../../lib/ReentrancyGuard';
+import { SafeMath256 } from '../../lib/safeMath';
 
 // Storage key for pool address
 export const poolAddress = stringToBytes('poolAddress');
