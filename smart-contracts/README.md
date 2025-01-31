@@ -262,7 +262,7 @@ To start using or contributing to the project:
 
 ## Testing
 
-The project includes unit tests using `vitest`. To run the tests:
+The project includes unit tests using `vitest` located on `tests` and `src/builnet-tests`.To run the tests:
 
 ```bash
 npm run test
