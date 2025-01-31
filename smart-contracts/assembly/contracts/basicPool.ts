@@ -278,174 +278,14 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
 }
 
 /**
- * Adds liquidity to the pool by transferring specified amounts of tokens A and B
- * from the user to the contract, and mints LP tokens to the user.
+ * Estimates the liquidity pool (LP) tokens to be received when adding liquidity.
  *
- * @param amountA - The amount of token A to add to the pool.
- * @param amountB - The amount of token B to add to the pool.
- * @param isCalledByRegistry - Indicates if the function is called by the registry contract.
- * @param isWithMAS - Indicates if the add Liquidity is called with MAS native coin
- *
- * @remarks
- * - Ensures that both amountA and amountB are greater than zero.
- * - Normalizes the token amounts to default decimals.
- * - Calculates the optimal liquidity to mint based on current reserves.
- * - Transfers tokens from the user to the contract unless called by the registry.
- * - Updates the token reserves and generates a liquidity addition event.
+ * @param binaryArgs - A serialized array of bytes containing the amounts of token A and token B to add.
+ * - amountA - The amount of token A to add.
+ * - amountB - The amount of token B to add.
+ * @returns The estimated amount of LP tokens.
+ * @throws Will throw an error if the amounts of token A or token B are missing or invalid.
  */
-function _addLiquidity(
-  amountA: u256,
-  amountB: u256,
-  minAmountA: u256,
-  minAmountB: u256,
-  isCalledByRegistry: bool = false,
-  isWithMAS: bool = false,
-  callerAddress: Address = Context.caller(),
-): void {
-  const liquidityData = _getAddLiquidityData(
-    amountA,
-    amountB,
-    minAmountA,
-    minAmountB,
-  );
-
-  const liquidity = liquidityData.liquidity;
-  const finalAmountA = liquidityData.finalAmountA;
-  const finalAmountB = liquidityData.finalAmountB;
-  const reserveA = liquidityData.reserveA;
-  const reserveB = liquidityData.reserveB;
-  const aTokenAddressStored = liquidityData.aTokenAddressStored;
-  const bTokenAddressStored = liquidityData.bTokenAddressStored;
-
-  assert(liquidity > u256.Zero, 'INSUFFICIENT LIQUIDITY MINTED');
-
-  // Address of the current contract
-  const contractAddress = Context.callee();
-
-  // check if it is called by the registry
-  if (!isCalledByRegistry) {
-    // When the registry contract creates a new pool and adds liquidity to it at the same time,
-    // it calls this `addLiquidityFromRegistry` function. In this case, we don't need to transfer tokens from the user to the contract because the amounts of tokens A and B are already transferred by the registry contract. We just need to set the local reserves of the pool and mint the corresponding amount of LP tokens to the user.
-
-    // Transfer tokens A from user to contract
-    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-      callerAddress,
-      contractAddress,
-      finalAmountA,
-    );
-
-    if (!isWithMAS) {
-      // Transfer tokens B from user to contract if this function is not called from addLiquidityWithMAS
-      new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-        callerAddress,
-        contractAddress,
-        finalAmountB,
-      );
-    }
-  }
-
-  // Mint LP tokens to user
-  liquidityManager.mint(callerAddress, liquidity);
-
-  // Update reserves
-  _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
-  _updateReserveB(SafeMath256.add(reserveB, finalAmountB));
-
-  generateEvent(
-    `ADD_LIQUIDITY: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
-  );
-}
-
-/**
- * Calculates the liquidity data for adding liquidity to a pool.
- *
- * @param amountA - The amount of token A to add.
- * @param amountB - The amount of token B to add.
- * @param minAmountA - The minimum acceptable amount of token A.
- * @param minAmountB - The minimum acceptable amount of token B.
- * @returns An instance of GetLiquidityDataResult containing the calculated liquidity,
- *          final amounts of tokens A and B, and the reserves of tokens A and B.
- * @throws Will throw an error if amountA or amountB is zero, or if the final amounts
- *         are less than the specified minimum amounts.
- */
-function _getAddLiquidityData(
-  amountA: u256,
-  amountB: u256,
-  minAmountA: u256,
-  minAmountB: u256,
-): GetLiquidityDataResult {
-  // ensure that amountA and amountB are greater than 0
-  assert(amountA > u256.Zero, 'Amount A must be greater than 0');
-  assert(amountB > u256.Zero, 'Amount B must be greater than 0');
-
-  // Retrieve the token addresses from storage
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-  // Get the reserves of the two tokens in the pool
-  const reserveA = _getLocalReserveA();
-  const reserveB = _getLocalReserveB();
-
-  // Get the total supply of the LP token
-  const totalSupply: u256 = liquidityManager.getTotalSupply();
-
-  let finalAmountA = amountA;
-  let finalAmountB = amountB;
-  let liquidity: u256;
-
-  if (reserveA == u256.Zero && reserveB == u256.Zero) {
-    // Initial liquidity: liquidity = sqrt(amountA * amountB)
-    const product = SafeMath256.mul(amountA, amountB);
-    // liquidity = sqrt(product)
-    liquidity = SafeMath256.sqrt(product);
-  } else {
-    // Add liquidity proportionally
-    // Optimal amountB given amountA:
-    const amountBOptimal = SafeMath256.div(
-      SafeMath256.mul(amountA, reserveB),
-      reserveA,
-    );
-    if (amountBOptimal > amountB) {
-      // User provided less B than optimal, adjust A
-      const amountAOptimal = SafeMath256.div(
-        SafeMath256.mul(amountB, reserveA),
-        reserveB,
-      );
-      finalAmountA = amountAOptimal;
-    } else {
-      // User provided more B than needed, adjust B
-      finalAmountB = amountBOptimal;
-    }
-
-    // assert that the finalAmountA and finalAmountB are greater than minAmountA and minAmountB
-    assert(finalAmountA >= minAmountA, 'LESS_MIN_A_AMOUNT');
-    assert(finalAmountB >= minAmountB, 'LESS_MIN_B_AMOUNT');
-
-    // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
-    const liqA = SafeMath256.div(
-      SafeMath256.mul(finalAmountA, totalSupply),
-      reserveA,
-    );
-
-    const liqB = SafeMath256.div(
-      SafeMath256.mul(finalAmountB, totalSupply),
-      reserveB,
-    );
-
-    liquidity = liqA < liqB ? liqA : liqB;
-  }
-
-  return new GetLiquidityDataResult(
-    liquidity,
-    finalAmountA,
-    finalAmountB,
-    reserveA,
-    reserveB,
-    aTokenAddressStored,
-    bTokenAddressStored,
-  );
-}
-
 export function getAddLiquidityLPEstimation(binaryArgs: StaticArray<u8>): u256 {
   const args = new Args(binaryArgs);
 
@@ -1051,6 +891,85 @@ export function getSwapInEstimation(
 // INTERNAL FUNCTIONS
 
 /**
+ * Adds liquidity to the pool by transferring specified amounts of tokens A and B
+ * from the user to the contract, and mints LP tokens to the user.
+ *
+ * @param amountA - The amount of token A to add to the pool.
+ * @param amountB - The amount of token B to add to the pool.
+ * @param isCalledByRegistry - Indicates if the function is called by the registry contract.
+ * @param isWithMAS - Indicates if the add Liquidity is called with MAS native coin
+ *
+ * @remarks
+ * - Ensures that both amountA and amountB are greater than zero.
+ * - Normalizes the token amounts to default decimals.
+ * - Calculates the optimal liquidity to mint based on current reserves.
+ * - Transfers tokens from the user to the contract unless called by the registry.
+ * - Updates the token reserves and generates a liquidity addition event.
+ */
+function _addLiquidity(
+  amountA: u256,
+  amountB: u256,
+  minAmountA: u256,
+  minAmountB: u256,
+  isCalledByRegistry: bool = false,
+  isWithMAS: bool = false,
+  callerAddress: Address = Context.caller(),
+): void {
+  const liquidityData = _getAddLiquidityData(
+    amountA,
+    amountB,
+    minAmountA,
+    minAmountB,
+  );
+
+  const liquidity = liquidityData.liquidity;
+  const finalAmountA = liquidityData.finalAmountA;
+  const finalAmountB = liquidityData.finalAmountB;
+  const reserveA = liquidityData.reserveA;
+  const reserveB = liquidityData.reserveB;
+  const aTokenAddressStored = liquidityData.aTokenAddressStored;
+  const bTokenAddressStored = liquidityData.bTokenAddressStored;
+
+  assert(liquidity > u256.Zero, 'INSUFFICIENT LIQUIDITY MINTED');
+
+  // Address of the current contract
+  const contractAddress = Context.callee();
+
+  // check if it is called by the registry
+  if (!isCalledByRegistry) {
+    // When the registry contract creates a new pool and adds liquidity to it at the same time,
+    // it calls this `addLiquidityFromRegistry` function. In this case, we don't need to transfer tokens from the user to the contract because the amounts of tokens A and B are already transferred by the registry contract. We just need to set the local reserves of the pool and mint the corresponding amount of LP tokens to the user.
+
+    // Transfer tokens A from user to contract
+    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
+      callerAddress,
+      contractAddress,
+      finalAmountA,
+    );
+
+    if (!isWithMAS) {
+      // Transfer tokens B from user to contract if this function is not called from addLiquidityWithMAS
+      new IMRC20(new Address(bTokenAddressStored)).transferFrom(
+        callerAddress,
+        contractAddress,
+        finalAmountB,
+      );
+    }
+  }
+
+  // Mint LP tokens to user
+  liquidityManager.mint(callerAddress, liquidity);
+
+  // Update reserves
+  _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
+  _updateReserveB(SafeMath256.add(reserveB, finalAmountB));
+
+  generateEvent(
+    `ADD_LIQUIDITY: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
+  );
+}
+
+/**
  * Adds the accumulated protocol fee for a token.
  * @param tokenAddress The address of the token for which to add the accumulated protocol fee.
  * @param amount The amount of accumulated protocol fee to add.
@@ -1447,6 +1366,96 @@ function _getSwapIn(amountOut: u256, tokenOutAddress: string): u256 {
   );
 
   return amountInWithoutFees;
+}
+
+/**
+ * Calculates the liquidity data for adding liquidity to a pool.
+ *
+ * @param amountA - The amount of token A to add.
+ * @param amountB - The amount of token B to add.
+ * @param minAmountA - The minimum acceptable amount of token A.
+ * @param minAmountB - The minimum acceptable amount of token B.
+ * @returns An instance of GetLiquidityDataResult containing the calculated liquidity,
+ *          final amounts of tokens A and B, and the reserves of tokens A and B.
+ * @throws Will throw an error if amountA or amountB is zero, or if the final amounts
+ *         are less than the specified minimum amounts.
+ */
+function _getAddLiquidityData(
+  amountA: u256,
+  amountB: u256,
+  minAmountA: u256,
+  minAmountB: u256,
+): GetLiquidityDataResult {
+  // ensure that amountA and amountB are greater than 0
+  assert(amountA > u256.Zero, 'Amount A must be greater than 0');
+  assert(amountB > u256.Zero, 'Amount B must be greater than 0');
+
+  // Retrieve the token addresses from storage
+  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
+  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
+
+  // Get the reserves of the two tokens in the pool
+  const reserveA = _getLocalReserveA();
+  const reserveB = _getLocalReserveB();
+
+  // Get the total supply of the LP token
+  const totalSupply: u256 = liquidityManager.getTotalSupply();
+
+  let finalAmountA = amountA;
+  let finalAmountB = amountB;
+  let liquidity: u256;
+
+  if (reserveA == u256.Zero && reserveB == u256.Zero) {
+    // Initial liquidity: liquidity = sqrt(amountA * amountB)
+    const product = SafeMath256.mul(amountA, amountB);
+    // liquidity = sqrt(product)
+    liquidity = SafeMath256.sqrt(product);
+  } else {
+    // Add liquidity proportionally
+    // Optimal amountB given amountA:
+    const amountBOptimal = SafeMath256.div(
+      SafeMath256.mul(amountA, reserveB),
+      reserveA,
+    );
+    if (amountBOptimal > amountB) {
+      // User provided less B than optimal, adjust A
+      const amountAOptimal = SafeMath256.div(
+        SafeMath256.mul(amountB, reserveA),
+        reserveB,
+      );
+      finalAmountA = amountAOptimal;
+    } else {
+      // User provided more B than needed, adjust B
+      finalAmountB = amountBOptimal;
+    }
+
+    // assert that the finalAmountA and finalAmountB are greater than minAmountA and minAmountB
+    assert(finalAmountA >= minAmountA, 'LESS_MIN_A_AMOUNT');
+    assert(finalAmountB >= minAmountB, 'LESS_MIN_B_AMOUNT');
+
+    // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
+    const liqA = SafeMath256.div(
+      SafeMath256.mul(finalAmountA, totalSupply),
+      reserveA,
+    );
+
+    const liqB = SafeMath256.div(
+      SafeMath256.mul(finalAmountB, totalSupply),
+      reserveB,
+    );
+
+    liquidity = liqA < liqB ? liqA : liqB;
+  }
+
+  return new GetLiquidityDataResult(
+    liquidity,
+    finalAmountA,
+    finalAmountB,
+    reserveA,
+    reserveB,
+    aTokenAddressStored,
+    bTokenAddressStored,
+  );
 }
 
 /**
