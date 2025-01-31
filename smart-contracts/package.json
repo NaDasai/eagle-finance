@@ -1,7 +1,7 @@
 {
     "name": "my-massa-sc",
     "version": "0.0.2",
-    "description": "",
+    "description": "A decentralized exchange (DEX) protocol for the Massa blockchain, featuring automated liquidity provision, token swapping, flash swaps, and a TWAP oracle.",
     "main": "index.js",
     "scripts": {
         "events": "tsx src/events.ts",
