@@ -1,4 +1,4 @@
-// This contract is used for testing purposes and is not intended to be used in production.
+// This contract is used for testing purposes and is not intended to be used in production.w
 import {
   Args,
   bytesToString,
