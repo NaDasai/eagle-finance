@@ -108,6 +108,21 @@ export function getTokens(): StaticArray<u8> {
   return Storage.get(tokenAddresses);
 }
 
+/**
+ * Retrieves the token balances for a user based on the provided binary arguments.
+ *
+ * @param binaryArgs - A serialized array of bytes representing the user's address.
+ * - userAddress: The user's address.
+ * @returns A serialized array of bytes containing the user's token balances.
+ *
+ * @throws Will throw an error if the user address is invalid.
+ *
+ * @remarks
+ * This function deserializes the user address from the binary arguments, validates it,
+ * and retrieves the stored token addresses from storage. It then iterates over each token,
+ * checks the user's balance, and collects non-zero balances into a UserToken array.
+ * The resulting array is serialized and returned.
+ */
 export function getUserTokenBalances(
   binaryArgs: StaticArray<u8>,
 ): StaticArray<u8> {
