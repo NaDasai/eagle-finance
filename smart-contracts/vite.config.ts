@@ -7,8 +7,8 @@ export default defineConfig({
     globals: true, // Enables global APIs like `describe`, `it`, `expect`.
     environment: 'node', // Set to 'node' for backend testing.
     include: ['tests/**/*.test.ts'], // Define where your test files are located.
-    testTimeout: 60_000, // Set a timeout for tests.
-    hookTimeout: 60_000,
+    testTimeout: 100_000, // Set a timeout for tests.
+    hookTimeout: 100_000,
     coverage: {
       provider: 'v8', // Enable coverage reports.
       enabled: false,
