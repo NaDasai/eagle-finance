@@ -1,6 +1,6 @@
 import { u256 } from 'as-bignum/assembly';
 
-// Constant for 100%
+// Constant for 1%
 export const ONE_PERCENT = u64(10_000);
 
 // Native MAS coin address to determine if the token address is the native Mas coin

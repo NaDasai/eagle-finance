@@ -21,10 +21,7 @@ import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
 import { _buildPoolKey, sortPoolTokenAddresses } from '../utils';
-import {
-  DEFAULT_BUILDNET_WMAS_ADDRESS,
-  NATIVE_MAS_COIN_ADDRESS,
-} from '../utils/constants';
+import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
