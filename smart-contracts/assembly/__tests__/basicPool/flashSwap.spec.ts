@@ -33,6 +33,9 @@ const bTokenAddress = 'AS126PjhhpC2aYhPcCh5DgJFQjEkPtts5fnqktu1hPJdcLdV5RXXs';
 const registeryContractAddr =
   'AS1FUB799cR9KYhyjfJRowWnZCuXe2h4Eb8V71Cmn9tsAr6HHuUU';
 
+const flashSwapContractAddr =
+  'AS12Duc9x6iG1oQXzocF7evwgBf86zcLXCTwMBXZU5NjBEwYct4Xg';
+
 const TOKENS_DEFAULT_DECIMALS = 9;
 
 function switchUser(user: string): void {
@@ -44,6 +47,7 @@ beforeAll(() => {
   addAddressToLedger(aTokenAddress);
   addAddressToLedger(bTokenAddress);
   addAddressToLedger(registeryContractAddr);
+  addAddressToLedger(flashSwapContractAddr);
 
   setDeployContext(user1Address);
 
@@ -121,7 +125,7 @@ describe('Scenario 1: Add liquidity, Flash Swap', () => {
 
     mockScCall(
       new Args()
-        .add(u256.fromU64(100 * 10 ** TOKENS_DEFAULT_DECIMALS))
+        .add(u256.fromU64(125 * 10 ** TOKENS_DEFAULT_DECIMALS))
         .serialize(),
     );
 
@@ -135,8 +139,8 @@ describe('Scenario 1: Add liquidity, Flash Swap', () => {
       new Args()
         .add(u256.fromU64(50 * 10 ** TOKENS_DEFAULT_DECIMALS))
         .add(u256.Zero)
-        .add(registeryContractAddr)
-        .add(new Args().add(aTokenAddress).serialize())
+        .add(flashSwapContractAddr)
+        .add(new Args().add(u256.fromU64(10)).serialize())
         .serialize(),
     );
 

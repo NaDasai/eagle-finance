@@ -20,6 +20,8 @@ export async function addLiquidity(
   bAmount: number,
   minAmountA: number,
   minAmountB: number,
+  aDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  bDecimals: number = TOKEN_DEFAULT_DECIMALS,
 ) {
   console.log(
     `Add liquidity: ${aAmount} A, ${bAmount} B (min: ${minAmountA} A, ${minAmountB} B) to pool...`,
@@ -27,10 +29,10 @@ export async function addLiquidity(
   const operation = await poolContract.call(
     'addLiquidity',
     new Args()
-      .addU256(parseUnits(aAmount.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(bAmount.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountA.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountB.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(aAmount.toString(), aDecimals))
+      .addU256(parseUnits(bAmount.toString(), bDecimals))
+      .addU256(parseUnits(minAmountA.toString(), aDecimals))
+      .addU256(parseUnits(minAmountB.toString(), bDecimals))
       .serialize(),
     { coins: Mas.fromString('0.1') },
   );
@@ -136,14 +138,16 @@ export async function swap(
   tokenInAddress: string,
   amountIn: number,
   minAmountOut: number,
+  inDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  outDecimals: number = TOKEN_DEFAULT_DECIMALS,
 ) {
   console.log(`Swap ${amountIn} ${tokenInAddress} to pool...`);
   const operation = await poolContract.call(
     'swap',
     new Args()
       .addString(tokenInAddress)
-      .addU256(parseUnits(amountIn.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(amountIn.toString(), inDecimals))
+      .addU256(parseUnits(minAmountOut.toString(), outDecimals))
       .serialize(),
     { coins: Mas.fromString('0.1') },
   );
@@ -158,11 +162,54 @@ export async function swap(
   }
 }
 
+export async function removeLiquidityUsingPercentage(
+  poolContract: SmartContract,
+  userProvider: Provider,
+  percentage: number,
+  minAmountA: number,
+  minAmountB: number,
+  aDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  bDecimals: number = TOKEN_DEFAULT_DECIMALS,
+) {
+  console.log(
+    `Remove liquidity using percentage: ${percentage}% (min: ${minAmountA} A, ${minAmountB} B) from pool...`,
+  );
+
+  // get the user lpBalance
+  const userLPBalance = await getLPBalance(poolContract, userProvider.address);
+
+  console.log('User LP balance:', userLPBalance);
+
+  const lpRemoveAmount = (userLPBalance * BigInt(percentage)) / 100n;
+
+  console.log('LP amount:', lpRemoveAmount);
+
+  const operation = await poolContract.call(
+    'removeLiquidity',
+    new Args()
+      .addU256(lpRemoveAmount)
+      .addU256(parseUnits(minAmountA.toString(), aDecimals))
+      .addU256(parseUnits(minAmountB.toString(), bDecimals))
+      .serialize(),
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Liquidity removed');
+  } else {
+    console.log('Status:', status);
+    throw new Error('Failed to remove liquidity');
+  }
+}
+
 export async function removeLiquidity(
   poolContract: SmartContract,
   lpAmount: number,
   minAmountA: number,
   minAmountB: number,
+  aDecimals: number = TOKEN_DEFAULT_DECIMALS,
+  bDecimals: number = TOKEN_DEFAULT_DECIMALS,
 ) {
   console.log(
     `Remove liquidity: ${lpAmount} LP (min: ${minAmountA} A, ${minAmountB} B) from pool...`,
@@ -172,8 +219,8 @@ export async function removeLiquidity(
     'removeLiquidity',
     new Args()
       .addU256(parseUnits(lpAmount.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountA.toString(), TOKEN_DEFAULT_DECIMALS))
-      .addU256(parseUnits(minAmountB.toString(), TOKEN_DEFAULT_DECIMALS))
+      .addU256(parseUnits(minAmountA.toString(), aDecimals))
+      .addU256(parseUnits(minAmountB.toString(), bDecimals))
       .serialize(),
   );
 
@@ -227,6 +274,7 @@ export async function increaseAllownace(
   spenderAddress: string,
   amount: number,
   provider: Provider,
+  tokenDecimals: number = TOKEN_DEFAULT_DECIMALS,
 ): Promise<void> {
   const tokenContract = new MRC20(provider, tokenAddress);
 
@@ -234,7 +282,7 @@ export async function increaseAllownace(
 
   const operation = await tokenContract.increaseAllowance(
     spenderAddress,
-    parseUnits(amount.toString(), TOKEN_DEFAULT_DECIMALS),
+    parseUnits(amount.toString(), tokenDecimals),
     { coins: Mas.fromString('0.1') },
   );
 
@@ -261,21 +309,6 @@ export async function getPoolReserves(
   return [reserveA, reserveB];
 }
 
-export async function getPoolTWAP(
-  poolContract: SmartContract,
-  tokenAddress: string,
-): Promise<number> {
-  const twap = (
-    await poolContract.read(
-      'getTWAP',
-      new Args().addString(tokenAddress).addU64(0n).serialize(),
-    )
-  ).value;
-
-  const desTwap = new Args(twap).nextU256();
-  return Number(formatMas(desTwap));
-}
-
 export function computeMintStorageCost(receiver: string) {
   const STORAGE_BYTE_COST = 100_000;
   const STORAGE_PREFIX_LENGTH = 4;
@@ -288,15 +321,63 @@ export function computeMintStorageCost(receiver: string) {
   return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
 }
 
-export async function getPools(registryContract: SmartContract) {
-  // get pools from registry
-  const poolsRes = await registryContract.read('getPools');
+export async function getAPriceCumulativeLast(poolContract: SmartContract) {
+  return new Args(
+    (await poolContract.read('getAPriceCumulativeLast')).value,
+  ).nextU256();
+}
 
-  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
-    Pool,
+export async function getBPriceCumulativeLast(poolContract: SmartContract) {
+  return new Args(
+    (await poolContract.read('getBPriceCumulativeLast')).value,
+  ).nextU256();
+}
+
+export async function flash(
+  poolContract: SmartContract,
+  flashContractAddress: string,
+  flashSwapData: Uint8Array,
+  aAmountOut: bigint,
+  bAmountOut: bigint,
+) {
+  console.log(
+    `Flash swap with epecting ${aAmountOut} A and ${bAmountOut} B...`,
   );
 
-  console.log('Pools: ', pools);
+  const operation = await poolContract.call(
+    'flash',
+    new Args()
+      .addU256(aAmountOut)
+      .addU256(bAmountOut)
+      .addString(flashContractAddress)
+      .addUint8Array(flashSwapData)
+      .serialize(),
+    { coins: Mas.fromString('0.1') },
+  );
 
-  return pools;
+  const operationStatus = await operation.waitSpeculativeExecution();
+
+  if (operationStatus === OperationStatus.SpeculativeSuccess) {
+    console.log('Flash successful');
+  } else {
+    console.log('Flash  failed');
+    throw new Error('Failed to execute flash');
+  }
+}
+
+export async function getSwapOutEstimation(
+  poolContract: SmartContract,
+  amountIn: number,
+  tokenInAddress: string,
+  tokenInDecimals: number = TOKEN_DEFAULT_DECIMALS,
+) {
+  const operation = await poolContract.read(
+    'getSwapOutEstimation',
+    new Args()
+      .addString(tokenInAddress)
+      .addU256(parseUnits(amountIn.toString(), tokenInDecimals))
+      .serialize(),
+  );
+
+  return new Args(operation.value).nextU256();
 }

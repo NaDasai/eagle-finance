@@ -1,4 +1,11 @@
-import { Args, bytesToU256, u256ToBytes } from '@massalabs/as-types';
+import {
+  Args,
+  bytesToF64,
+  bytesToString,
+  bytesToU256,
+  bytesToU64,
+  u256ToBytes,
+} from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
 import { u256 } from 'as-bignum/assembly';
 
@@ -36,7 +43,7 @@ export class IBasicPool {
       .add(feeRate)
       .add(feeShareProtocol)
       .add(registryAddress);
-    call(this._origin, 'constructor', args, u64(500000000));
+    call(this._origin, 'constructor', args, u64(100000000));
   }
 
   /**
@@ -62,6 +69,7 @@ export class IBasicPool {
   }
 
   addLiquidityFromRegistry(
+    callerAddress: Address,
     amountA: u256,
     amountB: u256,
     minAmountA: u256,
@@ -70,6 +78,7 @@ export class IBasicPool {
     coins: u64 = 0,
   ): void {
     const args = new Args()
+      .add(callerAddress)
       .add(amountA)
       .add(amountB)
       .add(minAmountA)
@@ -169,5 +178,49 @@ export class IBasicPool {
   getPrice(): u256 {
     const result = call(this._origin, 'getPrice', new Args(), 0);
     return bytesToU256(result);
+  }
+
+  getATokenAddress(): string {
+    const result = call(this._origin, 'getATokenAddress', new Args(), 0);
+    return bytesToString(result);
+  }
+
+  getBTokenAddress(): string {
+    const result = call(this._origin, 'getBTokenAddress', new Args(), 0);
+    return bytesToString(result);
+  }
+
+  getFeeRate(): f64 {
+    const result = call(this._origin, 'getFeeRate', new Args(), 0);
+    return bytesToF64(result);
+  }
+
+  getAPriceCumulativeLast(): u256 {
+    const result = call(this._origin, 'getAPriceCumulativeLast', new Args(), 0);
+    return bytesToU256(result);
+  }
+
+  getBPriceCumulativeLast(): u256 {
+    const result = call(this._origin, 'getBPriceCumulativeLast', new Args(), 0);
+    return bytesToU256(result);
+  }
+
+  getLastTimestamp(): u64 {
+    const result = call(this._origin, 'getLastTimestamp', new Args(), 0);
+    return bytesToU64(result);
+  }
+
+  flash(
+    aAmount: u256,
+    bAmount: u256,
+    profitAddress: string,
+    callbackData: StaticArray<u8>,
+  ): void {
+    const args = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(profitAddress)
+      .add(callbackData);
+    call(this._origin, 'flash', args, 0);
   }
 }

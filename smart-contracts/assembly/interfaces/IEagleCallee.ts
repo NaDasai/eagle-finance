@@ -22,14 +22,14 @@ export class IEagleCallee {
   /**
    * Invokes the 'eagleCall' function on the smart contract at the specified origin address.
    *
-   * @param caller - The address of the caller initiating the call.
+   * @param profitAddress - The address of the profit address.
    * @param aAmount - The first amount parameter of type u256.
    * @param bAmount - The second amount parameter of type u256.
    * @param data - Additional data to be passed as a static array of bytes.
    * @param coins - The amount of coins to be sent with the call. Default is 0.
    */
   eagleCall(
-    caller: Address,
+    profitAddress: Address,
     aAmount: u256,
     bAmount: u256,
     data: StaticArray<u8>,
@@ -38,7 +38,22 @@ export class IEagleCallee {
     call(
       this._origin,
       'eagleCall',
-      new Args().add(caller).add(aAmount).add(bAmount).add(data),
+      new Args().add(profitAddress).add(aAmount).add(bAmount).add(data),
+      coins,
+    );
+  }
+
+  initFlash(
+    aAmount: u256,
+    bAmount: u256,
+    profitAddress: Address,
+    data: StaticArray<u8>,
+    coins: u64 = 0,
+  ): void {
+    call(
+      this._origin,
+      'initFlash',
+      new Args().add(aAmount).add(bAmount).add(profitAddress).add(data),
       coins,
     );
   }

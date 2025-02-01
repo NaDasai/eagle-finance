@@ -2,10 +2,7 @@ import {
   Account,
   Args,
   Mas,
-  parseUnits,
   SmartContract,
-  U128,
-  U8,
   Web3Provider,
 } from '@massalabs/massa-web3';
 import { getScByteCode } from './utils';
@@ -13,25 +10,23 @@ import { getScByteCode } from './utils';
 const account = await Account.fromEnv();
 const provider = Web3Provider.buildnet(account);
 
-console.log('Deploying contract...');
+console.log('Deploying FlashSwap Exemple contract...');
 
-const byteCode = getScByteCode('build', 'token.wasm');
+const byteCode = getScByteCode('build', 'ExempleFlashSwap.wasm');
 
+// constructr takes pool and regisry address as a parameter
 const constructorArgs = new Args()
-  .addString(account.address.toString()) // owner
-  .addString('Eagle Finance') // token name
-  .addString('EGL') // token symbol
-  .addU8(U8.fromNumber(18)) // token decimals
-  .addU256(parseUnits('10000000', 18)) // token total supply
-  .addString('https://eaglex.vercel.app/images/eagle-finance.png') // token url (optional)
-  .addString('Dex on Massa') // token description (optional)
+  .addString('AS128wQRHcdrLxuPZAcr5p4CLbZ3zBJY1asoouCNWskJpkU7fhEPK') // pool address
+  .addString('AS1yDijtJ57x9SMbMFVifNFLC8hNnjS1a4hMv7LuQXARvPQHnTbp') // regisrty address
   .serialize();
 
 const contract = await SmartContract.deploy(
   provider,
   byteCode,
   constructorArgs,
-  { coins: Mas.fromString('0.1') },
+  {
+    coins: Mas.fromString('2'),
+  },
 );
 
 console.log('Contract deployed at:', contract.address);

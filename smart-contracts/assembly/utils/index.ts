@@ -2,10 +2,11 @@ import { Args, SafeMath } from '@massalabs/as-types';
 import { DEFAULT_BUILDNET_WMAS_ADDRESS } from './constants';
 import {
   Address,
-  call,
-  isAddressEoa,
+  Context,
   transferCoins,
 } from '@massalabs/massa-as-sdk';
+import { IMRC20 } from '../interfaces/IMRC20';
+import { u256 } from 'as-bignum/assembly';
 
 /**
  * Builds a pool key using the token addresses and the input fee rate.
@@ -22,26 +23,34 @@ export function _buildPoolKey(
 ): string {
   // sort the addresses to ensure that the key of the pool is always the same
   // Ensure WMAS if exists, it is always tokenB
-  if (tokenA === wmasAddress || (tokenB !== wmasAddress && tokenA > tokenB)) {
+  const sortedTokens = sortPoolTokenAddresses(tokenA, tokenB, wmasAddress);
+
+  const sortedTokenA = sortedTokens[0];
+  const sortedTokenB = sortedTokens[1];
+
+  const key = `${sortedTokenA}-${sortedTokenB}-${inputFeeRate.toString()}`;
+  return key;
+}
+
+export function sortPoolTokenAddresses(
+  tokenA: string,
+  tokenB: string,
+  wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
+): string[] {
+  // If either token is wmasAddress, ensure it is always tokenB
+  if (tokenA == wmasAddress) {
+    // Swap if tokenA is wmasAddress
+    const temp = tokenA;
+    tokenA = tokenB;
+    tokenB = temp;
+  } else if (tokenB != wmasAddress && tokenA > tokenB) {
+    // Sort tokens lexicographically if neither is wmasAddress
     const temp = tokenA;
     tokenA = tokenB;
     tokenB = temp;
   }
-  const key = `${tokenA}-${tokenB}-${inputFeeRate.toString()}`;
-  return key;
-}
 
-/**
- * Asserts that the token decimals are either 9 or 18.
- * @param decimals - Decimals of the token.
- * @returns void
- * @throws if the token decimals are not 9 or 18.
- */
-export function assertIsValidTokenDecimals(decimals: u8): void {
-  assert(
-    decimals == 6 || decimals == 9 || decimals == 18,
-    'Invalid token decimals. Must be 6 or 9 or 18.',
-  );
+  return [tokenA, tokenB];
 }
 
 /**
@@ -93,6 +102,21 @@ export function transferRemaining(
 }
 
 function _transferRemaining(to: Address, value: u64): void {
-  if (isAddressEoa(to.toString())) transferCoins(to, value);
-  else call(to, 'receiveCoins', new Args(), value);
+  transferCoins(to, value);
+}
+
+export function _computeMintStorageCost(receiver: Address): u64 {
+  const STORAGE_BYTE_COST = 100_000;
+  const STORAGE_PREFIX_LENGTH = 4;
+  const BALANCE_KEY_PREFIX_LENGTH = 7;
+
+  const baseLength = STORAGE_PREFIX_LENGTH;
+  const keyLength = BALANCE_KEY_PREFIX_LENGTH + receiver.toString().length;
+  const valueLength = 4 * sizeof<u64>();
+  return (baseLength + keyLength + valueLength) * STORAGE_BYTE_COST;
+}
+
+export function getTokenBalance(address: Address): u256 {
+  const token = new IMRC20(address);
+  return token.balanceOf(Context.callee());
 }

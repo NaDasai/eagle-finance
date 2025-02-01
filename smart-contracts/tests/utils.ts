@@ -12,9 +12,18 @@ export function getScByteCode(folderName: string, fileName: string): Buffer {
   return readFileSync(path.join(__dirname, folderName, fileName));
 }
 
+export function calculateExpectedSwapAddedAmount(
+  amount: number,
+  inputFee: number = 0.3,
+  protocolFee: number = 0.05,
+): number {
+  const feeRate = (amount * inputFee) / 100;
+  const protocolFeeAmount = (feeRate * protocolFee) / 100;
+  const amountWithoutFee = amount - protocolFeeAmount;
 
-
+  return amountWithoutFee;
+}
 
 export const TOKEN_DEFAULT_DECIMALS = 9;
 
-export const NATIVE_MAS_COIN_ADDRESS= "NATIVE_COIN"
+export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
