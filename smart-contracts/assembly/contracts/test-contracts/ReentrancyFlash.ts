@@ -142,7 +142,7 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
     // init FlashLoan again (this is malicious)
     const poolContract = new IBasicPool(new Address(poolAddress));
 
-    poolContract.flash(amountA, amountB, sender, data);
+    poolContract.flashLoan(amountA, amountB, sender, data);
 
     // TRnasfer amountToRepay to the contract
     tokenA.transfer(new Address(poolAddress), amountToRepay);
@@ -238,7 +238,7 @@ export function initFlash(binaryArgs: StaticArray<u8>): void {
 
   const poolContract = new IBasicPool(new Address(poolAddress));
 
-  poolContract.flash(aAmount, bAmount, profitAddress, data);
+  poolContract.flashLoan(aAmount, bAmount, profitAddress, data);
 }
 
 // Export ownership functions

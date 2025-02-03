@@ -345,7 +345,7 @@ export async function flash(
   );
 
   const operation = await poolContract.call(
-    'flash',
+    'flashLoan',
     new Args()
       .addU256(aAmountOut)
       .addU256(bAmountOut)

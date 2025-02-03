@@ -210,7 +210,7 @@ export class IBasicPool {
     return bytesToU64(result);
   }
 
-  flash(
+  flashLoan(
     aAmount: u256,
     bAmount: u256,
     profitAddress: string,
@@ -221,6 +221,6 @@ export class IBasicPool {
       .add(bAmount)
       .add(profitAddress)
       .add(callbackData);
-    call(this._origin, 'flash', args, 0);
+    call(this._origin, 'flashLoan', args, 0);
   }
 }

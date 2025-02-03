@@ -610,7 +610,7 @@ export function syncReserves(): void {
  * - Updates the pool reserves and cumulative prices.
  * - Generates events for the old and new pool K values and the flash swap execution.
  */
-export function flash(binaryArgs: StaticArray<u8>): void {
+export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
