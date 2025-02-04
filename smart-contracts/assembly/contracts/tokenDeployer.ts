@@ -11,6 +11,7 @@ import {
   fileToByteArray,
   generateEvent,
   generateRawEvent,
+  isDeployingContract,
   Storage,
   validateAddress,
 } from '@massalabs/massa-as-sdk';
@@ -27,6 +28,10 @@ export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
  * @returns void
  */
 export function constructor(_: StaticArray<u8>): void {
+  // This line is important. It ensures that this function can't be called in the future.
+  // If you remove this check, someone could call your constructor function and reset your smart contract.
+  assert(isDeployingContract());
+
   Storage.set(tokenAddresses, serializeStringArray([]));
   generateEvent(`Token Deployer deployed.`);
 }
