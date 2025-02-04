@@ -317,6 +317,45 @@ export function getPools(): StaticArray<u8> {
 }
 
 /**
+ * Retrieves and serializes pools associated with a given token address.
+ *
+ * @param binaryArgs - A serialized array of bytes containing the token address.
+ * @returns A serialized array of bytes representing the pools that include the specified token address.
+ * @throws An error if the token address is missing or invalid.
+ */
+export function getPoolsByTokenAddress(
+  binaryArgs: StaticArray<u8>,
+): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const tokenAddress = args
+    .nextString()
+    .expect('TokenAddress is missing or invalid');
+
+  const poolsKeysStored = Storage.get(poolsKeys);
+
+  // Deserialize the pools keys
+  const deserializedPoolsKeys = new Args(poolsKeysStored)
+    .nextStringArray()
+    .unwrap();
+
+  const retPools: Pool[] = [];
+
+  for (let i = 0; i < deserializedPoolsKeys.length; i++) {
+    const key = deserializedPoolsKeys[i];
+    const pool = pools.get(key, new Pool());
+    if (
+      pool.aAddress.toString() == tokenAddress ||
+      pool.bAddress.toString() == tokenAddress
+    ) {
+      retPools.push(pool);
+    }
+  }
+
+  return new Args().addSerializableObjectArray(retPools).serialize();
+}
+
+/**
  * Get the fee share protocol
  * @returns  The fee share protocol
  */
@@ -453,7 +492,7 @@ function _createNewPool(
 
   // Ensure taht the aTokenAddress and bTokenAddress are smart contract addresses
   assertIsSmartContract(aTokenAddress);
-  // assertIsSmartContract(bTokenAddress);
+  assertIsSmartContract(bTokenAddress);
 
   //  check if the pool is already in the registery
   const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
