@@ -154,6 +154,17 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
+
+  // Emit an event
+  generateEvent(
+    createEvent('UPDATE_CUMULATIVE_PRICES:', [
+      Context.callee().toString(), // Smart contract address
+      Context.caller().toString(), // Caller address
+      '0', // A Comulative price
+      '0', // B Comulative price
+      Context.timestamp().toString(), // Current timestamp
+    ]),
+  );
 }
 
 /**
