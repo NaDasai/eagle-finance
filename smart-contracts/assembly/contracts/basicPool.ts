@@ -9,6 +9,7 @@ import {
   assertIsSmartContract,
   balance,
   validateAddress,
+  createEvent,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -374,9 +375,6 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
   // Check if the minAmountOut is greater than 0
   assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
 
-  const SCBalance = balance();
-  const sent = Context.transferredCoins();
-
   // Get the registry contract address
   const registryContractAddressStored = bytesToString(
     Storage.get(registryContractAddress),
@@ -394,7 +392,6 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
 
     // Call the swap internal function
     _swap(wmasTokenAddressStored, amountIn, minAmountOut, true);
-    transferRemaining(SCBalance, balance(), sent, Context.caller());
   } else {
     // Call the swap internal function
     _swap(tokenInAddress, amountIn, minAmountOut, false, true);
@@ -406,6 +403,7 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
 
 /**
  * Claims accumulated protocol fees for a given token.
+ * This function can be called by anyone but
  * @returns void
  */
 export function claimProtocolFees(): void {
@@ -461,7 +459,14 @@ export function claimProtocolFees(): void {
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
 
-  generateEvent(`Protocol fees claimed by ${callerAddress.toString()}`);
+  generateEvent(
+    createEvent('CLAIM_PROTOCOL_FEE', [
+      callerAddress.toString(),
+      aAccumulatedFeesStored.toString(),
+      bAccumulatedFeesStored.toString(),
+      protocolFeeReceiver.toString(),
+    ]),
+  );
 }
 
 /**
@@ -536,15 +541,27 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     amountBOut,
   );
 
+  // Calculate new reserves
+  const newResA = SafeMath256.sub(reserveA, amountAOut);
+  const newResB = SafeMath256.sub(reserveB, amountBOut);
+
   // Update reserves
-  _updateReserveA(SafeMath256.sub(reserveA, amountAOut));
-  _updateReserveB(SafeMath256.sub(reserveB, amountBOut));
+  _updateReserveA(newResA);
+  _updateReserveB(newResB);
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
 
+  // Emit event
   generateEvent(
-    `Removed liquidity: ${lpAmount.toString()} LP burned, ${amountAOut.toString()} A and ${amountBOut.toString()} B returned`,
+    createEvent('REMOVE_LIQUIDITY', [
+      Context.caller().toString(),
+      lpAmount.toString(),
+      amountAOut.toString(),
+      amountBOut.toString(),
+      newResA.toString(),
+      newResB.toString(),
+    ]),
   );
 }
 
@@ -576,10 +593,15 @@ export function syncReserves(): void {
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
+
+  // Emit an event
+  generateEvent(
+    createEvent('SYNC_RESERVES', [balanceA.toString(), balanceB.toString()]),
+  );
 }
 
 /**
- * Executes a flash swap operation, allowing a user or smart contract to borrow tokens
+ * Executes a flash loan operation, allowing a user or smart contract to borrow tokens
  * from the pool and return them in the same transaction, potentially profiting from
  * arbitrage opportunities.
  *
@@ -725,9 +747,6 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
     bContractBalanceAfter,
   );
 
-  generateEvent(`Old K value : ${poolK.toString()}`);
-  generateEvent(`New K value : ${newPoolK.toString()}`);
-
   // Ensure that the new pool K value is greater than or equal to the old pool K value
   assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
 
@@ -741,8 +760,16 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
 
+  // Emit the event for the flash loan
   generateEvent(
-    `FLASH_SWAP: User ${Context.caller()} executed a flash swap. he swapped ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored} and ${aAmount} ${aTokenAddressStored} for ${bAmount} ${bTokenAddressStored}.`,
+    createEvent('FLASH_LOAN', [
+      Context.caller().toString(),
+      profitAddress,
+      aAmount.toString(),
+      bAmount.toString(),
+      aContractBalanceAfter.toString(),
+      bContractBalanceAfter.toString(),
+    ]),
   );
 }
 
@@ -863,31 +890,6 @@ export function getSwapOutEstimation(
   return u256ToBytes(swapOutData.amountOut);
 }
 
-/**
- * Estimates the amount of input tokens required for a swap given the desired output amount.
- *
- * @param binaryArgs - A serialized array of bytes containing the token output address and the desired output amount.
- *  - `tokenOutAddress`: The address of the token to be swapped out.
- *  - `amountOut`: The desired output amount.
- * @returns A serialized array of bytes representing the estimated input amount required for the swap.
- * @throws Will throw an error if the token output address or the desired output amount is missing or invalid.
- */
-export function getSwapInEstimation(
-  binaryArgs: StaticArray<u8>,
-): StaticArray<u8> {
-  const args = new Args(binaryArgs);
-
-  const tokenOutAddress = args
-    .nextString()
-    .expect('TokenInAddress is missing or invalid');
-
-  let amountOut = args.nextU256().expect('AmountIn is missing or invalid');
-
-  const amountIn = _getSwapIn(amountOut, tokenOutAddress);
-
-  return u256ToBytes(amountIn);
-}
-
 // INTERNAL FUNCTIONS
 
 /**
@@ -960,12 +962,24 @@ function _addLiquidity(
   // Mint LP tokens to user
   liquidityManager.mint(callerAddress, liquidity);
 
-  // Update reserves
-  _updateReserveA(SafeMath256.add(reserveA, finalAmountA));
-  _updateReserveB(SafeMath256.add(reserveB, finalAmountB));
+  // calculates the new reserves
+  const newResA = SafeMath256.add(reserveA, finalAmountA);
+  const newResB = SafeMath256.add(reserveB, finalAmountB);
 
+  // Update reserves
+  _updateReserveA(newResA);
+  _updateReserveB(newResB);
+
+  // Emit event
   generateEvent(
-    `ADD_LIQUIDITY: ${finalAmountA.toString()} of A and ${finalAmountB.toString()} of B, minted ${liquidity.toString()} LP`,
+    createEvent('ADD_LIQUIDITY', [
+      callerAddress.toString(),
+      finalAmountA.toString(),
+      finalAmountB.toString(),
+      liquidity.toString(),
+      newResA.toString(),
+      newResB.toString(),
+    ]),
   );
 }
 
@@ -1105,12 +1119,23 @@ function _swap(
     _addTokenAccumulatedProtocolFee(tokenInAddress, protocolFee);
   }
 
-  generateEvent(
-    `SWAP: In=${amountIn.toString()} of ${tokenInAddress}, Out=${amountOut.toString()} of ${tokenOutAddress}, Fees: total=${totalFee.toString()}, protocol=${protocolFee.toString()}, lp=${lpFee.toString()}`,
-  );
-
   // Update cumulative prices
   _updateCumulativePrices();
+
+  generateEvent(
+    createEvent('SWAP', [
+      callerAddress.toString(), // caller
+      amountIn.toString(),
+      tokenInAddress,
+      amountOut.toString(),
+      tokenOutAddress,
+      totalFee.toString(),
+      protocolFee.toString(),
+      lpFee.toString(),
+      newReserveIn.toString(),
+      newReserveOut.toString(),
+    ]),
+  );
 
   return amountOut;
 }
@@ -1314,58 +1339,6 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
     protocolFee,
     amountInAfterFee,
   );
-}
-
-/**
- * Calculates the amount of input tokens required for a swap given the desired output amount.
- *
- * This function checks if the provided token address is valid within the pool,
- * retrieves the current fee rate, and determines the reserves of the tokens in the pool.
- * It then calculates the required input amount after accounting for fees and generates
- * events to log the swap details.
- *
- * @param amountOut - The desired amount of output tokens.
- * @param tokenOutAddress - The address of the token to be swapped out.
- * @returns The amount of input tokens required before fees.
- * @throws Will throw an error if the token address is invalid.
- */
-function _getSwapIn(amountOut: u256, tokenOutAddress: string): u256 {
-  const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
-  const bTokenAddressStored = bytesToString(Storage.get(bTokenAddress));
-
-  // Check if the token address is one of the two tokens in the pool
-  assert(
-    tokenOutAddress == aTokenAddressStored ||
-      tokenOutAddress == bTokenAddressStored,
-    'Invalid token address',
-  );
-
-  // Get fees
-  const feeRate = _getFeeRate();
-
-  // Get the address of the other token in the pool
-  const tokenInAddress =
-    tokenOutAddress == aTokenAddressStored
-      ? bTokenAddressStored
-      : aTokenAddressStored;
-
-  // Get the reserves of the two tokens in the pool
-  const reserveIn = _getReserve(tokenInAddress);
-  const reserveOut = _getReserve(tokenOutAddress);
-
-  // Calculate the amount of In token based on the out amount
-  const amountInAfterFee = getAmountIn(amountOut, reserveIn, reserveOut);
-
-  // Get the amount In before fees
-  const amountInWithoutFees = getAmountWithoutFee(amountInAfterFee, feeRate);
-
-  generateEvent(`AmountInAfterFee: ${amountInAfterFee.toString()} `);
-
-  generateEvent(
-    `SWAP_IN: ${amountInWithoutFees.toString()} of ${tokenOutAddress} swapped into ${amountOut} of ${tokenInAddress}`,
-  );
-
-  return amountInWithoutFees;
 }
 
 /**
