@@ -97,7 +97,7 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
   // Get token addresses from the pool
   const tokenAAddress = pool.getATokenAddress();
   const tokenBAddress = pool.getBTokenAddress();
-  const poolFeeRate = pool.getFeeRate();
+  const poolFeeRate = pool.getFlashLoanFee();
 
   // Get the contract address
   const contractAddress = Context.callee();
