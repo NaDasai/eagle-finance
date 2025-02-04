@@ -68,12 +68,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('WmasTokenAddress is missing or invalid');
 
-  let flashLoanFeeInput = args.nextF64().unwrapOrDefault();
-
-  // if the flash loan fee is 0, set it to the fee share protocol
-  if (flashLoanFeeInput == f64(0)) {
-    flashLoanFeeInput = feeShareProtocolInput;
-  }
+  const flashLoanFeeInput = args.nextF64().expect('FlashLoanFee is missing');
 
   // ensure that the fee share protocol is between 0 and 10%
   assert(
@@ -589,9 +584,11 @@ function _createNewPool(
     createEvent('CREATE_NEW_POOL', [
       Context.callee().toString(), // Smart contract address
       Context.caller().toString(), // Caller address
+      poolAddress.toString(), // Pool address
       aTokenAddress, // Token A address
       bTokenAddress, // Token B address
       inputFeeRate.toString(), // Input fee rate
+      flashLoanFeeStored.toString(), // Flash loan fee
     ]),
   );
 
