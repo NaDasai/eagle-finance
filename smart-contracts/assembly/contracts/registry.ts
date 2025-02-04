@@ -87,8 +87,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // store the poolsKeys array in the poolsKeys persistent map
   Storage.set(poolsKeys, new Args().add(new Array<string>()).serialize());
 
-  generateEvent(`Registry Contract Deployed.`);
-
   ReentrancyGuard.__ReentrancyGuard_init();
 }
 
@@ -188,10 +186,6 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
 
   // Get the wmas token address stored
   const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
-
-  generateEvent(
-    `CREATE_NEW_POOL_WITH_LIQUIDITY: aTokenAddress: ${aTokenAddress}, bTokenAddress: ${bTokenAddress}, aAmount: ${aAmount}, bAmount: ${bAmount}, minAmountA: ${minAmountA}, minAmountB: ${minAmountB}, inputFeeRate: ${inputFeeRate}, isBNative: ${isBTokenNativeMas}`,
-  );
 
   // Check if bTokenAddress is native mas, if so, change it to wmasTokenAddress else throw error
   if (isBTokenNativeMas) {
@@ -364,8 +358,9 @@ export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
   // Emit event
   generateEvent(
     createEvent('UPDATE_FEE_SHARE_PROTOCOL_RECEIVER', [
-      Context.caller().toString(),
-      receiver,
+      Context.callee().toString(), // Smart contract address
+      Context.caller().toString(), // Caller address
+      receiver, // New Receiver address
     ]),
   );
 }
@@ -406,8 +401,9 @@ export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
   // Emit an event
   generateEvent(
     createEvent('UPDATE_WMAS_TOKEN_ADDRESS', [
-      Context.caller().toString(),
-      wmasTokenAddressInput,
+      Context.callee().toString(), // Smart contract address
+      Context.caller().toString(), // Caller address
+      wmasTokenAddressInput, // New wmas token address
     ]),
   );
 
@@ -510,10 +506,11 @@ function _createNewPool(
   // Emit an event
   generateEvent(
     createEvent('CREATE_NEW_POOL', [
-      Context.caller().toString(),
-      aTokenAddress,
-      bTokenAddress,
-      inputFeeRate.toString(),
+      Context.callee().toString(), // Smart contract address
+      Context.caller().toString(), // Caller address
+      aTokenAddress, // Token A address
+      bTokenAddress, // Token B address
+      inputFeeRate.toString(), // Input fee rate
     ]),
   );
 
