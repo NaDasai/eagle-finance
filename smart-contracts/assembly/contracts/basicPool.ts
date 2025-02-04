@@ -26,9 +26,7 @@ import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import {
-  getAmountIn,
   getAmountOut,
-  getAmountWithoutFee,
   getFeeFromAmount,
 } from '../lib/basicPoolMath';
 import { IRegistery } from '../interfaces/IRegistry';
@@ -113,7 +111,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  // assertIsSmartContract(registryAddress);
+  assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, f64ToBytes(inputFeeRate));
