@@ -196,6 +196,10 @@ export class IBasicPool {
     const result = call(this._origin, 'getFeeRate', new Args(), 0);
     return bytesToF64(result);
   }
+  getFlashLoanFee(): f64 {
+    const result = call(this._origin, 'getFlashLoanFee', new Args(), 0);
+    return bytesToF64(result);
+  }
 
   getAPriceCumulativeLast(): u256 {
     const result = call(this._origin, 'getAPriceCumulativeLast', new Args(), 0);
