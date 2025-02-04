@@ -8,6 +8,7 @@ import {
   validateAddress,
   assertIsSmartContract,
   balance,
+  createEvent,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -343,6 +344,9 @@ export function getFeeShareProtocolReceiver(): StaticArray<u8> {
  * @returns  void
  */
 export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
+  // start reentrancy guard
+  ReentrancyGuard.nonReentrant();
+
   // Only owner of registery can set the protocol fee receiver
   onlyOwner();
 
@@ -353,6 +357,17 @@ export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
   assert(validateAddress(receiver), 'INVALID ADDRESS');
 
   Storage.set(feeShareProtocolReceiver, stringToBytes(receiver));
+
+  // End reentrancy guard
+  ReentrancyGuard.endNonReentrant();
+
+  // Emit event
+  generateEvent(
+    createEvent('UPDATE_FEE_SHARE_PROTOCOL_RECEIVER', [
+      Context.caller().toString(),
+      receiver,
+    ]),
+  );
 }
 
 /**
@@ -370,6 +385,9 @@ export function getWmasTokenAddress(): StaticArray<u8> {
  */
 
 export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
+  // start reentrancy guard
+  ReentrancyGuard.nonReentrant();
+
   // Only owner of registery can set wmas token address
   onlyOwner();
 
@@ -386,7 +404,15 @@ export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
   Storage.set(wmasTokenAddress, stringToBytes(wmasTokenAddressInput));
 
   // Emit an event
-  generateEvent(`WMAS address updated to ${wmasTokenAddressInput}`);
+  generateEvent(
+    createEvent('UPDATE_WMAS_TOKEN_ADDRESS', [
+      Context.caller().toString(),
+      wmasTokenAddressInput,
+    ]),
+  );
+
+  // End reentrancy guard
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**
@@ -482,7 +508,14 @@ function _createNewPool(
   Storage.set(poolsKeys, new Args().add(deserializedPoolsKeys).serialize());
 
   // Emit an event
-  generateEvent(`Pool ${poolAddress} added to the registery`);
+  generateEvent(
+    createEvent('CREATE_NEW_POOL', [
+      Context.caller().toString(),
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate.toString(),
+    ]),
+  );
 
   return poolContract;
 }
