@@ -156,3 +156,6 @@ export function getUserTokenBalances(
   // Serialize the user tokens array
   return serializableObjectsArrayToBytes(userTokens);
 }
+
+// Export ownership functions
+export * from '../utils/ownership';
