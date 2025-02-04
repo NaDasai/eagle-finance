@@ -776,6 +776,7 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
       bAmount.toString(), // Amount of token B borrrowed
       aContractBalanceAfter.toString(), // Amount of token A after the flash loan
       bContractBalanceAfter.toString(), //  Amount of token B after the flash loan
+      poolFeeRate.toString(),
     ]),
   );
 }
@@ -1293,9 +1294,9 @@ function _updateCumulativePrices(): void {
       createEvent('UPDATE_CUMULATIVE_PRICES:', [
         Context.callee().toString(), // Smart contract address
         Context.caller().toString(), // Caller address
-        aPriceCumulative.toString(), // aPriceCumulative
-        bPriceCumulative.toString(), // bPriceCumulative
-        lastTimestamp.toString(), // lastTimestamp
+        newCumulativeA.toString(), // aPriceCumulative
+        newCumulativeB.toString(), // bPriceCumulative
+        currentTimestamp.toString(), // lastTimestamp
       ]),
     );
   }
