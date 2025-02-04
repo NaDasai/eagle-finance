@@ -25,10 +25,7 @@ import {
 import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
-import {
-  getAmountOut,
-  getFeeFromAmount,
-} from '../lib/basicPoolMath';
+import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
 import { IRegistery } from '../interfaces/IRegistry';
 import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
@@ -606,7 +603,7 @@ export function syncReserves(): void {
  * from the pool and return them in the same transaction, potentially profiting from
  * arbitrage opportunities.
  *
- * @param binaryArgs - A serialized array of bytes containing the input arguments for the flash swap.
+ * @param binaryArgs - A serialized array of bytes containing the input arguments for the flash loan.
  *  - `aAmount`: The amount of token A to swap in.
  *  - `bAmount`: The amount of token B to swap in.
  *  - `profitAddress`: The address of the profit to be received.
@@ -631,7 +628,7 @@ export function syncReserves(): void {
  * - Invokes the callback function on the specified smart contract.
  * - Validates the returned token balances and calculates fees.
  * - Updates the pool reserves and cumulative prices.
- * - Generates events for the old and new pool K values and the flash swap execution.
+ * - Generates events for the old and new pool K values and the flash loan execution.
  */
 export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
@@ -682,13 +679,13 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   const aReserve = _getLocalReserveA();
   const bReserve = _getLocalReserveB();
 
-  // Get the pool K value that will be used later to ensure that the flash swap is valid
+  // Get the pool K value that will be used later to ensure that the flash loan is valid
   const poolK = SafeMath256.mul(aReserve, bReserve);
 
   // Get the pool fee rate
   const poolFeeRate = _getFeeRate();
 
-  // Ensure that the pool reserves are greater or equals than the amounts to be swapped
+  // Ensure that the pool reserves are greater or equals than the amounts to be loaned
   assert(
     aReserve >= aAmount && bReserve >= bAmount,
     'FLASH_ERROR: INSUFFICIENT_LIQUIDITY',
@@ -1276,7 +1273,15 @@ function _updateCumulativePrices(): void {
     // Update last timestamp
     Storage.set(lastTimestamp, u64ToBytes(currentTimestamp));
 
-    generateEvent(`UPDATE_CUMULATIVE_PRICES: ${elapsedTime.toString()}`);
+    generateEvent(
+      createEvent('UPDATE_CUMULATIVE_PRICES:', [
+        Context.callee().toString(), // Smart contract address
+        Context.caller().toString(), // Caller address
+        aPriceCumulative.toString(), // aPriceCumulative
+        bPriceCumulative.toString(), // bPriceCumulative
+        lastTimestamp.toString(), // lastTimestamp
+      ]),
+    );
   }
 }
 
