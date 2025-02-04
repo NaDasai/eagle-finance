@@ -35,6 +35,7 @@ export class IBasicPool {
     bTokenAddress: string,
     feeRate: f64,
     feeShareProtocol: f64,
+    flashLoanFee: f64,
     registryAddress: string,
   ): void {
     const args = new Args()
@@ -42,6 +43,7 @@ export class IBasicPool {
       .add(bTokenAddress)
       .add(feeRate)
       .add(feeShareProtocol)
+      .add(flashLoanFee)
       .add(registryAddress);
     call(this._origin, 'constructor', args, u64(100000000));
   }

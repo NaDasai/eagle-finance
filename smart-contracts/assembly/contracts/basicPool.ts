@@ -68,9 +68,10 @@ const liquidityManager = new LiquidityManager<u256>(storagePrefixManager);
 // Storage keys for cumulative prices
 export const aPriceCumulative = stringToBytes('aPriceCumulative');
 export const bPriceCumulative = stringToBytes('bPriceCumulative');
-
 // Storage key for last timestamp
 export const lastTimestamp = stringToBytes('lastTimestamp');
+// Storage key containning the flash loan fee value of the pool. value is between 0 and 1
+export const flashLoanFee = stringToBytes('flashLoanFee');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -101,6 +102,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextF64()
     .expect('Fee share protocol is missing or invalid');
 
+  const flashLoanFeeInput = args
+    .nextF64()
+    .expect('Flash loan fee is missing or invalid');
+
   const registryAddress = args
     .nextString()
     .expect('RegistryAddress is missing or invalid');
@@ -115,6 +120,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
+
+  // Store flash loan fee
+  Storage.set(flashLoanFee, f64ToBytes(flashLoanFeeInput));
 
   // store the a and b protocol fees
   Storage.set(aProtocolFee, u256ToBytes(u256.Zero));
@@ -682,8 +690,8 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Get the pool K value that will be used later to ensure that the flash loan is valid
   const poolK = SafeMath256.mul(aReserve, bReserve);
 
-  // Get the pool fee rate
-  const poolFeeRate = _getFeeRate();
+  // Get the pool flash loan fee
+  const poolFeeRate = _getFlashLoanFee();
 
   // Ensure that the pool reserves are greater or equals than the amounts to be loaned
   assert(
@@ -730,12 +738,12 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   const bFee = getFeeFromAmount(bAmount, poolFeeRate);
 
   assert(
-    SafeMath256.add(aContractBalanceBefore, aFee) >= aContractBalanceAfter,
+    SafeMath256.add(aContractBalanceBefore, aFee) <= aContractBalanceAfter,
     'FLASH_ERROR: WRONG_RETURN_VALUE',
   );
 
   assert(
-    SafeMath256.add(bContractBalanceBefore, bFee) >= bContractBalanceAfter,
+    SafeMath256.add(bContractBalanceBefore, bFee) <= bContractBalanceAfter,
     'FLASH_ERROR: WRONG_RETURN_VALUE',
   );
 
@@ -794,6 +802,14 @@ export function getBTokenAddress(): StaticArray<u8> {
  */
 export function getFeeRate(): StaticArray<u8> {
   return Storage.get(feeRate);
+}
+
+/**
+ * Gets the current flash loan fee of the basic pool.
+ * @returns The flash loan fee as a static array of 8-bit unsigned integers.
+ */
+export function getFlashLoanFee(): StaticArray<u8> {
+  return Storage.get(flashLoanFee);
 }
 
 /**
@@ -1456,6 +1472,15 @@ function _getFeeRate(): f64 {
  */
 function _getFeeShareProtocol(): f64 {
   return bytesToF64(Storage.get(feeShareProtocol));
+}
+
+/**
+ * Retrieves the current flash loan fee for the protocol.
+ *
+ * @returns The current flash loan fee for the protocol.
+ */
+function _getFlashLoanFee(): f64 {
+  return bytesToF64(Storage.get(flashLoanFee));
 }
 
 /**

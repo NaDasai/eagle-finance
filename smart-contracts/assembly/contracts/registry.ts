@@ -44,6 +44,8 @@ export const feeShareProtocolReceiver: StaticArray<u8> = stringToBytes(
 // storage key containning the address of wrapped mas token inside the registry contract
 // we need this key to use on the basic poll contract on swap with Mas to unwrap the mas coin
 export const wmasTokenAddress = stringToBytes('wmasTokenAddress');
+// Storage key containning the flash loan fee value of the pool. value is between 0 and 1
+export const flashLoanFee = stringToBytes('flashLoanFee');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -66,10 +68,23 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('WmasTokenAddress is missing or invalid');
 
+  let flashLoanFeeInput = args.nextF64().unwrapOrDefault();
+
+  // if the flash loan fee is 0, set it to the fee share protocol
+  if (flashLoanFeeInput == f64(0)) {
+    flashLoanFeeInput = feeShareProtocolInput;
+  }
+
   // ensure that the fee share protocol is between 0 and 10%
   assert(
     isBetweenZeroAndTenPercent(feeShareProtocolInput),
     'Fee share protocol must be between 0 and 10%',
+  );
+
+  // Ensure that the flash loan fee is between 0 and 10%
+  assert(
+    isBetweenZeroAndTenPercent(flashLoanFeeInput),
+    'Flash loan fee must be between 0 and 10%',
   );
 
   // ensure taht the wmasTokenAddress is a smart contract address
@@ -81,6 +96,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // store fee share protocol
   Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
 
+  // store flashLoanFee
+  Storage.set(flashLoanFee, f64ToBytes(flashLoanFeeInput));
+
   // set the owner of the registry contract to the caller of the constructor
   _setOwner(Context.caller().toString());
 
@@ -88,6 +106,17 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(poolsKeys, new Args().add(new Array<string>()).serialize());
 
   ReentrancyGuard.__ReentrancyGuard_init();
+
+  // Emit an event
+  generateEvent(
+    createEvent('REGISTRY_CONTRACT_DEPLOYED', [
+      Context.callee().toString(), // Smart contract address
+      Context.caller().toString(), // Caller address
+      feeShareProtocolInput.toString(), // Fee share protocol
+      wmasTokenAddressInput, // Wmas token address
+      flashLoanFeeInput.toString(), // Flash loan fee
+    ]),
+  );
 }
 
 /**
@@ -364,6 +393,15 @@ export function getFeeShareProtocol(): StaticArray<u8> {
 }
 
 /**
+ * Retrieves the flash loan fee from storage.
+ *
+ * @returns {StaticArray<u8>} The flash loan fee as a byte array.
+ */
+export function getFlashLoanFee(): StaticArray<u8> {
+  return Storage.get(flashLoanFee);
+}
+
+/**
  * Get the fee share protocol receiver
  * @returns  The fee share protocol receiver
  */
@@ -502,6 +540,9 @@ function _createNewPool(
   // Get the fee share protocol stored in the registry
   const feeShareProtocolStored = _getFeeShareProtocol();
 
+  // Get the flash loan fee stored in the registry
+  const flashLoanFeeStored = _getFlashLoanFee();
+
   //  Deploy the pool contract
   const poolByteCode: StaticArray<u8> = fileToByteArray('build/basicPool.wasm');
   const poolAddress = createSC(poolByteCode);
@@ -514,6 +555,7 @@ function _createNewPool(
     bTokenAddress,
     inputFeeRate,
     feeShareProtocolStored,
+    flashLoanFeeStored,
     Context.callee().toString(), // registry address
   );
 
@@ -563,6 +605,15 @@ function _createNewPool(
  */
 function _getFeeShareProtocol(): f64 {
   return bytesToF64(Storage.get(feeShareProtocol));
+}
+
+/**
+ * Retrieves the flash loan fee value from storage and converts it to a 64-bit floating-point number.
+ *
+ * @returns {f64} The flash loan fee value as a 64-bit floating-point number.
+ */
+function _getFlashLoanFee(): f64 {
+  return bytesToF64(Storage.get(flashLoanFee));
 }
 
 // Export all the functions from the ownership functions
