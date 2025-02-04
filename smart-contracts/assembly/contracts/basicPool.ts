@@ -151,10 +151,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
-
-  generateEvent(
-    `New pool deployed at ${Context.callee()}. Token A: ${aAddress}. Token B: ${bAddress}. Registry: ${registryAddress}.`,
-  );
 }
 
 /**
@@ -461,10 +457,11 @@ export function claimProtocolFees(): void {
 
   generateEvent(
     createEvent('CLAIM_PROTOCOL_FEE', [
-      callerAddress.toString(),
-      aAccumulatedFeesStored.toString(),
-      bAccumulatedFeesStored.toString(),
-      protocolFeeReceiver.toString(),
+      Context.callee().toString(), // Smart contract address
+      callerAddress.toString(), // Caller address
+      aAccumulatedFeesStored.toString(), // Amount of token A Claimed
+      bAccumulatedFeesStored.toString(), // Amount of token B Claimed
+      protocolFeeReceiver.toString(), // Protocol fee receiver address
     ]),
   );
 }
@@ -555,12 +552,13 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // Emit event
   generateEvent(
     createEvent('REMOVE_LIQUIDITY', [
-      Context.caller().toString(),
-      lpAmount.toString(),
-      amountAOut.toString(),
-      amountBOut.toString(),
-      newResA.toString(),
-      newResB.toString(),
+      Context.callee().toString(), // Smart contract address
+      Context.caller().toString(), // Caller address
+      lpAmount.toString(), // Amount of LP tokens burned
+      amountAOut.toString(), // Amount of token A out
+      amountBOut.toString(), // Amount of token B out
+      newResA.toString(), // New reserve of token A
+      newResB.toString(), // New reserve of token B
     ]),
   );
 }
@@ -596,7 +594,12 @@ export function syncReserves(): void {
 
   // Emit an event
   generateEvent(
-    createEvent('SYNC_RESERVES', [balanceA.toString(), balanceB.toString()]),
+    createEvent('SYNC_RESERVES', [
+      Context.callee().toString(), // Smart contract address
+      Context.caller().toString(), // Caller address
+      balanceA.toString(), // New reserve of token A
+      balanceB.toString(), // New reserve of token B
+    ]),
   );
 }
 
@@ -763,12 +766,13 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Emit the event for the flash loan
   generateEvent(
     createEvent('FLASH_LOAN', [
-      Context.caller().toString(),
-      profitAddress,
-      aAmount.toString(),
-      bAmount.toString(),
-      aContractBalanceAfter.toString(),
-      bContractBalanceAfter.toString(),
+      contractAddress.toString(), // Smart contract address
+      Context.caller().toString(), // Caller address of the flash loan
+      profitAddress, // Address of the user or smart contract that will receive the profit
+      aAmount.toString(), // Amount of token A borrrowed
+      bAmount.toString(), // Amount of token B borrrowed
+      aContractBalanceAfter.toString(), // Amount of token A after the flash loan
+      bContractBalanceAfter.toString(), //  Amount of token B after the flash loan
     ]),
   );
 }
@@ -973,12 +977,13 @@ function _addLiquidity(
   // Emit event
   generateEvent(
     createEvent('ADD_LIQUIDITY', [
-      callerAddress.toString(),
-      finalAmountA.toString(),
-      finalAmountB.toString(),
-      liquidity.toString(),
-      newResA.toString(),
-      newResB.toString(),
+      Context.callee().toString(), // Smart contract address
+      callerAddress.toString(), // Caller address
+      finalAmountA.toString(), // A amount
+      finalAmountB.toString(), // B amount
+      liquidity.toString(), // Minted LP amount
+      newResA.toString(), // New reserve A
+      newResB.toString(), // New reserve B
     ]),
   );
 }
@@ -1124,16 +1129,17 @@ function _swap(
 
   generateEvent(
     createEvent('SWAP', [
-      callerAddress.toString(), // caller
-      amountIn.toString(),
-      tokenInAddress,
-      amountOut.toString(),
-      tokenOutAddress,
-      totalFee.toString(),
-      protocolFee.toString(),
-      lpFee.toString(),
-      newReserveIn.toString(),
-      newReserveOut.toString(),
+      Context.callee().toString(), // Smart Contract Address
+      callerAddress.toString(), // Caller Address
+      amountIn.toString(), // Amount In
+      tokenInAddress, // Token In Address
+      amountOut.toString(), // Amount Out
+      tokenOutAddress, // Token Out Address
+      totalFee.toString(), // Total Fee
+      protocolFee.toString(), // Protocol Fee
+      lpFee.toString(), // LP Fee
+      newReserveIn.toString(), // New Reserve In
+      newReserveOut.toString(), // New Reserve Out
     ]),
   );
 
