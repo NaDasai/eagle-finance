@@ -97,7 +97,7 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
   // Get token addresses from the pool
   const tokenAAddress = pool.getATokenAddress();
   const tokenBAddress = pool.getBTokenAddress();
-  const poolFeeRate = pool.getFeeRate();
+  const poolFeeRate = pool.getFlashLoanFee();
 
   // Get the contract address
   const contractAddress = Context.callee();
@@ -223,7 +223,7 @@ export function initFlash(binaryArgs: StaticArray<u8>): void {
 
   const poolContract = new IBasicPool(new Address(poolAddress));
 
-  poolContract.flash(aAmount, bAmount, profitAddress, data);
+  poolContract.flashLoan(aAmount, bAmount, profitAddress, data);
 }
 
 // Export ownership functions

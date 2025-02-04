@@ -180,6 +180,11 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity without feees', asyn
 
     const bSwapAmount = 5;
     const minASwapOutAmount = 2;
+    const expectedaAmountOut = await getSwapOutEstimation(
+      poolContract,
+      bSwapAmount,
+      bTokenAddress,
+    );
 
     const user2ATokenBalanceBefore = await getTokenBalance(
       aTokenAddress,
@@ -234,6 +239,26 @@ describe('Scenario 1: Add liquidity, Swap, Remove liquidity without feees', asyn
     console.log('User2 A Token balance after: ', user2ATokenBalanceAfter);
 
     console.log('User2 B Token balance after: ', user2BTokenBalanceAfter);
+
+    expect(
+      reserveAAfter,
+      'Reserve A After should be equals to initial reserve A - expectedOutAmount',
+    ).toBe(reserveA - expectedaAmountOut);
+
+    expect(
+      reserveBAfter,
+      'Reserve B After should be equals to initial reserve B + swap amount',
+    ).toBe(reserveB + parseMas(bSwapAmount.toString()));
+
+    expect(
+      user2ATokenBalanceAfter,
+      'User2 A Token balance should increase after swap',
+    ).toBe(user2ATokenBalanceBefore + expectedaAmountOut);
+
+    expect(
+      user2BTokenBalanceAfter,
+      'User2 B Token balance should increase after swap',
+    ).toBe(user2BTokenBalanceBefore - parseMas(bSwapAmount.toString()));
 
     const finalK = reserveAAfter * reserveBAfter;
 

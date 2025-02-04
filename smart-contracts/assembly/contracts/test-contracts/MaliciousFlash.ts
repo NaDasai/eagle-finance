@@ -223,7 +223,7 @@ export function initFlash(binaryArgs: StaticArray<u8>): void {
 
   const poolContract = new IBasicPool(new Address(poolAddress));
 
-  poolContract.flash(aAmount, bAmount, profitAddress, data);
+  poolContract.flashLoan(aAmount, bAmount, profitAddress, data);
 }
 
 // Export ownership functions

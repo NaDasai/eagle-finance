@@ -104,6 +104,14 @@ export class IRegistery {
   }
 
   /**
+   * calls the `getFlashLoanFee` function of the registry contract.
+   * @returns {f64} The flash loan fee.
+   */
+  getFlashLoanFee(): f64 {
+    return bytesToF64(call(this._origin, 'getFlashLoanFee', new Args(), 0));
+  }
+
+  /**
    *  calls the `getFeeShareProtocolReceiver` function of the registry contract.
    * @returns {string} The address of the protocol fee receiver.
    */

@@ -90,12 +90,14 @@ export async function deployRegistryContract(
   user1Provider: Provider,
   wmasAddress: string,
   fee: number = 0,
+  flashLoanFee: number = 0,
 ) {
   const registryByteCode = getScByteCode('build', 'registry.wasm');
 
   const constructorArgs = new Args()
     .addF64(fee * 10000) // 0% fee share protocol
     .addString(wmasAddress) // WMAS address
+    .addF64(flashLoanFee * 10_000) // 0% fee share protocol
     .serialize();
 
   const contract = await SmartContract.deploy(

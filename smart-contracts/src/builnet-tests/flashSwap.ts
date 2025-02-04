@@ -126,7 +126,7 @@ async function testFlashSwap() {
   const poolContract = new SmartContract(provider, poolAddress);
 
   const operation = await poolContract.call(
-    'flashSwap',
+    'flashLoan',
     new Args()
       .addU256(aAmount) // amount of token A
       .addU256(bAmount) // amount of token B

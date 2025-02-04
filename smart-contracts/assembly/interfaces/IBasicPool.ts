@@ -35,6 +35,7 @@ export class IBasicPool {
     bTokenAddress: string,
     feeRate: f64,
     feeShareProtocol: f64,
+    flashLoanFee: f64,
     registryAddress: string,
   ): void {
     const args = new Args()
@@ -42,6 +43,7 @@ export class IBasicPool {
       .add(bTokenAddress)
       .add(feeRate)
       .add(feeShareProtocol)
+      .add(flashLoanFee)
       .add(registryAddress);
     call(this._origin, 'constructor', args, u64(100000000));
   }
@@ -194,6 +196,10 @@ export class IBasicPool {
     const result = call(this._origin, 'getFeeRate', new Args(), 0);
     return bytesToF64(result);
   }
+  getFlashLoanFee(): f64 {
+    const result = call(this._origin, 'getFlashLoanFee', new Args(), 0);
+    return bytesToF64(result);
+  }
 
   getAPriceCumulativeLast(): u256 {
     const result = call(this._origin, 'getAPriceCumulativeLast', new Args(), 0);
@@ -210,7 +216,7 @@ export class IBasicPool {
     return bytesToU64(result);
   }
 
-  flash(
+  flashLoan(
     aAmount: u256,
     bAmount: u256,
     profitAddress: string,
@@ -221,6 +227,6 @@ export class IBasicPool {
       .add(bAmount)
       .add(profitAddress)
       .add(callbackData);
-    call(this._origin, 'flash', args, 0);
+    call(this._origin, 'flashLoan', args, 0);
   }
 }
