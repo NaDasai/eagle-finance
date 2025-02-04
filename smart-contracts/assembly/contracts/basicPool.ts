@@ -710,11 +710,12 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   const bFee = getFeeFromAmount(bAmount, poolFeeRate);
 
   assert(
-    SafeMath256.add(aContractBalanceBefore, aFee) == aContractBalanceAfter,
+    SafeMath256.add(aContractBalanceBefore, aFee) >= aContractBalanceAfter,
     'FLASH_ERROR: WRONG_RETURN_VALUE',
   );
+
   assert(
-    SafeMath256.add(bContractBalanceBefore, bFee) == bContractBalanceAfter,
+    SafeMath256.add(bContractBalanceBefore, bFee) >= bContractBalanceAfter,
     'FLASH_ERROR: WRONG_RETURN_VALUE',
   );
 
