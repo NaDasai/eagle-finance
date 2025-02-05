@@ -21,7 +21,6 @@ import { Pool } from '../src/builnet-tests/structs/pool';
 import {
   calculateExpectedSwapAddedAmount,
   calculateProtocolFeeAmount,
-  calculateProtocolFeeAmount,
   getScByteCode,
   NATIVE_MAS_COIN_ADDRESS,
   truncateDecimals,
