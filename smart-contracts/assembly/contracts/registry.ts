@@ -94,8 +94,14 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // store flashLoanFee
   Storage.set(flashLoanFee, f64ToBytes(flashLoanFeeInput));
 
+  // Get the caller of the constructo
+  const callerAddress = Context.caller().toString();
+
+  // Set the fee share protocol receiver to the caller of the constructor
+  Storage.set(feeShareProtocolReceiver, stringToBytes(callerAddress));
+
   // set the owner of the registry contract to the caller of the constructor
-  _setOwner(Context.caller().toString());
+  _setOwner(callerAddress);
 
   // store the poolsKeys array in the poolsKeys persistent map
   Storage.set(poolsKeys, new Args().add(new Array<string>()).serialize());
@@ -106,7 +112,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   generateEvent(
     createEvent('REGISTRY_CONTRACT_DEPLOYED', [
       Context.callee().toString(), // Smart contract address
-      Context.caller().toString(), // Caller address
+      callerAddress, // Caller address
       feeShareProtocolInput.toString(), // Fee share protocol
       wmasTokenAddressInput, // Wmas token address
       flashLoanFeeInput.toString(), // Flash loan fee
