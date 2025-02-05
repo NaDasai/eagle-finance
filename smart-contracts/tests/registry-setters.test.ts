@@ -11,7 +11,9 @@ import {
   deployRegistryContract,
   getFeeShareProtocolReceiver,
   getPools,
+  getWmasTokenAddress,
   setFeeShareProtocolReceiver,
+  setWmasTokenAddress,
 } from './calls/registry';
 import * as dotenv from 'dotenv';
 import { NATIVE_MAS_COIN_ADDRESS } from './utils';
@@ -90,6 +92,50 @@ describe('Test setFeeShareProtocolReceiver functionality', async () => {
 
     await expect(
       setFeeShareProtocolReceiver(registryContract, user2Provider.address),
+    ).rejects.toThrowError(
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at assembly/utils/ownership-internal.ts:49 col: 3',
+    );
+  });
+});
+
+describe('Test wmasAddress functionality', async () => {
+  test('should wmasAddress equals to defaultwmas address after deployment', async () => {
+    const registryWmasAddress = await getWmasTokenAddress(registryContract);
+
+    expect(
+      registryWmasAddress,
+      'Registry Wmas address should be the default wmas address',
+    ).toBe(wmasAddress);
+  });
+
+  test('should allow the deployer to set new wmas address', async () => {
+    // switch registry contract to user 1
+    registryContract = new SmartContract(
+      user1Provider,
+      registryContract.address,
+    );
+
+    const newWmasAddress = aTokenAddress;
+
+    await setWmasTokenAddress(registryContract, newWmasAddress);
+
+    const registryWmasAddress = await getWmasTokenAddress(registryContract);
+
+    expect(
+      registryWmasAddress,
+      'Registry Wmas address should be the new wmas address',
+    ).toBe(newWmasAddress);
+  });
+
+  test('should not allow the deployer to set new wmas address to the same address', async () => {
+    // switch registry contract to user 2
+    registryContract = new SmartContract(
+      user2Provider,
+      registryContract.address,
+    );
+
+    await expect(
+      setWmasTokenAddress(registryContract, wmasAddress),
     ).rejects.toThrowError(
       'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at assembly/utils/ownership-internal.ts:49 col: 3',
     );
