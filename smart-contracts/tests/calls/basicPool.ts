@@ -412,3 +412,22 @@ export async function getBClaimableProtocolFee(poolContract: SmartContract) {
     (await poolContract.read('getBClaimableProtocolFee')).value,
   ).nextU256();
 }
+
+export async function syncReserves(poolContract: SmartContract) {
+  const operation = await poolContract.call(
+    'syncReserves',
+    new Args().serialize(),
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Reserves synced');
+  } else {
+    console.log('Status:', status);
+
+    console.log('Error Events : ', await operation.getSpeculativeEvents());
+
+    throw new Error('Failed to sync reserves');
+  }
+}
