@@ -71,6 +71,7 @@ describe('Scenario 1: User 1 Add liquidity, and then flash using correct flash s
       user1Provider,
       wmasAddress,
       0.05,
+      0.3,
     );
 
     regisrtyAddress = registryContract.address;
@@ -80,7 +81,7 @@ describe('Scenario 1: User 1 Add liquidity, and then flash using correct flash s
       registryContract,
       aTokenAddress,
       bTokenAddress,
-      poolFeeRate,
+      0.01 * 10_000, // pool fee rate
     );
 
     const pools = await getPools(registryContract);
