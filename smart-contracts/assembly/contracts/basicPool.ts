@@ -437,8 +437,8 @@ export function claimProtocolFees(_: StaticArray<u8>): void {
     'No accumulated fees',
   );
 
-  // TOOD: Get the protocol fee receiver from the registry
-  const protocolFeeReceiver = Context.caller(); //IMPORTANT: rembember to return it
+  // Get the protocol fee receiver from the registry
+  const protocolFeeReceiver = _getProtocolFeeReceiver();
 
   // Address of the caller
   const callerAddress = Context.caller();
@@ -456,7 +456,6 @@ export function claimProtocolFees(_: StaticArray<u8>): void {
 
   if (bAccumulatedFeesStored > u256.Zero) {
     new IMRC20(new Address(bTokenAddressStored)).transfer(
-      callerAddress,
       protocolFeeReceiver,
       bAccumulatedFeesStored,
     );
