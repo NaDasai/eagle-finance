@@ -381,3 +381,34 @@ export async function getSwapOutEstimation(
 
   return new Args(operation.value).nextU256();
 }
+
+export async function claimeProtocolFees(poolContract: SmartContract) {
+  const operation = await poolContract.call(
+    'claimProtocolFees',
+    new Args().serialize(),
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Protocol fees claimed');
+  } else {
+    console.log('Status:', status);
+
+    console.log('Error Events : ', await operation.getSpeculativeEvents());
+
+    throw new Error('Failed to claim protocol fees');
+  }
+}
+
+export async function getAClaimableProtocolFee(poolContract: SmartContract) {
+  return new Args(
+    (await poolContract.read('getAClaimableProtocolFee')).value,
+  ).nextU256();
+}
+
+export async function getBClaimableProtocolFee(poolContract: SmartContract) {
+  return new Args(
+    (await poolContract.read('getBClaimableProtocolFee')).value,
+  ).nextU256();
+}
