@@ -1,5 +1,6 @@
 import {
   Args,
+  bytesToStr,
   Mas,
   OperationStatus,
   parseMas,
@@ -125,4 +126,64 @@ export async function getPools(registryContract: SmartContract) {
   console.log('Pools: ', pools);
 
   return pools;
+}
+
+export async function getFeeShareProtocolReceiver(
+  registryContract: SmartContract,
+) {
+  const feeShareProtocolReceiver = bytesToStr(
+    (await registryContract.read('getFeeShareProtocolReceiver')).value,
+  );
+
+  return feeShareProtocolReceiver;
+}
+
+export async function getWmasTokenAddress(registryContract: SmartContract) {
+  const wmasTokenAddress = bytesToStr(
+    (await registryContract.read('getWmasTokenAddress')).value,
+  );
+
+  return wmasTokenAddress;
+}
+
+export async function setFeeShareProtocolReceiver(
+  registeryContract: SmartContract,
+  feeShareProtocolReceiver: string,
+) {
+  const operation = await registeryContract.call(
+    'setFeeShareProtocolReceiver',
+    new Args().addString(feeShareProtocolReceiver).serialize(),
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Fee share protocol receiver set successfully');
+  } else {
+    console.log('Status:', status);
+
+    console.log('Error events:', operation.getSpeculativeEvents());
+
+    throw new Error('Failed to set fee share protocol receiver');
+  }
+}
+
+export async function setWmasTokenAddress(
+  registeryContract: SmartContract,
+  wmasTokenAddress: string,
+) {
+  const operation = await registeryContract.call(
+    'setWmasTokenAddress',
+    new Args().addString(wmasTokenAddress).serialize(),
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('WMAS token address set successfully');
+  } else {
+    console.log('Status:', status);
+    console.log('Error events:', operation.getSpeculativeEvents());
+    throw new Error('Failed to set WMAS token address');
+  }
 }
