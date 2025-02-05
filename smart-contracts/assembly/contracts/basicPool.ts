@@ -416,7 +416,7 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
  * This function can be called by anyone but
  * @returns void
  */
-export function claimProtocolFees(): void {
+export function claimProtocolFees(_: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
@@ -437,16 +437,15 @@ export function claimProtocolFees(): void {
     'No accumulated fees',
   );
 
-  // Get the protocol fee receiver from the registry
-  const protocolFeeReceiver = _getProtocolFeeReceiver();
+  // TOOD: Get the protocol fee receiver from the registry
+  const protocolFeeReceiver = Context.caller(); //IMPORTANT: rembember to return it
 
   // Address of the caller
   const callerAddress = Context.caller();
 
   if (aAccumulatedFeesStored > u256.Zero) {
     // Transfer accumulated protocol fees to the protocol fee receiver (retreived from the registry contarct)
-    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-      callerAddress,
+    new IMRC20(new Address(aTokenAddressStored)).transfer(
       protocolFeeReceiver,
       aAccumulatedFeesStored,
     );
@@ -456,7 +455,7 @@ export function claimProtocolFees(): void {
   }
 
   if (bAccumulatedFeesStored > u256.Zero) {
-    new IMRC20(new Address(bTokenAddressStored)).transferFrom(
+    new IMRC20(new Address(bTokenAddressStored)).transfer(
       callerAddress,
       protocolFeeReceiver,
       bAccumulatedFeesStored,
@@ -475,7 +474,7 @@ export function claimProtocolFees(): void {
       callerAddress.toString(), // Caller address
       aAccumulatedFeesStored.toString(), // Amount of token A Claimed
       bAccumulatedFeesStored.toString(), // Amount of token B Claimed
-      protocolFeeReceiver.toString(), // Protocol fee receiver address
+      // protocolFeeReceiver.toString(), // Protocol fee receiver address
     ]),
   );
 }
@@ -793,6 +792,22 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
 }
 
 /**
+ * Gets the current claimable protocol fee for token A in the basic pool.
+ * @returns The claimable protocol fee for token A as a static array of 8-bit unsigned integers.
+ */
+export function getAClaimableProtocolFee(): StaticArray<u8> {
+  return Storage.get(aProtocolFee);
+}
+
+/**
+ * Gets the current claimable protocol fee for token B in the basic pool.
+ * @returns The claimable protocol fee for token B as a static array of 8-bit unsigned integers.
+ */
+export function getBClaimableProtocolFee(): StaticArray<u8> {
+  return Storage.get(bProtocolFee);
+}
+
+/**
  * Gets the address of token A used in the basic pool.
  * @returns The address of token A as a static array of 8-bit unsigned integers.
  */
@@ -1021,6 +1036,7 @@ function _addTokenAccumulatedProtocolFee(
   amount: u256,
 ): void {
   const current = _getTokenAccumulatedProtocolFee(tokenAddress);
+
   _setTokenAccumulatedProtocolFee(
     tokenAddress,
     SafeMath256.add(current, amount),
