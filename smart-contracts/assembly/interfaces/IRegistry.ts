@@ -96,6 +96,26 @@ export class IRegistery {
   }
 
   /**
+   * Retrieves pools associated with a given token address.
+   *
+   * @param tokenAddress - The token address.
+   * @returns A serialized array of bytes representing the pools that include the specified token address.
+   */
+  getPoolsByTokenAddress(tokenAddress: string): Pool[] {
+    const args = new Args().add(tokenAddress);
+
+    const result = call(this._origin, 'getPoolsByTokenAddress', args, 0);
+
+    const argsResult = new Args(result);
+
+    const pools: Pool[] = argsResult
+      .nextSerializableObjectArray<Pool>()
+      .unwrap();
+
+    return pools;
+  }
+
+  /**
    * calls the `getFeeShareProtocol` function of the registry contract.
    * @returns {f64} The fee share protocol.
    */
