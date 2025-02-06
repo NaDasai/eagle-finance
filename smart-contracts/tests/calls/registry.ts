@@ -24,7 +24,7 @@ export async function createNewPool(
     new Args()
       .addString(aTokenAddress)
       .addString(bTokenAddress)
-      .addF64(inputFeeRate)
+      .addU64(BigInt(inputFeeRate))
       .serialize(),
     { coins: Mas.fromString('8.5') },
   );
@@ -67,7 +67,7 @@ export async function createNewPoolWithLiquidity(
         .addU256(parseUnits(bAmount.toString(), bDecimals))
         .addU256(parseUnits(minAAmount.toString(), aDecimals))
         .addU256(parseUnits(minBAmount.toString(), bDecimals))
-        .addF64(inputFeeRate)
+        .addU64(BigInt(inputFeeRate))
         .addBool(isBNativeMas)
         .serialize(),
       { coins: coinsToSendOnAddLiquidity },
@@ -96,9 +96,9 @@ export async function deployRegistryContract(
   const registryByteCode = getScByteCode('build', 'registry.wasm');
 
   const constructorArgs = new Args()
-    .addF64(fee * 10000) // 0% fee share protocol
+    .addU64(BigInt(fee * 10000)) // 0% fee share protocol
     .addString(wmasAddress) // WMAS address
-    .addF64(flashLoanFee * 10_000) // 0% fee share protocol
+    .addU64(BigInt(flashLoanFee * 10_000)) // 0% fee share protocol
     .serialize();
 
   const contract = await SmartContract.deploy(

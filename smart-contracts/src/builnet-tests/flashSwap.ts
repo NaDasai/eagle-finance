@@ -27,7 +27,7 @@ export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
 
 // constructr takes fee share protocol as a parameter
 const constructorArgs = new Args()
-  .addF64(25) // 25% fee share protocol
+  .addU64(25n) // 25% fee share protocol
   .addString('AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU') // WMAS address
   .serialize();
 
@@ -64,7 +64,7 @@ async function createNewPoolWithLiquidity(
       .addU256(amountB)
       .addU256(minAmountA)
       .addU256(minAmountB)
-      .addF64(inputFeeRate)
+      .addU64(BigInt(inputFeeRate))
       .serialize(),
     { coins: isNativeCoin ? Mas.fromString('5.1') : Mas.fromString('0.1') },
   );

@@ -1,7 +1,6 @@
 import {
   Account,
   Args,
-  bytesToU64,
   Mas,
   OperationStatus,
   SmartContract,
