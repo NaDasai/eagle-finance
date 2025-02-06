@@ -7,6 +7,7 @@ import {
 } from './calls/registry';
 import * as dotenv from 'dotenv';
 import { getContractOwner, transferOwnership } from './calls/ownership';
+import { deployTokenDeployer } from './calls/token-deployer';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
 
 let registryContract: SmartContract;
 let poolContract: SmartContract;
+let tokenDeployerContract: SmartContract;
 
 describe('Registry Ownership', () => {
   beforeAll(async () => {
@@ -57,6 +59,12 @@ describe('Registry Ownership', () => {
 describe('Basic Pool OwnerShip', () => {
   beforeAll(async () => {
     registryContract = await deployRegistryContract(user1Provider, wmasAddress);
+
+    // switch registry to user2
+    registryContract = new SmartContract(
+      user2Provider,
+      registryContract.address,
+    );
 
     await createNewPool(registryContract, aTokenAddress, wmasAddress, 0);
 
@@ -100,4 +108,34 @@ describe('Basic Pool OwnerShip', () => {
   });
 });
 
-describe('Token Deployer OwnerShip');
+describe('Token Deployer OwnerShip', () => {
+  beforeAll(async () => {
+    tokenDeployerContract = await deployTokenDeployer(user1Provider);
+  });
+
+  test('Token Deployer owner should be the deployer', async () => {
+    const owner = await getContractOwner(tokenDeployerContract);
+
+    expect(owner).toBe(user1Provider.address);
+  });
+
+  test('Token Deployer owner should be able to transfer ownership', async () => {
+    const newOwner = user2Provider.address;
+
+    await transferOwnership(tokenDeployerContract, newOwner);
+
+    const newOwnerAddress = await getContractOwner(tokenDeployerContract);
+
+    expect(newOwnerAddress).toBe(newOwner);
+  });
+
+  test('Non Token Deployer Owner should not be able to transfer ownership', async () => {
+    const newOwner = user1Provider.address;
+
+    await expect(
+      transferOwnership(tokenDeployerContract, newOwner),
+    ).rejects.toThrowError(
+      '"readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Owner is not set at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:47 col: 3',
+    );
+  });
+});
