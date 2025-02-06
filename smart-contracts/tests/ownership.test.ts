@@ -135,7 +135,7 @@ describe('Token Deployer OwnerShip', () => {
     await expect(
       transferOwnership(tokenDeployerContract, newOwner),
     ).rejects.toThrowError(
-      '"readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Owner is not set at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:47 col: 3',
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Owner is not set at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:47 col: 3',
     );
   });
 });
