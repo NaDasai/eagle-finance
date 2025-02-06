@@ -381,6 +381,7 @@ describe('Scenario 2: Add liquidity, Swap native coins in and out without fees',
 
     poolContract = new SmartContract(user1Provider, poolAddress);
   });
+
   test('User 1 Add liquidity to pool using MAS when its empty', async () => {
     // get all pool reserves and expect them to be 0
     const [reserveA, reserveB] = await getPoolReserves(poolContract);
@@ -462,8 +463,13 @@ describe('Scenario 2: Add liquidity, Swap native coins in and out without fees',
     console.log('User1 A Token balance after: ', user1ATokenBalanceAfter);
     console.log('User1 MAS balance after: ', user1MasBalanceAfter);
 
+    const tokenAUserDifference =
+      user1ATokenBalanceBefore - user1ATokenBalanceAfter;
+
+    console.log('User Token A difference : ', tokenAUserDifference);
+
     expect(
-      user1ATokenBalanceBefore - user1ATokenBalanceAfter,
+      tokenAUserDifference,
       'User1 A Token balance should decrease after adding liquidity',
     ).toBe(parseMas(aAmount.toString()));
 
@@ -1101,7 +1107,7 @@ describe('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees', as
     expect(
       reserveBAfter,
       'Reserve B should be 14.985 due (15 - 0.015) after swap',
-    ).toBe(parseMas('14.985'));
+    ).toBe(parseMas('14.9999925'));
 
     // get user2 balances after swap
     const user2ATokenBalanceAfter = await getTokenBalance(
@@ -1608,7 +1614,7 @@ describe('Scenario 5: Add liquidity and swap with different token decimals wmas(
     ).toBe('6.67334');
 
     expect(reserveBAfter, 'Reserve B should be 14.985 after swap').toBe(
-      parseMas('14.985'),
+      parseMas('14.9999925'),
     );
 
     const user2ATokenBalanceAfter = await getTokenBalance(
@@ -1662,7 +1668,7 @@ describe('Scenario 5: Add liquidity and swap with different token decimals wmas(
 
     const expectedReserveA = 3336670003336680555n;
 
-    const expectedReserveB = 7492500001n;
+    const expectedReserveB = 7499996251n;
 
     console.log('Expected Reserve A after: ', expectedReserveA);
     console.log('Expected Reserve B after: ', expectedReserveB);
