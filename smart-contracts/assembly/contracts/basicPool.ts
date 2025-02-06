@@ -666,6 +666,9 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
     .nextBytes()
     .expect('callbackData is missing or invalid');
 
+  // Coins to be transferred to the callback address
+  const callbackCoins = args.nextU64().unwrapOrDefault();
+
   // The current caller is the callback address which should be a smart contract
   const callbackAddress = Context.caller();
 
@@ -736,6 +739,7 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
     aAmount,
     bAmount,
     callbackData,
+    callbackCoins,
   );
 
   // get contract tokens balance after callback
