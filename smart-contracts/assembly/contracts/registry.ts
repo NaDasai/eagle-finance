@@ -29,6 +29,7 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { isBetweenZeroAndTenPercent } from '../lib/math';
 import { u256 } from 'as-bignum/assembly';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
+import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
@@ -274,6 +275,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     callerAddress,
     poolContract._origin,
     aAmount,
+    getBalanceEntryCost(aTokenAddress, poolContract._origin.toString()),
   );
 
   if (isBTokenNativeMas) {
@@ -305,6 +307,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
       callerAddress,
       poolContract._origin,
       bAmount,
+      getBalanceEntryCost(bTokenAddress, poolContract._origin.toString()),
     );
   }
 

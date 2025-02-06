@@ -43,6 +43,7 @@ import {
 } from '../utils';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 import { GetLiquidityDataResult, GetSwapOutResult } from '../types/basicPool';
+import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -448,6 +449,7 @@ export function claimProtocolFees(_: StaticArray<u8>): void {
     new IMRC20(new Address(aTokenAddressStored)).transfer(
       protocolFeeReceiver,
       aAccumulatedFeesStored,
+      getBalanceEntryCost(aTokenAddressStored, protocolFeeReceiver.toString()),
     );
 
     // Reset protocol fees for that token
@@ -458,6 +460,7 @@ export function claimProtocolFees(_: StaticArray<u8>): void {
     new IMRC20(new Address(bTokenAddressStored)).transfer(
       protocolFeeReceiver,
       bAccumulatedFeesStored,
+      getBalanceEntryCost(bTokenAddressStored, protocolFeeReceiver.toString()),
     );
 
     // Reset protocol fees for that token
@@ -540,14 +543,19 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // Burn lp tokens
   liquidityManager.burn(Context.caller(), lpAmount);
 
+  // get the current caller address
+  const callerAddress = Context.caller();
+
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transfer(
-    Context.caller(),
+    callerAddress,
     amountAOut,
+    getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
   );
   new IMRC20(new Address(bTokenAddressStored)).transfer(
-    Context.caller(),
+    callerAddress,
     amountBOut,
+    getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
   );
 
   // Calculate new reserves
@@ -725,12 +733,20 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Transfer the amounts to the callback address
   if (aAmount > u256.Zero) {
     // Transfer aAmount from the contract to the callbackAddress
-    aToken.transfer(callbackAddress, aAmount);
+    aToken.transfer(
+      callbackAddress,
+      aAmount,
+      getBalanceEntryCost(aTokenAddressStored, callbackAddress.toString()),
+    );
   }
 
   if (bAmount > u256.Zero) {
     // Transfer bAmount from the contract to the callbackAddress
-    bToken.transfer(callbackAddress, bAmount);
+    bToken.transfer(
+      callbackAddress,
+      bAmount,
+      getBalanceEntryCost(bTokenAddressStored, callbackAddress.toString()),
+    );
   }
 
   // Call the callback function of the contract
@@ -992,6 +1008,7 @@ function _addLiquidity(
       callerAddress,
       contractAddress,
       finalAmountA,
+      getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
     );
 
     if (!isWithMAS) {
@@ -1000,6 +1017,7 @@ function _addLiquidity(
         callerAddress,
         contractAddress,
         finalAmountB,
+        getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
       );
     }
   }
@@ -1129,19 +1147,25 @@ function _swap(
   assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
 
   const callerAddress = Context.caller();
+  const contractAddress = Context.callee();
 
   if (!isTokenInNative) {
     // Transfer the amountIn to the contract
     new IMRC20(new Address(tokenInAddress)).transferFrom(
       callerAddress,
-      Context.callee(),
+      contractAddress,
       amountIn,
+      getBalanceEntryCost(tokenInAddress, contractAddress.toString()),
     );
   }
 
   if (!isTokenOutNative) {
     // Transfer the amountOut to the caller
-    new IMRC20(new Address(tokenOutAddress)).transfer(callerAddress, amountOut);
+    new IMRC20(new Address(tokenOutAddress)).transfer(
+      callerAddress,
+      amountOut,
+      getBalanceEntryCost(tokenOutAddress, callerAddress.toString()),
+    );
   } else {
     // unwrap the amountOut to MAs then transfer to the caller
     _unwrapWMASToMas(amountOut, callerAddress);
