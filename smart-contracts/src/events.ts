@@ -10,7 +10,7 @@ const provider = Web3Provider.buildnet(account);
 console.log('getting events');
 
 const events = await provider.getEvents({
-  callerAddress: account2.address.toString(),
+  callerAddress: account.address.toString(),
 });
 
 for (const event of events) {

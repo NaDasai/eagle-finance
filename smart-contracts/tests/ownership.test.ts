@@ -1,6 +1,10 @@
 import { Account, SmartContract, Web3Provider } from '@massalabs/massa-web3';
 import { beforeAll, describe, expect, test } from 'vitest';
-import { deployRegistryContract } from './calls/registry';
+import {
+  createNewPool,
+  deployRegistryContract,
+  getPools,
+} from './calls/registry';
 import * as dotenv from 'dotenv';
 import { getContractOwner, transferOwnership } from './calls/ownership';
 
@@ -13,8 +17,10 @@ const user2Provider = Web3Provider.buildnet(
 );
 
 const wmasAddress = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU';
+const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
 
 let registryContract: SmartContract;
+let poolContract: SmartContract;
 
 describe('Registry Ownership', () => {
   beforeAll(async () => {
@@ -47,5 +53,51 @@ describe('Registry Ownership', () => {
     );
   });
 });
-describe('Basic Pool OwnerShip');
+
+describe('Basic Pool OwnerShip', () => {
+  beforeAll(async () => {
+    registryContract = await deployRegistryContract(user1Provider, wmasAddress);
+
+    await createNewPool(registryContract, aTokenAddress, wmasAddress, 0);
+
+    const pools = await getPools(registryContract);
+
+    expect(pools.length > 0, 'No pools found');
+
+    // get the last pool address
+    const pool = pools[pools.length - 1].poolAddress;
+
+    poolContract = new SmartContract(user2Provider, pool);
+  });
+
+  test('Pool owner should be the deployer of the registry not the pool', async () => {
+    const owner = await getContractOwner(poolContract);
+
+    expect(owner).toBe(user1Provider.address);
+  });
+
+  test('Pool owner should be able to transfer ownership', async () => {
+    // switch to the owner
+    poolContract = new SmartContract(user1Provider, poolContract.address);
+
+    const newOwner = user2Provider.address;
+
+    await transferOwnership(poolContract, newOwner);
+
+    const newOwnerAddress = await getContractOwner(poolContract);
+
+    expect(newOwnerAddress).toBe(newOwner);
+  });
+
+  test('Non Pool Owner should not be able to transfer ownership', async () => {
+    const newOwner = user1Provider.address;
+
+    await expect(
+      transferOwnership(poolContract, newOwner),
+    ).rejects.toThrowError(
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:49 col: 3',
+    );
+  });
+});
+
 describe('Token Deployer OwnerShip');
