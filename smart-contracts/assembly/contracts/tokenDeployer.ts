@@ -103,16 +103,7 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
 
   // Emit an event
   generateEvent(
-    createEvent('CREATE_NEW_TOKEN', [
-      tokenName,
-      tokenSymbol,
-      decimals.toString(),
-      totalSupply.toString(),
-      url,
-      description,
-      tokenAddress.toString(),
-      coinsToUseOnDeploy.toString(),
-    ]),
+    `CREATE_NEW_TOKEN:${tokenName}||${tokenSymbol}||${decimals.toString()}||${totalSupply.toString()}||${url}||${description}||${tokenAddress.toString()}||${coinsToUseOnDeploy.toString()}`,
   );
 
   // Raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
