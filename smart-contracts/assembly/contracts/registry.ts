@@ -33,8 +33,6 @@ import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
-// array of pool keys in the registery
-export const poolsKeys: StaticArray<u8> = stringToBytes('poolsKeys');
 // store the protocol fee
 export const feeShareProtocol: StaticArray<u8> =
   stringToBytes('feeShareProtocol');
@@ -103,9 +101,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // set the owner of the registry contract to the caller of the constructor
   _setOwner(callerAddress);
-
-  // store the poolsKeys array in the poolsKeys persistent map
-  Storage.set(poolsKeys, new Args().add(new Array<string>()).serialize());
 
   ReentrancyGuard.__ReentrancyGuard_init();
 
@@ -326,65 +321,39 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   ReentrancyGuard.endNonReentrant();
 }
 
-/**
- *  Retrieves all the pools in the registery.
- *  @returns Array of Pools
- */
-export function getPools(): StaticArray<u8> {
-  const poolsKeysStored = Storage.get(poolsKeys);
-
-  const deserializedPoolsKeys = new Args(poolsKeysStored)
-    .nextStringArray()
-    .unwrap();
-
-  const retPools: Pool[] = [];
-
-  for (let i = 0; i < deserializedPoolsKeys.length; i++) {
-    const key = deserializedPoolsKeys[i];
-    const pool = pools.get(key, new Pool());
-    retPools.push(pool);
-  }
-
-  return new Args().addSerializableObjectArray(retPools).serialize();
-}
-
-/**
- * Retrieves and serializes pools associated with a given token address.
- *
- * @param binaryArgs - A serialized array of bytes containing the token address.
- * @returns A serialized array of bytes representing the pools that include the specified token address.
- * @throws An error if the token address is missing or invalid.
- */
-export function getPoolsByTokenAddress(
-  binaryArgs: StaticArray<u8>,
-): StaticArray<u8> {
+export function getPool(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const args = new Args(binaryArgs);
 
-  const tokenAddress = args
+  const aTokenAddress = args
     .nextString()
-    .expect('TokenAddress is missing or invalid');
+    .expect('TokenAddress A is missing or invalid');
+  const bTokenAddress = args
+    .nextString()
+    .expect('TokenAddress B is missing or invalid');
 
-  const poolsKeysStored = Storage.get(poolsKeys);
+  const inputFeeRate = args
+    .nextU64()
+    .expect('InputFeeRate is missing or invalid');
 
-  // Deserialize the pools keys
-  const deserializedPoolsKeys = new Args(poolsKeysStored)
-    .nextStringArray()
-    .unwrap();
+  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
 
-  const retPools: Pool[] = [];
+  assert(pools.contains(poolKey), 'POOL_DOES_NOT_EXIST');
 
-  for (let i = 0; i < deserializedPoolsKeys.length; i++) {
-    const key = deserializedPoolsKeys[i];
-    const pool = pools.get(key, new Pool());
-    if (
-      pool.aAddress.toString() == tokenAddress ||
-      pool.bAddress.toString() == tokenAddress
-    ) {
-      retPools.push(pool);
-    }
-  }
+  const pool = pools.get(poolKey, new Pool());
 
-  return new Args().addSerializableObjectArray(retPools).serialize();
+  return new Args().add<Pool>(pool).serialize();
+}
+
+export function getPoolByKey(binaryArgs: StaticArray<u8>): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const poolKey = args.nextString().expect('PoolKey is missing or invalid');
+
+  assert(pools.contains(poolKey), 'POOL_DOES_NOT_EXIST');
+
+  const pool = pools.get(poolKey, new Pool());
+
+  return new Args().add<Pool>(pool).serialize();
 }
 
 /**
@@ -572,20 +541,6 @@ function _createNewPool(
 
   // Store the pool in the pools persistent map
   pools.set(poolKey, pool);
-
-  // Store the pool key in the poolsKeys array
-  const poolsKeysStored = Storage.get(poolsKeys);
-
-  // Deserialize the poolsKeys array
-  const deserializedPoolsKeys = new Args(poolsKeysStored)
-    .nextStringArray()
-    .unwrap();
-
-  // Add the pool key to the poolsKeys array
-  deserializedPoolsKeys.push(poolKey);
-
-  // Serialize the deserialized poolsKeys array
-  Storage.set(poolsKeys, new Args().add(deserializedPoolsKeys).serialize());
 
   // Emit an event
   generateEvent(
