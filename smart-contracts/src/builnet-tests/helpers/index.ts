@@ -1,6 +1,5 @@
 import {
   Args,
-  bytesToU64,
   formatUnits,
   Mas,
   MRC20,
