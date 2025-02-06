@@ -4,7 +4,7 @@ import {
   bytesToString,
   bytesToU256,
   bytesToU64,
-  f64ToBytes,
+  u64ToBytes,
   stringToBytes,
   u256ToBytes,
   u64ToBytes,

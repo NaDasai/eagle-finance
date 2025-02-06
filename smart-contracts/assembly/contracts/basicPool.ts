@@ -13,11 +13,9 @@ import {
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
-  bytesToF64,
   bytesToString,
   bytesToU256,
   bytesToU64,
-  f64ToBytes,
   stringToBytes,
   u256ToBytes,
   u64ToBytes,
@@ -96,15 +94,15 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const bAddress = args.nextString().expect('Address B is missing or invalid');
 
   const inputFeeRate = args
-    .nextF64()
+    .nextU64()
     .expect('Input fee rate is missing or invalid');
 
   const feeShareProtocolInput = args
-    .nextF64()
+    .nextU64()
     .expect('Fee share protocol is missing or invalid');
 
   const flashLoanFeeInput = args
-    .nextF64()
+    .nextU64()
     .expect('Flash loan fee is missing or invalid');
 
   const registryAddress = args
@@ -117,13 +115,13 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   assertIsSmartContract(registryAddress);
 
   // Store fee rate
-  Storage.set(feeRate, f64ToBytes(inputFeeRate));
+  Storage.set(feeRate, u64ToBytes(inputFeeRate));
 
   // Store fee share protocol
-  Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
+  Storage.set(feeShareProtocol, u64ToBytes(feeShareProtocolInput));
 
   // Store flash loan fee
-  Storage.set(flashLoanFee, f64ToBytes(flashLoanFeeInput));
+  Storage.set(flashLoanFee, u64ToBytes(flashLoanFeeInput));
 
   // store the a and b protocol fees
   Storage.set(aProtocolFee, u256ToBytes(u256.Zero));
@@ -1516,8 +1514,8 @@ function _getAddLiquidityData(
  *
  * @returns The current fee rate for the protocol.
  */
-function _getFeeRate(): f64 {
-  return bytesToF64(Storage.get(feeRate));
+function _getFeeRate(): u64 {
+  return bytesToU64(Storage.get(feeRate));
 }
 
 /**
@@ -1525,8 +1523,8 @@ function _getFeeRate(): f64 {
  *
  * @returns The current fee share for the protocol.
  */
-function _getFeeShareProtocol(): f64 {
-  return bytesToF64(Storage.get(feeShareProtocol));
+function _getFeeShareProtocol(): u64 {
+  return bytesToU64(Storage.get(feeShareProtocol));
 }
 
 /**
@@ -1534,8 +1532,8 @@ function _getFeeShareProtocol(): f64 {
  *
  * @returns The current flash loan fee for the protocol.
  */
-function _getFlashLoanFee(): f64 {
-  return bytesToF64(Storage.get(flashLoanFee));
+function _getFlashLoanFee(): u64 {
+  return bytesToU64(Storage.get(flashLoanFee));
 }
 
 /**

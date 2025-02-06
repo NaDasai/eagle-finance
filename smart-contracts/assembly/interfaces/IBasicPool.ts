@@ -1,9 +1,8 @@
 import {
   Args,
-  bytesToF64,
+  bytesToU64,
   bytesToString,
   bytesToU256,
-  bytesToU64,
   byteToBool,
   u256ToBytes,
 } from '@massalabs/as-types';
@@ -27,16 +26,16 @@ export class IBasicPool {
    *
    * @param {string} aTokenAddress - Address of Token A.
    * @param {string} bTokenAddress - Address of Token B.
-   * @param {f64} feeRate - Fee rate for the pool.
-   * @param {f64} feeShareProtocol - Protocol fee share.
+   * @param {u64} feeRate - Fee rate for the pool.
+   * @param {u64} feeShareProtocol - Protocol fee share.
    * @param {string} registryAddress - Address of the registry contract.
    */
   init(
     aTokenAddress: string,
     bTokenAddress: string,
-    feeRate: f64,
-    feeShareProtocol: f64,
-    flashLoanFee: f64,
+    feeRate: u64,
+    feeShareProtocol: u64,
+    flashLoanFee: u64,
     registryAddress: string,
   ): void {
     const args = new Args()
@@ -203,20 +202,20 @@ export class IBasicPool {
 
   /**
    * Retrieves the fee rate.
-   * @returns {f64} The fee rate as a f64.
+   * @returns {u64} The fee rate as a u64.
    */
-  getFeeRate(): f64 {
+  getFeeRate(): u64 {
     const result = call(this._origin, 'getFeeRate', new Args(), 0);
-    return bytesToF64(result);
+    return bytesToU64(result);
   }
 
   /**
    * Retrieves the flash loan fee.
-   * @returns {f64} The flash loan fee as a f64.
+   * @returns {u64} The flash loan fee as a u64.
    */
-  getFlashLoanFee(): f64 {
+  getFlashLoanFee(): u64 {
     const result = call(this._origin, 'getFlashLoanFee', new Args(), 0);
-    return bytesToF64(result);
+    return bytesToU64(result);
   }
 
   /**

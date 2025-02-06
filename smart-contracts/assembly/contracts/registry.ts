@@ -13,9 +13,9 @@ import {
 import {
   Args,
   boolToByte,
-  bytesToF64,
+  bytesToU64,
   bytesToString,
-  f64ToBytes,
+  u64ToBytes,
   stringToBytes,
 } from '@massalabs/as-types';
 import { PersistentMap } from '../lib/PersistentMap';
@@ -62,14 +62,14 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // read the arguments
   const feeShareProtocolInput = args
-    .nextF64()
+    .nextU64()
     .expect('FeeShareProtocol is missing or invalid');
 
   const wmasTokenAddressInput = args
     .nextString()
     .expect('WmasTokenAddress is missing or invalid');
 
-  const flashLoanFeeInput = args.nextF64().expect('FlashLoanFee is missing');
+  const flashLoanFeeInput = args.nextU64().expect('FlashLoanFee is missing');
 
   // ensure that the fee share protocol is between 0 and 10%
   assert(
@@ -90,10 +90,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(wmasTokenAddress, stringToBytes(wmasTokenAddressInput));
 
   // store fee share protocol
-  Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
+  Storage.set(feeShareProtocol, u64ToBytes(feeShareProtocolInput));
 
   // store flashLoanFee
-  Storage.set(flashLoanFee, f64ToBytes(flashLoanFeeInput));
+  Storage.set(flashLoanFee, u64ToBytes(flashLoanFeeInput));
 
   // Get the caller of the constructo
   const callerAddress = Context.caller().toString();
@@ -141,7 +141,7 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     .expect('TokenAddress B is missing or invalid');
 
   const inputFeeRate = args
-    .nextF64()
+    .nextU64()
     .expect('InputFeeRate is missing or invalid');
 
   const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
@@ -209,7 +209,7 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   let minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
   const inputFeeRate = args
-    .nextF64()
+    .nextU64()
     .expect('InputFeeRate is missing or invalid');
 
   // Default value of a boolean is false
@@ -501,7 +501,7 @@ export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
 
   const aTokenAddress = args.nextString().expect('aTokenAddress is missing');
   const bTokenAddress = args.nextString().expect('bTokenAddress is missing');
-  const inputFeeRate = args.nextF64().expect('inputFeeRate is missing');
+  const inputFeeRate = args.nextU64().expect('inputFeeRate is missing');
 
   const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
 
@@ -520,7 +520,7 @@ export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
 function _createNewPool(
   aTokenAddress: string,
   bTokenAddress: string,
-  inputFeeRate: f64,
+  inputFeeRate: u64,
 ): IBasicPool {
   // Ensure that the input fee rate is between 0 and 10%
   assert(
@@ -606,19 +606,19 @@ function _createNewPool(
 /**
  * Retrieves the fee share protocol value from storage and converts it to a floating-point number.
  *
- * @returns {f64} The fee share protocol value as a 64-bit floating-point number.
+ * @returns {u64} The fee share protocol value as a 64-bit floating-point number.
  */
-function _getFeeShareProtocol(): f64 {
-  return bytesToF64(Storage.get(feeShareProtocol));
+function _getFeeShareProtocol(): u64 {
+  return bytesToU64(Storage.get(feeShareProtocol));
 }
 
 /**
  * Retrieves the flash loan fee value from storage and converts it to a 64-bit floating-point number.
  *
- * @returns {f64} The flash loan fee value as a 64-bit floating-point number.
+ * @returns {u64} The flash loan fee value as a 64-bit floating-point number.
  */
-function _getFlashLoanFee(): f64 {
-  return bytesToF64(Storage.get(flashLoanFee));
+function _getFlashLoanFee(): u64 {
+  return bytesToU64(Storage.get(flashLoanFee));
 }
 
 // Export all the functions from the ownership functions

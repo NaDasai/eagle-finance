@@ -25,7 +25,7 @@ export class Pool implements Serializable<Pool> {
     this.poolAddress = args.nextString();
     this.aTokenddress = args.nextString();
     this.bTokenAddress = args.nextString();
-    this.inputFeeRate = args.nextF64();
+    this.inputFeeRate = args.nextU64();
 
     return { instance: this, offset: args.getOffset() };
   }

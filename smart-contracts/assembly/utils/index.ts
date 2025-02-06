@@ -1,10 +1,6 @@
 import { Args, SafeMath } from '@massalabs/as-types';
 import { DEFAULT_BUILDNET_WMAS_ADDRESS } from './constants';
-import {
-  Address,
-  Context,
-  transferCoins,
-} from '@massalabs/massa-as-sdk';
+import { Address, Context, transferCoins } from '@massalabs/massa-as-sdk';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { u256 } from 'as-bignum/assembly';
 
@@ -18,7 +14,7 @@ import { u256 } from 'as-bignum/assembly';
 export function _buildPoolKey(
   tokenA: string,
   tokenB: string,
-  inputFeeRate: f64,
+  inputFeeRate: u64,
   wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
 ): string {
   // sort the addresses to ensure that the key of the pool is always the same

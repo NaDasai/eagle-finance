@@ -6,7 +6,7 @@ export class Pool implements Serializable {
     public poolAddress: Address = new Address(),
     public aAddress: Address = new Address(),
     public bAddress: Address = new Address(),
-    public inputFeeRate: f64 = f64(0),
+    public inputFeeRate: u64 = u64(0),
   ) {}
 
   serialize(): StaticArray<u8> {
@@ -24,7 +24,7 @@ export class Pool implements Serializable {
     this.poolAddress = new Address(args.nextString().expect('Invalid address'));
     this.aAddress = new Address(args.nextString().expect('Invalid address'));
     this.bAddress = new Address(args.nextString().expect('Invalid address'));
-    this.inputFeeRate = args.nextF64().expect('Invalid input fee rate');
+    this.inputFeeRate = args.nextU64().expect('Invalid input fee rate');
 
     return new Result(args.offset);
   }

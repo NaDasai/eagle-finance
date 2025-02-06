@@ -1,7 +1,7 @@
 import {
   Account,
   Args,
-  bytesToF64,
+  bytesToU64,
   formatUnits,
   Mas,
   MRC20,
@@ -114,7 +114,7 @@ async function getRegistryFeeShareProtocol() {
     new Args().serialize(),
   );
 
-  const feeShareProtocol = bytesToF64(result.value);
+  const feeShareProtocol = bytesToU64(result.value);
 
   console.log('Fee share protocol:', feeShareProtocol);
 }

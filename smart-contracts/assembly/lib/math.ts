@@ -7,6 +7,6 @@ import { ONE_PERCENT } from '../utils/constants';
  * @param value - The floating-point number to evaluate.
  * @returns A boolean indicating whether the value is greater than 0 and less than or equal to 10 percent.
  */
-export function isBetweenZeroAndTenPercent(value: f64): bool {
-  return value >= 0 && value <= 10 * f64(ONE_PERCENT);
+export function isBetweenZeroAndTenPercent(value: u64): bool {
+  return value >= 0 && value <= 10 * u64(ONE_PERCENT);
 }
