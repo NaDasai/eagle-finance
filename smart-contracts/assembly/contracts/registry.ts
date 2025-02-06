@@ -219,15 +219,14 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
 
   // Check if bTokenAddress is native mas, if so, change it to wmasTokenAddress else throw error
   if (isBTokenNativeMas) {
-    // Throw error if bTokenAddress is not native mas
-    if (bTokenAddress != NATIVE_MAS_COIN_ADDRESS) {
-      throw new Error(
-        'CREATE_NEW_POOL_WITH_LIQUIDITY: bTokenAddress must be native mas',
-      );
-    } else {
-      // Change bTokenAddress to wmasTokenAddress
-      bTokenAddress = wmasTokenAddressStored;
-    }
+    // Ensure that bTokenAddress passed is native mas
+    assert(
+      bTokenAddress == NATIVE_MAS_COIN_ADDRESS,
+      'B_TOKEN_ADDRESS_MUST_BE_NATIVE_MAS',
+    );
+
+    // Change bTokenAddress to wmasTokenAddress
+    bTokenAddress = wmasTokenAddressStored;
   }
 
   // Get the balance of the contract when the transaction was initiated
