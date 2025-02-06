@@ -20,6 +20,7 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { deserializeStringArray, serializeStringArray } from '../utils';
 import { UserToken } from '../structs/userToken';
 import { u256 } from 'as-bignum/assembly';
+import { _setOwner } from '../utils/ownership-internal';
 
 // Array of all tokens addresses deployed
 export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
@@ -35,6 +36,9 @@ export function constructor(_: StaticArray<u8>): void {
 
   // Initialize the token addresses array
   Storage.set(tokenAddresses, serializeStringArray([]));
+
+  // Set the contract owner
+  _setOwner(Context.caller().toString());
 
   generateEvent(`Token Deployer deployed.`);
 }
