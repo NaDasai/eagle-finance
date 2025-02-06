@@ -328,8 +328,4 @@ export {
   burn,
   burnFrom,
 } from '@massalabs/sc-standards/assembly/contracts/MRC20/burnable';
-export {
-  setOwner,
-  onlyOwner,
-  isOwner,
-} from '@massalabs/sc-standards/assembly/contracts/utils/ownership';
+export { setOwner, onlyOwner, isOwner } from '../utils/ownership';
