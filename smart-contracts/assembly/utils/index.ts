@@ -1,6 +1,11 @@
 import { Args, SafeMath } from '@massalabs/as-types';
 import { DEFAULT_BUILDNET_WMAS_ADDRESS } from './constants';
-import { Address, Context, transferCoins } from '@massalabs/massa-as-sdk';
+import {
+  Address,
+  Context,
+  generateEvent,
+  transferCoins,
+} from '@massalabs/massa-as-sdk';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { u256 } from 'as-bignum/assembly';
 
@@ -25,6 +30,9 @@ export function _buildPoolKey(
   const sortedTokenB = sortedTokens[1];
 
   const key = `${sortedTokenA}-${sortedTokenB}-${inputFeeRate.toString()}`;
+
+  generateEvent(`Built pool key: ${key}`);
+
   return key;
 }
 

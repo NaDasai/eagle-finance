@@ -223,6 +223,8 @@ export async function getPool(
       .serialize(),
   );
 
+  console.log('Pool RESULT', poolResult);
+
   const pool = new Args(poolResult.value).nextSerializable<Pool>(Pool);
 
   console.log('Pool:', pool);

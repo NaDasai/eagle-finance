@@ -131,8 +131,8 @@ describe('Create new pool without liquidity', async () => {
 
     const pool = await getPool(
       registryContract,
-      aTokenAddress,
       bTokenAddress,
+      wmasAddress,
       inputFeeRate,
     );
 
@@ -166,7 +166,7 @@ describe('Create new pool without liquidity', async () => {
     const pool = await getPool(
       registryContract,
       aTokenAddress,
-      bTokenAddress,
+      wmasAddress,
       inputFeeRate,
     );
 
@@ -335,8 +335,8 @@ describe('Create new pool with liquidity', async () => {
 
     const pool = await getPool(
       registryContract,
-      aTokenAddress,
       bTokenAddress,
+      wmasAddress,
       inputFeeRate,
     );
 
@@ -402,7 +402,7 @@ describe('Create new pool with liquidity', async () => {
     const pool = await getPool(
       registryContract,
       aTokenAddress,
-      bTokenAddress,
+      wmasAddress,
       inputFeeRate,
     );
     const poolContract = new SmartContract(user1Provider, pool.poolAddress);
