@@ -304,7 +304,7 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   );
 
   // Transfer the remaining coins to the caller
-  transferRemaining(SCBalance, balance(), sent, Context.caller());
+  transferRemaining(SCBalance, balance(), sent, new Address(callerAddress));
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
