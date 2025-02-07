@@ -21,7 +21,11 @@ import {
 import { PersistentMap } from '../lib/PersistentMap';
 import { Pool } from '../structs/pool';
 import { _setOwner } from '../utils/ownership-internal';
-import { _buildPoolKey, sortPoolTokenAddresses } from '../utils';
+import {
+  _buildPoolKey,
+  sortPoolTokenAddresses,
+  transferRemaining,
+} from '../utils';
 import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
@@ -139,6 +143,11 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
     .nextU64()
     .expect('InputFeeRate is missing or invalid');
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
 
   // Check if bTokenAddress is native mas
@@ -163,6 +172,9 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
 
   // Call the internal function
   _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
+
+  // Transfer the remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -210,6 +222,12 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   // Default value of a boolean is false
   const isBTokenNativeMas = args.nextBool().unwrapOrDefault();
 
+  // Get the balance of the contract when the transaction was initiated
+  const SCBalance = balance();
+
+  // Get the calller transferred coins
+  const transferredCoins = Context.transferredCoins();
+
   // Get the wmas token address stored
   const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
 
@@ -224,12 +242,6 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     // Change bTokenAddress to wmasTokenAddress
     bTokenAddress = wmasTokenAddressStored;
   }
-
-  // Get the balance of the contract when the transaction was initiated
-  const SCBalance = balance();
-
-  // Get the calller transferred coins
-  const transferredCoins = Context.transferredCoins();
 
   // Sort the tokens based on the token addresses
   const sortedTokens = sortPoolTokenAddresses(
@@ -277,24 +289,24 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
     getBalanceEntryCost(aTokenAddress, poolContract._origin.toString()),
   );
 
+  // Get the current balance
+  const currentBalance = balance();
+
+  // Calculate the spent coins
+  const spent = SCBalance - currentBalance;
+
+  generateEvent(
+    `Transferred ${spent} coins from ${callerAddress} to ${Context.callee().toString()}`,
+  );
+
+  // If bTokenAddress is native mas, transfer the remainning from transferredCoins to the pool contract
+  coinsToSendOnAddLiquidity = transferredCoins - spent;
+
+  generateEvent(
+    `Transferred ${coinsToSendOnAddLiquidity} coins from ${callerAddress} to ${poolContract._origin}`,
+  );
+
   if (isBTokenNativeMas) {
-    // Get the current balance
-    const currentBalance = balance();
-
-    // Calculate the spent coins
-    const spent = SCBalance - currentBalance;
-
-    generateEvent(
-      `Transferred ${spent} coins from ${callerAddress} to ${Context.callee().toString()}`,
-    );
-
-    // If bTokenAddress is native mas, transfer the remainning from transferredCoins to the pool contract
-    coinsToSendOnAddLiquidity = transferredCoins - spent;
-
-    generateEvent(
-      `Transferred ${coinsToSendOnAddLiquidity} coins from ${callerAddress} to ${poolContract._origin}`,
-    );
-
     // Check if the coins to send on addLiquidityFromRegistry function are greater than or equal to bAmount
     assert(
       u256.fromU64(coinsToSendOnAddLiquidity) >= bAmount,
@@ -400,6 +412,11 @@ export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
   // start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   // Only owner of registery can set the protocol fee receiver
   onlyOwner();
 
@@ -410,6 +427,9 @@ export function setFeeShareProtocolReceiver(binaryArgs: StaticArray<u8>): void {
   assert(validateAddress(receiver), 'INVALID ADDRESS');
 
   Storage.set(feeShareProtocolReceiver, stringToBytes(receiver));
+
+  // Transfer the remaining coins back to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -451,6 +471,11 @@ export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
     .nextString()
     .expect('WmasTokenAddress is missing or invalid');
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   // Ensure taht the wmasTokenAddress is a smart contract address
   assertIsSmartContract(wmasTokenAddressInput);
 
@@ -465,6 +490,9 @@ export function setWmasTokenAddress(binaryArgs: StaticArray<u8>): void {
       wmasTokenAddressInput, // New wmas token address
     ]),
   );
+
+  // Transfer the remaining coins back to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
