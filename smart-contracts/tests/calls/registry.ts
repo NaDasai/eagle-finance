@@ -62,8 +62,10 @@ export async function createNewPoolWithLiquidity(
   console.log('Creating new pool with liquidity...');
 
   const coinsToSendOnAddLiquidity = isBNativeMas
-    ? parseMas(Number(bAmount + 8.5).toString())
-    : Mas.fromString('8.5');
+    ? parseMas(Number(bAmount + 30).toString())
+    : Mas.fromString('30');
+
+  console.log('coinsToSendOnAddLiquidity', coinsToSendOnAddLiquidity);
   try {
     const operation = await contract.call(
       'createNewPoolWithLiquidity',
@@ -173,6 +175,9 @@ export async function setFeeShareProtocolReceiver(
   const operation = await registeryContract.call(
     'setFeeShareProtocolReceiver',
     new Args().addString(feeShareProtocolReceiver).serialize(),
+    {
+      coins: Mas.fromString('0.1'),
+    },
   );
 
   const status = await operation.waitSpeculativeExecution();
@@ -195,6 +200,7 @@ export async function setWmasTokenAddress(
   const operation = await registeryContract.call(
     'setWmasTokenAddress',
     new Args().addString(wmasTokenAddress).serialize(),
+    { coins: Mas.fromString('0.1') },
   );
 
   const status = await operation.waitSpeculativeExecution();
