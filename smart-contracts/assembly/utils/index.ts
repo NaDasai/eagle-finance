@@ -1,5 +1,4 @@
-import { Args, SafeMath } from '@massalabs/as-types';
-import { DEFAULT_BUILDNET_WMAS_ADDRESS } from './constants';
+import { Args, SafeMath } from '@massalabs/as-types';;
 import {
   Address,
   Context,
@@ -20,7 +19,7 @@ export function _buildPoolKey(
   tokenA: string,
   tokenB: string,
   inputFeeRate: u64,
-  wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
+  wmasAddress: string,
 ): string {
   // sort the addresses to ensure that the key of the pool is always the same
   // Ensure WMAS if exists, it is always tokenB
@@ -39,7 +38,7 @@ export function _buildPoolKey(
 export function sortPoolTokenAddresses(
   tokenA: string,
   tokenB: string,
-  wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
+  wmasAddress: string,
 ): string[] {
   // If either token is wmasAddress, ensure it is always tokenB
   if (tokenA == wmasAddress) {

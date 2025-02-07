@@ -232,7 +232,11 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   const transferredCoins = Context.transferredCoins();
 
   // Sort the tokens based on the token addresses
-  const sortedTokens = sortPoolTokenAddresses(aTokenAddress, bTokenAddress);
+  const sortedTokens = sortPoolTokenAddresses(
+    aTokenAddress,
+    bTokenAddress,
+    wmasTokenAddressStored,
+  );
 
   const aSortedToken = sortedTokens[0];
   const bSortedToken = sortedTokens[1];
@@ -346,9 +350,16 @@ export function getPool(binaryArgs: StaticArray<u8>): StaticArray<u8> {
     .nextU64()
     .expect('InputFeeRate is missing or invalid');
 
-  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
+  const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
 
-  assert(pools.contains(poolKey), 'POOL_DOES_NOT_EXIST');
+  const poolKey = _buildPoolKey(
+    aTokenAddress,
+    bTokenAddress,
+    inputFeeRate,
+    wmasTokenAddressStored,
+  );
+
+  assert(pools.contains(poolKey), `Pool does not exist:: " ${poolKey}`);
 
   const pool = pools.get(poolKey, new Pool());
 
@@ -471,7 +482,14 @@ export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const bTokenAddress = args.nextString().expect('bTokenAddress is missing');
   const inputFeeRate = args.nextU64().expect('inputFeeRate is missing');
 
-  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
+  const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
+
+  const poolKey = _buildPoolKey(
+    aTokenAddress,
+    bTokenAddress,
+    inputFeeRate,
+    wmasTokenAddressStored,
+  );
 
   const poolExists = pools.contains(poolKey);
 
@@ -503,8 +521,15 @@ function _createNewPool(
   assertIsSmartContract(aTokenAddress);
   assertIsSmartContract(bTokenAddress);
 
+  const wmasTokenAddressStored = bytesToString(Storage.get(wmasTokenAddress));
+
   //  check if the pool is already in the registery
-  const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
+  const poolKey = _buildPoolKey(
+    aTokenAddress,
+    bTokenAddress,
+    inputFeeRate,
+    wmasTokenAddressStored,
+  );
 
   assert(!pools.contains(poolKey), 'Pool already in the registery');
 
