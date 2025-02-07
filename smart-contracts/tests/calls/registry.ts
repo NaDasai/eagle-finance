@@ -1,4 +1,5 @@
 import {
+  Account,
   Args,
   bytesToStr,
   Mas,
@@ -7,9 +8,15 @@ import {
   parseUnits,
   Provider,
   SmartContract,
+  Web3Provider,
 } from '@massalabs/massa-web3';
 import { getScByteCode, TOKEN_DEFAULT_DECIMALS } from '../utils';
 import { Pool } from '../../src/builnet-tests/structs/pool';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
+const user1Provider = Web3Provider.buildnet(await Account.fromEnv());
 
 export async function createNewPool(
   contract: SmartContract,
@@ -116,14 +123,25 @@ export async function deployRegistryContract(
 }
 
 export async function getPools(registryContract: SmartContract) {
-  // get pools from registry
-  const poolsRes = await registryContract.read('getPools');
-
-  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
-    Pool,
+  const keys = await user1Provider.getStorageKeys(
+    registryContract.address,
+    'pools::',
+    false,
   );
 
-  console.log('Pools: ', pools);
+  const poolsKeys = [];
+
+  for (const key of keys) {
+    const deserializedKey = bytesToStr(key);
+    poolsKeys.push(deserializedKey);
+  }
+
+  const pools = [];
+
+  for (const key of poolsKeys) {
+    const pool = await getPoolByKey(registryContract, key);
+    pools.push(pool);
+  }
 
   return pools;
 }
@@ -204,6 +222,21 @@ export async function getPool(
   );
 
   const pool = new Args(poolResult.value).nextSerializable<Pool>(Pool);
+
+  return pool;
+}
+
+export async function getPoolByKey(
+  registryContract: SmartContract,
+  key: string,
+) {
+  const poolResult = await user1Provider.readStorage(
+    registryContract.address,
+    [key],
+    false,
+  );
+
+  const pool = new Args(poolResult[0]).nextSerializable<Pool>(Pool);
 
   return pool;
 }
