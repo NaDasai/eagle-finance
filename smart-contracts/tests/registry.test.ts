@@ -9,7 +9,7 @@ import {
   createNewPool,
   createNewPoolWithLiquidity,
   deployRegistryContract,
-  getPools,
+  getPool,
 } from './calls/registry';
 import * as dotenv from 'dotenv';
 import { NATIVE_MAS_COIN_ADDRESS } from './utils';
@@ -45,19 +45,22 @@ describe('Create new pool without liquidity', async () => {
       inputFeeRate,
     );
 
-    const pools = await getPools(registryContract);
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
 
-    expect(pools.length, 'No pools found').toBeGreaterThan(0);
-
-    expect(pools[0].aTokenddress, 'A token address is not correct').toBe(
+    expect(pool.aTokenddress, 'A token address is not correct').toBe(
       aTokenAddress,
     );
 
-    expect(pools[0].bTokenAddress, 'B token address is not correct').toBe(
+    expect(pool.bTokenAddress, 'B token address is not correct').toBe(
       bTokenAddress,
     );
 
-    expect(pools[0].inputFeeRate, 'Input fee rate is not correct').toBe(
+    expect(pool.inputFeeRate, 'Input fee rate is not correct').toBe(
       inputFeeRate,
     );
   });
@@ -92,12 +95,12 @@ describe('Create new pool without liquidity', async () => {
       inputFeeRate,
     );
 
-    const pools = await getPools(registryContract);
-
-    expect(pools.length, 'No pools found').toBeGreaterThan(1);
-
-    const pool = pools[pools.length - 1];
-    console.log('Pool: ', pool);
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
 
     expect(
       pool.aTokenddress,
@@ -126,11 +129,12 @@ describe('Create new pool without liquidity', async () => {
       inputFeeRate,
     );
 
-    const pools = await getPools(registryContract);
-
-    expect(pools.length, 'No pools found').toBeGreaterThan(0);
-
-    const pool = pools[pools.length - 1];
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
 
     expect(pool.bTokenAddress, 'B token address should be wmas address').toBe(
       wmasAddress,
@@ -159,11 +163,12 @@ describe('Create new pool without liquidity', async () => {
       inputFeeRate,
     );
 
-    const pools = await getPools(registryContract);
-
-    expect(pools.length, 'No pools found').toBeGreaterThan(0);
-
-    const pool = pools[pools.length - 1];
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
 
     expect(pool.bTokenAddress, 'B token address should be wmas address').toBe(
       wmasAddress,
@@ -195,11 +200,12 @@ describe('Create new pool without liquidity', async () => {
     const aSortedToken = bTokenAddress;
     const bSortedToken = aTokenAddress;
 
-    const pools = await getPools(registryContract);
-
-    expect(pools.length, 'No pools found').toBeGreaterThan(0);
-
-    const pool = pools[pools.length - 1];
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
 
     expect(pool.aTokenddress, 'A token address is not correct').toBe(
       aSortedToken,
@@ -256,11 +262,12 @@ describe('Create new pool with liquidity', async () => {
       inputFeeRate,
     );
 
-    const pools = await getPools(registryContract);
-
-    expect(pools.length, 'No pools found').toBeGreaterThan(0);
-
-    const pool = pools[pools.length - 1];
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
 
     const poolContract = new SmartContract(user1Provider, pool.poolAddress);
 
@@ -326,11 +333,12 @@ describe('Create new pool with liquidity', async () => {
       inputFeeRate,
     );
 
-    const pools = await getPools(registryContract);
-
-    expect(pools.length, 'No pools found').toBeGreaterThan(1);
-
-    const pool = pools[pools.length - 1];
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
 
     const poolContract = new SmartContract(user1Provider, pool.poolAddress);
 
@@ -391,12 +399,12 @@ describe('Create new pool with liquidity', async () => {
       true,
     );
 
-    const pools = await getPools(registryContract);
-
-    expect(pools.length, 'No pools found').toBeGreaterThan(0);
-
-    const pool = pools[pools.length - 1];
-
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
     const poolContract = new SmartContract(user1Provider, pool.poolAddress);
 
     expect(
@@ -457,11 +465,12 @@ describe('Create new pool with liquidity', async () => {
       true,
     );
 
-    const pools = await getPools(registryContract);
-
-    expect(pools.length, 'No pools found').toBeGreaterThan(0);
-
-    const pool = pools[pools.length - 1];
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      inputFeeRate,
+    );
 
     const poolContract = new SmartContract(user1Provider, pool.poolAddress);
 

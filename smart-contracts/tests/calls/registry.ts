@@ -136,6 +136,8 @@ export async function getPools(registryContract: SmartContract) {
     poolsKeys.push(deserializedKey);
   }
 
+  console.log('Pools keys:', poolsKeys);
+
   const pools = [];
 
   for (const key of poolsKeys) {
@@ -222,6 +224,8 @@ export async function getPool(
   );
 
   const pool = new Args(poolResult.value).nextSerializable<Pool>(Pool);
+
+  console.log('Pool:', pool);
 
   return pool;
 }
