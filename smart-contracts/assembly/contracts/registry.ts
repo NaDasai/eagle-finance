@@ -321,6 +321,17 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   ReentrancyGuard.endNonReentrant();
 }
 
+/**
+ * Retrieves a serialized pool object based on the provided binary arguments.
+ *
+ * @param binaryArgs - A static array of bytes representing the serialized input arguments.
+ * - aTokenAddress - The address of the first token in the pool.
+ * - bTokenAddress - The address of the second token in the pool.
+ * - inputFeeRate - The input fee rate for the pool.
+ * @returns A static array of bytes representing the serialized pool object.
+ * @throws Will throw an error if the token addresses or input fee rate are missing or invalid,
+ *         or if the pool does not exist.
+ */
 export function getPool(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const args = new Args(binaryArgs);
 
@@ -336,18 +347,6 @@ export function getPool(binaryArgs: StaticArray<u8>): StaticArray<u8> {
     .expect('InputFeeRate is missing or invalid');
 
   const poolKey = _buildPoolKey(aTokenAddress, bTokenAddress, inputFeeRate);
-
-  assert(pools.contains(poolKey), 'POOL_DOES_NOT_EXIST');
-
-  const pool = pools.get(poolKey, new Pool());
-
-  return new Args().add<Pool>(pool).serialize();
-}
-
-export function getPoolByKey(binaryArgs: StaticArray<u8>): StaticArray<u8> {
-  const args = new Args(binaryArgs);
-
-  const poolKey = args.nextString().expect('PoolKey is missing or invalid');
 
   assert(pools.contains(poolKey), 'POOL_DOES_NOT_EXIST');
 

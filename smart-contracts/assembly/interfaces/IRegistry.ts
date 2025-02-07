@@ -83,36 +83,30 @@ export class IRegistery {
   }
 
   /**
-   * Calls the `getPools` function of the registry contract to retrieve all pools.
+   * Calls the `getPool` function of the registry contract to retrieve a pool.
    *
-   * @returns {Pool[]} An array of Pool objects.
+   * @param {string} aTokenAddress - Address of Token A.
+   * @param {string} bTokenAddress - Address of Token B.
+   * @param {u64} inputFeeRate - Input fee rate.
+   * @returns {Pool} The retrieved pool.
    */
-  getPools(): Pool[] {
-    const result = call(this._origin, 'getPools', new Args(), 0);
-    const args = new Args(result);
-    const pools: Pool[] = args.nextSerializableObjectArray<Pool>().unwrap();
+  getPool(
+    aTokenAddress: string,
+    bTokenAddress: string,
+    inputFeeRate: u64,
+  ): Pool {
+    const args = new Args()
+      .add(aTokenAddress)
+      .add(bTokenAddress)
+      .add(inputFeeRate);
 
-    return pools;
-  }
-
-  /**
-   * Retrieves pools associated with a given token address.
-   *
-   * @param tokenAddress - The token address.
-   * @returns A serialized array of bytes representing the pools that include the specified token address.
-   */
-  getPoolsByTokenAddress(tokenAddress: string): Pool[] {
-    const args = new Args().add(tokenAddress);
-
-    const result = call(this._origin, 'getPoolsByTokenAddress', args, 0);
+    const result = call(this._origin, 'getPool', args, 0);
 
     const argsResult = new Args(result);
 
-    const pools: Pool[] = argsResult
-      .nextSerializableObjectArray<Pool>()
-      .unwrap();
+    const pool: Pool = argsResult.nextSerializable<Pool>().unwrap();
 
-    return pools;
+    return pool;
   }
 
   /**
