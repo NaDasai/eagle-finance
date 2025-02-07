@@ -187,3 +187,23 @@ export async function setWmasTokenAddress(
     throw new Error('Failed to set WMAS token address');
   }
 }
+
+export async function getPool(
+  registryContract: SmartContract,
+  aTokenAddress: string,
+  bTokenAddress: string,
+  inputFeeRate: number,
+) {
+  const poolResult = await registryContract.read(
+    'getPool',
+    new Args()
+      .addString(aTokenAddress)
+      .addString(bTokenAddress)
+      .addU64(BigInt(inputFeeRate))
+      .serialize(),
+  );
+
+  const pool = new Args(poolResult.value).nextSerializable<Pool>(Pool);
+
+  return pool;
+}
