@@ -1,4 +1,4 @@
-import { Args, SafeMath } from '@massalabs/as-types';;
+import { Args, SafeMath } from '@massalabs/as-types';
 import {
   Address,
   Context,
@@ -90,7 +90,8 @@ export function transferRemaining(
   if (balanceInit >= balanceFinal) {
     // Some operation might spend Massa by creating new storage space
     const spent = SafeMath.sub(balanceInit, balanceFinal);
-    assert(spent <= sent, 'Not enough coins to transfer');
+    generateEvent(`Spent ${spent} coins`);
+    assert(spent <= sent, 'SPENT_MORE_COINS_THAN_SENT');
     if (spent < sent) {
       // SafeMath not needed as spent is always less than sent
       const remaining: u64 = sent - spent;

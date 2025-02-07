@@ -186,7 +186,15 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
   const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   _addLiquidity(amountA, amountB, minAmountA, minAmountB);
+
+  // Transfer the remaining balance of the smart contract to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -215,11 +223,19 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
   const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
   const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   // Wrap MAS to WMAS
   _wrapMasToWMAS(bAmount);
 
   // Add liquidity with WMAS
   _addLiquidity(aAmount, bAmount, minAmountA, minAmountB, false, true);
+
+  // Transfer Remainning coins
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -238,6 +254,11 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
 export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   // Get the registry contract address
   const registeryAddressStored = bytesToString(
@@ -281,6 +302,9 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
     isNativeCoin,
     new Address(callerAddress),
   );
+
+  // Transfer the remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -343,6 +367,9 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     .nextU256()
     .expect('minAmountOut is missing or invalid');
 
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
+
   // Check if the amountIn is greater than 0
   assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
 
@@ -351,6 +378,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // Call the internal swap function
   _swap(tokenInAddress, amountIn, minAmountOut);
+
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -377,6 +406,9 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
   const minAmountOut = args
     .nextU256()
     .expect('minAmountOut is missing or invalid');
+
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
 
   // Check if the amountIn is greater than 0
   assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
@@ -406,6 +438,8 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
     _swap(tokenInAddress, amountIn, minAmountOut, false, true);
   }
 
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
+
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
 }
@@ -418,6 +452,11 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
 export function claimProtocolFees(_: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
@@ -465,6 +504,9 @@ export function claimProtocolFees(_: StaticArray<u8>): void {
     _setTokenAccumulatedProtocolFee(bTokenAddressStored, u256.Zero);
   }
 
+  // Transfer remaining balance to the caller
+  transferRemaining(SCBalance, balance(), sent, callerAddress);
+
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
 
@@ -474,7 +516,7 @@ export function claimProtocolFees(_: StaticArray<u8>): void {
       callerAddress.toString(), // Caller address
       aAccumulatedFeesStored.toString(), // Amount of token A Claimed
       bAccumulatedFeesStored.toString(), // Amount of token B Claimed
-      // protocolFeeReceiver.toString(), // Protocol fee receiver address
+      protocolFeeReceiver.toString(), // Protocol fee receiver address
     ]),
   );
 }
@@ -487,6 +529,11 @@ export function claimProtocolFees(_: StaticArray<u8>): void {
 export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   const args = new Args(binaryArgs);
 
@@ -564,6 +611,9 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   _updateReserveA(newResA);
   _updateReserveB(newResB);
 
+  // Transfer remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, callerAddress);
+
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
 
@@ -590,6 +640,9 @@ export function syncReserves(): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
+
   // only owner of registery contract can call this function
   _onlyOwner();
 
@@ -606,6 +659,9 @@ export function syncReserves(): void {
   // update reserves
   _updateReserveA(balanceA);
   _updateReserveB(balanceB);
+
+  // Transfer remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -677,6 +733,11 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
 
   // The current caller is the callback address which should be a smart contract
   const callbackAddress = Context.caller();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   // Ensure that the callback address is a smart contract
   assertIsSmartContract(callbackAddress.toString());
@@ -789,6 +850,9 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
 
   // Update the cumulative prices
   _updateCumulativePrices();
+
+  // Transfer Remainning Coins
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
