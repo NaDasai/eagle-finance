@@ -5,6 +5,7 @@ import {
   Mas,
   MRC20,
   OperationStatus,
+  parseMas,
   parseUnits,
   Provider,
   SmartContract,
@@ -60,7 +61,8 @@ export async function addLiquidityWithMAS(
 
   const storageCosts = computeMintStorageCost(poolContract.address);
 
-  const coins = Mas.fromString(bAmount.toString()) + BigInt(storageCosts);
+  const coins =
+    Mas.fromString(bAmount.toString()) + BigInt(storageCosts) + parseMas('0.1');
 
   console.log('Coins To send: ', coins);
 
@@ -98,9 +100,12 @@ export async function swapWithMAS(
 
   const storageCosts = computeMintStorageCost(poolContract.address);
 
-  const coins = Mas.fromString(amountIn.toString()) + BigInt(storageCosts);
+  const coins =
+    Mas.fromString(amountIn.toString()) +
+    BigInt(storageCosts) +
+    parseMas('0.1');
 
-  const coinsToSend = NativeIn ? coins : Mas.fromString('0');
+  const coinsToSend = NativeIn ? coins : Mas.fromString('0.1');
 
   console.log('Coins to send:', coinsToSend);
 
@@ -191,6 +196,9 @@ export async function removeLiquidityUsingPercentage(
       .addU256(parseUnits(minAmountA.toString(), aDecimals))
       .addU256(parseUnits(minAmountB.toString(), bDecimals))
       .serialize(),
+    {
+      coins: Mas.fromString('0.1'),
+    },
   );
 
   const status = await operation.waitSpeculativeExecution();
@@ -222,6 +230,9 @@ export async function removeLiquidity(
       .addU256(parseUnits(minAmountA.toString(), aDecimals))
       .addU256(parseUnits(minAmountB.toString(), bDecimals))
       .serialize(),
+    {
+      coins: Mas.fromString('0.1'),
+    },
   );
 
   const status = await operation.waitSpeculativeExecution();
@@ -380,4 +391,60 @@ export async function getSwapOutEstimation(
   );
 
   return new Args(operation.value).nextU256();
+}
+
+export async function claimeProtocolFees(poolContract: SmartContract) {
+  const operation = await poolContract.call(
+    'claimProtocolFees',
+    new Args().serialize(),
+    {
+      coins: Mas.fromString('0.1'),
+    },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Protocol fees claimed');
+  } else {
+    console.log('Status:', status);
+
+    console.log('Error Events : ', await operation.getSpeculativeEvents());
+
+    throw new Error('Failed to claim protocol fees');
+  }
+}
+
+export async function getAClaimableProtocolFee(poolContract: SmartContract) {
+  return new Args(
+    (await poolContract.read('getAClaimableProtocolFee')).value,
+  ).nextU256();
+}
+
+export async function getBClaimableProtocolFee(poolContract: SmartContract) {
+  return new Args(
+    (await poolContract.read('getBClaimableProtocolFee')).value,
+  ).nextU256();
+}
+
+export async function syncReserves(poolContract: SmartContract) {
+  const operation = await poolContract.call(
+    'syncReserves',
+    new Args().serialize(),
+    {
+      coins: Mas.fromString('0.1'),
+    },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Reserves synced');
+  } else {
+    console.log('Status:', status);
+
+    console.log('Error Events : ', await operation.getSpeculativeEvents());
+
+    throw new Error('Failed to sync reserves');
+  }
 }

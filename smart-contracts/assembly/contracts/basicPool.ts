@@ -13,11 +13,9 @@ import {
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
-  bytesToF64,
   bytesToString,
   bytesToU256,
   bytesToU64,
-  f64ToBytes,
   stringToBytes,
   u256ToBytes,
   u64ToBytes,
@@ -43,6 +41,7 @@ import {
 } from '../utils';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 import { GetLiquidityDataResult, GetSwapOutResult } from '../types/basicPool';
+import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 
 // Storage key containning the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -95,15 +94,15 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const bAddress = args.nextString().expect('Address B is missing or invalid');
 
   const inputFeeRate = args
-    .nextF64()
+    .nextU64()
     .expect('Input fee rate is missing or invalid');
 
   const feeShareProtocolInput = args
-    .nextF64()
+    .nextU64()
     .expect('Fee share protocol is missing or invalid');
 
   const flashLoanFeeInput = args
-    .nextF64()
+    .nextU64()
     .expect('Flash loan fee is missing or invalid');
 
   const registryAddress = args
@@ -116,13 +115,13 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   assertIsSmartContract(registryAddress);
 
   // Store fee rate
-  Storage.set(feeRate, f64ToBytes(inputFeeRate));
+  Storage.set(feeRate, u64ToBytes(inputFeeRate));
 
   // Store fee share protocol
-  Storage.set(feeShareProtocol, f64ToBytes(feeShareProtocolInput));
+  Storage.set(feeShareProtocol, u64ToBytes(feeShareProtocolInput));
 
   // Store flash loan fee
-  Storage.set(flashLoanFee, f64ToBytes(flashLoanFeeInput));
+  Storage.set(flashLoanFee, u64ToBytes(flashLoanFeeInput));
 
   // store the a and b protocol fees
   Storage.set(aProtocolFee, u256ToBytes(u256.Zero));
@@ -187,7 +186,15 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
   const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   _addLiquidity(amountA, amountB, minAmountA, minAmountB);
+
+  // Transfer the remaining balance of the smart contract to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -216,11 +223,19 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
   const minAmountA = args.nextU256().expect('minAmountA is missing or invalid');
   const minAmountB = args.nextU256().expect('minAmountB is missing or invalid');
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   // Wrap MAS to WMAS
   _wrapMasToWMAS(bAmount);
 
   // Add liquidity with WMAS
   _addLiquidity(aAmount, bAmount, minAmountA, minAmountB, false, true);
+
+  // Transfer Remainning coins
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -239,6 +254,11 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
 export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   // Get the registry contract address
   const registeryAddressStored = bytesToString(
@@ -282,6 +302,9 @@ export function addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void {
     isNativeCoin,
     new Address(callerAddress),
   );
+
+  // Transfer the remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, new Address(callerAddress));
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -344,6 +367,9 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     .nextU256()
     .expect('minAmountOut is missing or invalid');
 
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
+
   // Check if the amountIn is greater than 0
   assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
 
@@ -352,6 +378,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // Call the internal swap function
   _swap(tokenInAddress, amountIn, minAmountOut);
+
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -378,6 +406,9 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
   const minAmountOut = args
     .nextU256()
     .expect('minAmountOut is missing or invalid');
+
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
 
   // Check if the amountIn is greater than 0
   assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
@@ -407,6 +438,8 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
     _swap(tokenInAddress, amountIn, minAmountOut, false, true);
   }
 
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
+
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
 }
@@ -416,9 +449,14 @@ export function swapWithMas(binaryArgs: StaticArray<u8>): void {
  * This function can be called by anyone but
  * @returns void
  */
-export function claimProtocolFees(): void {
+export function claimProtocolFees(_: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   // Get the token addresses from storage
   const aTokenAddressStored = bytesToString(Storage.get(aTokenAddress));
@@ -445,10 +483,10 @@ export function claimProtocolFees(): void {
 
   if (aAccumulatedFeesStored > u256.Zero) {
     // Transfer accumulated protocol fees to the protocol fee receiver (retreived from the registry contarct)
-    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-      callerAddress,
+    new IMRC20(new Address(aTokenAddressStored)).transfer(
       protocolFeeReceiver,
       aAccumulatedFeesStored,
+      getBalanceEntryCost(aTokenAddressStored, protocolFeeReceiver.toString()),
     );
 
     // Reset protocol fees for that token
@@ -456,15 +494,18 @@ export function claimProtocolFees(): void {
   }
 
   if (bAccumulatedFeesStored > u256.Zero) {
-    new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-      callerAddress,
+    new IMRC20(new Address(bTokenAddressStored)).transfer(
       protocolFeeReceiver,
       bAccumulatedFeesStored,
+      getBalanceEntryCost(bTokenAddressStored, protocolFeeReceiver.toString()),
     );
 
     // Reset protocol fees for that token
     _setTokenAccumulatedProtocolFee(bTokenAddressStored, u256.Zero);
   }
+
+  // Transfer remaining balance to the caller
+  transferRemaining(SCBalance, balance(), sent, callerAddress);
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -488,6 +529,11 @@ export function claimProtocolFees(): void {
 export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   const args = new Args(binaryArgs);
 
@@ -542,14 +588,19 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // Burn lp tokens
   liquidityManager.burn(Context.caller(), lpAmount);
 
+  // get the current caller address
+  const callerAddress = Context.caller();
+
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transfer(
-    Context.caller(),
+    callerAddress,
     amountAOut,
+    getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
   );
   new IMRC20(new Address(bTokenAddressStored)).transfer(
-    Context.caller(),
+    callerAddress,
     amountBOut,
+    getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
   );
 
   // Calculate new reserves
@@ -559,6 +610,9 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // Update reserves
   _updateReserveA(newResA);
   _updateReserveB(newResB);
+
+  // Transfer remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, callerAddress);
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -586,6 +640,9 @@ export function syncReserves(): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
+
   // only owner of registery contract can call this function
   _onlyOwner();
 
@@ -602,6 +659,9 @@ export function syncReserves(): void {
   // update reserves
   _updateReserveA(balanceA);
   _updateReserveB(balanceB);
+
+  // Transfer remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
@@ -668,8 +728,16 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
     .nextBytes()
     .expect('callbackData is missing or invalid');
 
+  // Coins to be transferred to the callback address
+  const callbackCoins = args.nextU64().unwrapOrDefault();
+
   // The current caller is the callback address which should be a smart contract
   const callbackAddress = Context.caller();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   // Ensure that the callback address is a smart contract
   assertIsSmartContract(callbackAddress.toString());
@@ -724,12 +792,20 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Transfer the amounts to the callback address
   if (aAmount > u256.Zero) {
     // Transfer aAmount from the contract to the callbackAddress
-    aToken.transfer(callbackAddress, aAmount);
+    aToken.transfer(
+      callbackAddress,
+      aAmount,
+      getBalanceEntryCost(aTokenAddressStored, callbackAddress.toString()),
+    );
   }
 
   if (bAmount > u256.Zero) {
     // Transfer bAmount from the contract to the callbackAddress
-    bToken.transfer(callbackAddress, bAmount);
+    bToken.transfer(
+      callbackAddress,
+      bAmount,
+      getBalanceEntryCost(bTokenAddressStored, callbackAddress.toString()),
+    );
   }
 
   // Call the callback function of the contract
@@ -738,6 +814,7 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
     aAmount,
     bAmount,
     callbackData,
+    callbackCoins,
   );
 
   // get contract tokens balance after callback
@@ -774,6 +851,9 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Update the cumulative prices
   _updateCumulativePrices();
 
+  // Transfer Remainning Coins
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
+
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
 
@@ -790,6 +870,22 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
       poolFeeRate.toString(),
     ]),
   );
+}
+
+/**
+ * Gets the current claimable protocol fee for token A in the basic pool.
+ * @returns The claimable protocol fee for token A as a static array of 8-bit unsigned integers.
+ */
+export function getAClaimableProtocolFee(): StaticArray<u8> {
+  return Storage.get(aProtocolFee);
+}
+
+/**
+ * Gets the current claimable protocol fee for token B in the basic pool.
+ * @returns The claimable protocol fee for token B as a static array of 8-bit unsigned integers.
+ */
+export function getBClaimableProtocolFee(): StaticArray<u8> {
+  return Storage.get(bProtocolFee);
 }
 
 /**
@@ -974,6 +1070,7 @@ function _addLiquidity(
       callerAddress,
       contractAddress,
       finalAmountA,
+      getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
     );
 
     if (!isWithMAS) {
@@ -982,6 +1079,7 @@ function _addLiquidity(
         callerAddress,
         contractAddress,
         finalAmountB,
+        getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
       );
     }
   }
@@ -1021,6 +1119,7 @@ function _addTokenAccumulatedProtocolFee(
   amount: u256,
 ): void {
   const current = _getTokenAccumulatedProtocolFee(tokenAddress);
+
   _setTokenAccumulatedProtocolFee(
     tokenAddress,
     SafeMath256.add(current, amount),
@@ -1110,19 +1209,25 @@ function _swap(
   assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
 
   const callerAddress = Context.caller();
+  const contractAddress = Context.callee();
 
   if (!isTokenInNative) {
     // Transfer the amountIn to the contract
     new IMRC20(new Address(tokenInAddress)).transferFrom(
       callerAddress,
-      Context.callee(),
+      contractAddress,
       amountIn,
+      getBalanceEntryCost(tokenInAddress, contractAddress.toString()),
     );
   }
 
   if (!isTokenOutNative) {
     // Transfer the amountOut to the caller
-    new IMRC20(new Address(tokenOutAddress)).transfer(callerAddress, amountOut);
+    new IMRC20(new Address(tokenOutAddress)).transfer(
+      callerAddress,
+      amountOut,
+      getBalanceEntryCost(tokenOutAddress, callerAddress.toString()),
+    );
   } else {
     // unwrap the amountOut to MAs then transfer to the caller
     _unwrapWMASToMas(amountOut, callerAddress);
@@ -1473,8 +1578,8 @@ function _getAddLiquidityData(
  *
  * @returns The current fee rate for the protocol.
  */
-function _getFeeRate(): f64 {
-  return bytesToF64(Storage.get(feeRate));
+function _getFeeRate(): u64 {
+  return bytesToU64(Storage.get(feeRate));
 }
 
 /**
@@ -1482,8 +1587,8 @@ function _getFeeRate(): f64 {
  *
  * @returns The current fee share for the protocol.
  */
-function _getFeeShareProtocol(): f64 {
-  return bytesToF64(Storage.get(feeShareProtocol));
+function _getFeeShareProtocol(): u64 {
+  return bytesToU64(Storage.get(feeShareProtocol));
 }
 
 /**
@@ -1491,8 +1596,8 @@ function _getFeeShareProtocol(): f64 {
  *
  * @returns The current flash loan fee for the protocol.
  */
-function _getFlashLoanFee(): f64 {
-  return bytesToF64(Storage.get(flashLoanFee));
+function _getFlashLoanFee(): u64 {
+  return bytesToU64(Storage.get(flashLoanFee));
 }
 
 /**

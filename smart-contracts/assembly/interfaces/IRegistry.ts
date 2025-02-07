@@ -1,6 +1,6 @@
 import {
   Args,
-  bytesToF64,
+  bytesToU64,
   bytesToString,
   byteToBool,
   u256ToBytes,
@@ -23,10 +23,10 @@ export class IRegistery {
 
   /**
    * Calls the `constructor` function of the registry contract.
-   * @param {f64} feeShareProtocol - Protocol fee share.
+   * @param {u64} feeShareProtocol - Protocol fee share.
    * @param {string} wmasTokenAddress - Address of the WMAS token.
    */
-  init(feeShareProtocol: f64, wmasTokenAddress: string): void {
+  init(feeShareProtocol: u64, wmasTokenAddress: string): void {
     const args = new Args().add(feeShareProtocol).add(wmasTokenAddress);
     call(this._origin, 'constructor', args, 0);
   }
@@ -36,12 +36,12 @@ export class IRegistery {
    *
    * @param {string} aTokenAddress - Address of Token A.
    * @param {string} bTokenAddress - Address of Token B.
-   * @param {f64} inputFeeRate - Input fee rate.
+   * @param {u64} inputFeeRate - Input fee rate.
    */
   createNewPool(
     aTokenAddress: string,
     bTokenAddress: string,
-    inputFeeRate: f64,
+    inputFeeRate: u64,
   ): void {
     const args = new Args()
       .add(aTokenAddress)
@@ -60,7 +60,7 @@ export class IRegistery {
    * @param {u256} bAmount - Amount of Token B.
    * @param {u256} minAmountA - Minimum amount of Token A to receive.
    * @param {u256} minAmountB - Minimum amount of Token B to receive.
-   * @param {f64} inputFeeRate - Input fee rate.
+   * @param {u64} inputFeeRate - Input fee rate.
    */
   createNewPoolWithLiquidity(
     aTokenAddress: string,
@@ -69,7 +69,7 @@ export class IRegistery {
     bAmount: u256,
     minAmountA: u256,
     minAmountB: u256,
-    inputFeeRate: f64,
+    inputFeeRate: u64,
   ): void {
     const args = new Args()
       .add(aTokenAddress)
@@ -83,32 +83,46 @@ export class IRegistery {
   }
 
   /**
-   * Calls the `getPools` function of the registry contract to retrieve all pools.
+   * Calls the `getPool` function of the registry contract to retrieve a pool.
    *
-   * @returns {Pool[]} An array of Pool objects.
+   * @param {string} aTokenAddress - Address of Token A.
+   * @param {string} bTokenAddress - Address of Token B.
+   * @param {u64} inputFeeRate - Input fee rate.
+   * @returns {Pool} The retrieved pool.
    */
-  getPools(): Pool[] {
-    const result = call(this._origin, 'getPools', new Args(), 0);
-    const args = new Args(result);
-    const pools: Pool[] = args.nextSerializableObjectArray<Pool>().unwrap();
+  getPool(
+    aTokenAddress: string,
+    bTokenAddress: string,
+    inputFeeRate: u64,
+  ): Pool {
+    const args = new Args()
+      .add(aTokenAddress)
+      .add(bTokenAddress)
+      .add(inputFeeRate);
 
-    return pools;
+    const result = call(this._origin, 'getPool', args, 0);
+
+    const argsResult = new Args(result);
+
+    const pool: Pool = argsResult.nextSerializable<Pool>().unwrap();
+
+    return pool;
   }
 
   /**
    * calls the `getFeeShareProtocol` function of the registry contract.
-   * @returns {f64} The fee share protocol.
+   * @returns {u64} The fee share protocol.
    */
-  getFeeShareProtocol(): f64 {
-    return bytesToF64(call(this._origin, 'getFeeShareProtocol', new Args(), 0));
+  getFeeShareProtocol(): u64 {
+    return bytesToU64(call(this._origin, 'getFeeShareProtocol', new Args(), 0));
   }
 
   /**
    * calls the `getFlashLoanFee` function of the registry contract.
-   * @returns {f64} The flash loan fee.
+   * @returns {u64} The flash loan fee.
    */
-  getFlashLoanFee(): f64 {
-    return bytesToF64(call(this._origin, 'getFlashLoanFee', new Args(), 0));
+  getFlashLoanFee(): u64 {
+    return bytesToU64(call(this._origin, 'getFlashLoanFee', new Args(), 0));
   }
 
   /**
@@ -197,7 +211,7 @@ export class IRegistery {
   isPoolExists(
     aTokenAddress: string,
     bTokenAddress: string,
-    inputFeeRate: f64,
+    inputFeeRate: u64,
   ): bool {
     const args = new Args()
       .add(aTokenAddress)

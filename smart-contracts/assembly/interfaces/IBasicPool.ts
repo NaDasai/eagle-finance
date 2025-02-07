@@ -1,9 +1,9 @@
 import {
   Args,
-  bytesToF64,
+  bytesToU64,
   bytesToString,
   bytesToU256,
-  bytesToU64,
+  byteToBool,
   u256ToBytes,
 } from '@massalabs/as-types';
 import { Address, call } from '@massalabs/massa-as-sdk';
@@ -26,16 +26,16 @@ export class IBasicPool {
    *
    * @param {string} aTokenAddress - Address of Token A.
    * @param {string} bTokenAddress - Address of Token B.
-   * @param {f64} feeRate - Fee rate for the pool.
-   * @param {f64} feeShareProtocol - Protocol fee share.
+   * @param {u64} feeRate - Fee rate for the pool.
+   * @param {u64} feeShareProtocol - Protocol fee share.
    * @param {string} registryAddress - Address of the registry contract.
    */
   init(
     aTokenAddress: string,
     bTokenAddress: string,
-    feeRate: f64,
-    feeShareProtocol: f64,
-    flashLoanFee: f64,
+    feeRate: u64,
+    feeShareProtocol: u64,
+    flashLoanFee: u64,
     registryAddress: string,
   ): void {
     const args = new Args()
@@ -182,40 +182,77 @@ export class IBasicPool {
     return bytesToU256(result);
   }
 
+  /**
+   * Retrieves the address of the A token.
+   * @returns {string} The address of the A token.
+   */
   getATokenAddress(): string {
     const result = call(this._origin, 'getATokenAddress', new Args(), 0);
     return bytesToString(result);
   }
 
+  /**
+   * Retrieves the address of the B token.
+   * @returns {string} The address of the B token.
+   */
   getBTokenAddress(): string {
     const result = call(this._origin, 'getBTokenAddress', new Args(), 0);
     return bytesToString(result);
   }
 
-  getFeeRate(): f64 {
+  /**
+   * Retrieves the fee rate.
+   * @returns {u64} The fee rate as a u64.
+   */
+  getFeeRate(): u64 {
     const result = call(this._origin, 'getFeeRate', new Args(), 0);
-    return bytesToF64(result);
-  }
-  getFlashLoanFee(): f64 {
-    const result = call(this._origin, 'getFlashLoanFee', new Args(), 0);
-    return bytesToF64(result);
+    return bytesToU64(result);
   }
 
+  /**
+   * Retrieves the flash loan fee.
+   * @returns {u64} The flash loan fee as a u64.
+   */
+  getFlashLoanFee(): u64 {
+    const result = call(this._origin, 'getFlashLoanFee', new Args(), 0);
+    return bytesToU64(result);
+  }
+
+  /**
+   * Retrieves the cumulative price of token A in terms of token B.
+   * @returns {u256} The cumulative price of token A in terms of token B, as a u256 represented as a fraction.
+   */
   getAPriceCumulativeLast(): u256 {
     const result = call(this._origin, 'getAPriceCumulativeLast', new Args(), 0);
     return bytesToU256(result);
   }
 
+  /**
+   * Retrieves the cumulative price of token B in terms of token A.
+   * @returns {u256} The cumulative price of token B in terms of token A, as a u256 represented as a fraction.
+   */
   getBPriceCumulativeLast(): u256 {
     const result = call(this._origin, 'getBPriceCumulativeLast', new Args(), 0);
     return bytesToU256(result);
   }
 
+  /**
+   * Retrieves the timestamp of the last update.
+   * @returns {u64} The timestamp of the last update.
+   */
   getLastTimestamp(): u64 {
     const result = call(this._origin, 'getLastTimestamp', new Args(), 0);
     return bytesToU64(result);
   }
 
+  /**
+   * Executes a flash loan, borrowing the specified amounts of tokens A and B, and calling the provided callback function.
+   *
+   * @param {u256} aAmount - The amount of token A to borrow.
+   * @param {u256} bAmount - The amount of token B to borrow.
+   * @param {string} profitAddress - The address to receive any profit from the flash loan.
+   * @param {StaticArray<u8>} callbackData - Additional data to pass to the callback function.
+   */
   flashLoan(
     aAmount: u256,
     bAmount: u256,
@@ -228,5 +265,131 @@ export class IBasicPool {
       .add(profitAddress)
       .add(callbackData);
     call(this._origin, 'flashLoan', args, 0);
+  }
+
+  /**
+   * Estimates the liquidity pool (LP) tokens to be received when adding liquidity.
+   *
+   * @param {u256} amountA - The amount of token A to add.
+   * @param {u256} amountB - The amount of token B to add.
+   * @returns {u256} The estimated amount of LP tokens.
+   */
+  getAddLiquidityLPEstimation(amountA: u256, amountB: u256): u256 {
+    const args = new Args().add(amountA).add(amountB);
+    const result = call(this._origin, 'getAddLiquidityLPEstimation', args, 0);
+    return bytesToU256(result);
+  }
+
+  /**
+   * Adds liquidity to the pool using MAS tokens.
+   *
+   * @param {u256} amountA - The amount of token A to add to the pool.
+   * @param {u256} amountB - The amount of token B to add to the pool.
+   * @param {u256} minAmountA - The minimum amount of token A to add to the pool.
+   * @param {u256} minAmountB - The minimum amount of token B to add to the pool.
+   */
+  addLiquidityWithMas(
+    amountA: u256,
+    amountB: u256,
+    minAmountA: u256,
+    minAmountB: u256,
+  ): void {
+    const args = new Args()
+      .add(amountA)
+      .add(amountB)
+      .add(minAmountA)
+      .add(minAmountB);
+    call(this._origin, 'addLiquidityWithMas', args, 0);
+  }
+
+  /**
+   *  Swaps Mas with the other token in the pool.
+   *
+   * @param {string} tokenInAddress - The address of the token to swap in.
+   * @param {u256} amountIn - The amount of tokenIn to swap.
+   * @param {u256} minAmountOut - The minimum amount of tokenOut.
+   */
+  swapWithMas(
+    tokenInAddress: string,
+    amountIn: u256,
+    minAmountOut: u256,
+  ): void {
+    const args = new Args().add(tokenInAddress).add(amountIn).add(minAmountOut);
+    call(this._origin, 'swapWithMas', args, 0);
+  }
+
+  /**
+   * Gets the current claimable protocol fee for token A in the basic pool.
+   * @returns {u256} The claimable protocol fee for token A.
+   */
+  getAClaimableProtocolFee(): u256 {
+    const result = call(
+      this._origin,
+      'getAClaimableProtocolFee',
+      new Args(),
+      0,
+    );
+    return bytesToU256(result);
+  }
+
+  /**
+   * Gets the current claimable protocol fee for token B in the basic pool.
+   * @returns {u256} The claimable protocol fee for token B.
+   */
+  getBClaimableProtocolFee(): u256 {
+    const result = call(
+      this._origin,
+      'getBClaimableProtocolFee',
+      new Args(),
+      0,
+    );
+    return bytesToU256(result);
+  }
+
+  /**
+   * Retrieves the total supply of liquidity pool token.
+   *
+   * @returns {u256} The total supply of liquidity pool token.
+   */
+  getLPTotalSupply(): u256 {
+    const result = call(this._origin, 'getLPTotalSupply', new Args(), 0);
+    return bytesToU256(result);
+  }
+
+  /**
+   * Transfers ownership of the basic pool contract.
+   *
+   * @param {string} newOwner - Address of the new owner.
+   */
+  transferOwnership(newOwner: string): void {
+    const args = new Args().add(newOwner);
+    call(this._origin, 'transferOwnership', args, 0);
+  }
+
+  /**
+   * Gets the owner of the basic pool contract.
+   *
+   * @returns {string} The owner's address.
+   */
+  owner(): string {
+    return bytesToString(call(this._origin, 'owner', new Args(), 0));
+  }
+
+  /**
+   * Checks if the caller is the owner of the contract.
+   *
+   * @returns {bool} True if the caller is the owner, otherwise false.
+   */
+  isOwner(address: string): bool {
+    const args = new Args().add(address);
+    return byteToBool(call(this._origin, 'isOwner', args, 0));
+  }
+
+  /**
+   * modifier to check if the caller is the owner of the contract.
+   *  Throws an error if the caller is not the owner.
+   */
+  onlyOwner(): void {
+    call(this._origin, 'onlyOwner', new Args(), 0);
   }
 }

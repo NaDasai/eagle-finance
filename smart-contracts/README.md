@@ -74,8 +74,8 @@ The `basicPool.ts` contract is the core of the Eagle Finance DEX, implementing a
 
 *   `aAddress` (`string`): The address of token A.
 *   `bAddress` (`string`): The address of token B.
-*   `feeRate` (`f64`): The trading fee rate, between 0 and 1.
-*   `feeShareProtocol` (`f64`): The protocol's share of the trading fee, between 0 and 1.
+*   `feeRate` (`u64`): The trading fee rate, between 0 and 1.
+*   `feeShareProtocol` (`u64`): The protocol's share of the trading fee, between 0 and 1.
 *   `registryAddress` (`string`): The address of the registry contract.
 
 **Public Functions:**
@@ -124,7 +124,7 @@ The `registry.ts` contract manages the deployment and configuration of liquidity
 
 **Constructor Arguments:**
 
-*   `feeShareProtocol` (`f64`): The protocol's default share of the trading fee, between 0 and 1.
+*   `feeShareProtocol` (`u64`): The protocol's default share of the trading fee, between 0 and 1.
 *   `wmasTokenAddress` (`string`): The address of the wrapped MAS token.
 
 **Public Functions:**
@@ -196,10 +196,10 @@ The `tokenDeployer.ts` contract allows deploying new MRC-20 tokens on the blockc
 
 This library provides essential math functions for calculating swaps, fees, and liquidity within the Basic Pool contract. It includes functions for:
 
-*   **`getFeeFromAmount(inputAmount: u256, feeRate: f64): u256`**: Calculates the fee amount based on the input amount and fee rate.
+*   **`getFeeFromAmount(inputAmount: u256, feeRate: u64): u256`**: Calculates the fee amount based on the input amount and fee rate.
 *   **`getAmountOut(inputAmount: u256, inputReserve: u256, outputReserve: u256): u256`**: Calculates the output amount based on the input amount and reserves.
 *   **`getAmountIn(amountOut: u256, reserveIn: u256, reserveOut: u256): u256`**: Calculates the input amount based on the output amount and reserves.
-*   **`getAmountWithoutFee(totalAmount: u256, feeRate: f64): u256`**: Calculates the amount without fee based on the total amount and fee rate.
+*   **`getAmountWithoutFee(totalAmount: u256, feeRate: u64): u256`**: Calculates the amount without fee based on the total amount and fee rate.
 
 ### Liquidity Manager (`lib/liquidityManager.ts`)
 
@@ -213,7 +213,7 @@ This library manages the liquidity and LP token balances within the contracts. I
 
 This library contains mathematical utility functions:
 
-*   **`isBetweenZeroAndTenPercent(value: f64): bool`**: Checks if a `float64` value is between 0 and 10 percent.
+*   **`isBetweenZeroAndTenPercent(value: u64): bool`**: Checks if a `float64` value is between 0 and 10 percent.
 
 ### Safe Math (`lib/safeMath.ts`)
 

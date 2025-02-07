@@ -1,6 +1,5 @@
 import {
   Args,
-  bytesToF64,
   formatUnits,
   Mas,
   MRC20,
@@ -16,7 +15,7 @@ export async function getRegistryFeeShareProtocol(contract: SmartContract) {
     new Args().serialize(),
   );
 
-  const feeShareProtocol = bytesToF64(result.value);
+  const feeShareProtocol = bytesToU64(result.value);
 
   console.log('Fee share protocol:', feeShareProtocol);
 }

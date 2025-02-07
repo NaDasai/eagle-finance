@@ -1,62 +1,35 @@
-import { Address, Storage } from '@massalabs/massa-as-sdk';
+import { Address, Storage, validateAddress } from '@massalabs/massa-as-sdk';
 import { Args, boolToByte, stringToBytes } from '@massalabs/as-types';
 import {
   OWNER_KEY,
   _isOwner,
   _onlyOwner,
   _setOwner,
-} from './ownership-internal';
-
-/**
- *  Set the contract owner
- *
- * @param binaryArgs - byte string with the following format:
- * - the address of the new contract owner (address).
- */
-export function setOwner(binaryArgs: StaticArray<u8>): void {
-  const args = new Args(binaryArgs);
-  const newOwner = args
-    .nextString()
-    .expect('newOwnerAddress argument is missing or invalid');
-
-  _setOwner(newOwner);
-}
-
-/**
- *  Returns the contract owner
- *
- * @returns owner address in bytes
- */
-export function ownerAddress(_: StaticArray<u8>): StaticArray<u8> {
-  if (!Storage.has(OWNER_KEY)) {
-    return [];
-  }
-
-  return stringToBytes(Storage.get(OWNER_KEY));
-}
+} from '@massalabs/sc-standards/assembly/contracts/utils/ownership-internal';
 
 export function _ownerAddress(): Address {
   return new Address(Storage.get(OWNER_KEY));
 }
 
 /**
- * Returns true if address is the owner of the contract.
+ * Transfers the ownership of the contract to a new owner.
  *
- * @param address -
+ * This function can only be called by the current owner of the contract.
+ * It validates the new owner address and updates the owner in the contract storage.
+ *
+ * @param binaryArgs - The binary arguments containing the new owner address.
  */
-export function isOwner(binaryArgs: StaticArray<u8>): StaticArray<u8> {
-  if (!Storage.has(OWNER_KEY)) {
-    return [0]; // false
-  }
-  const address = new Args(binaryArgs)
-    .nextString()
-    .expect('address argument is missing or invalid');
-  return boolToByte(_isOwner(address));
+export function transferOwnership(binaryArgs: StaticArray<u8>): void {
+  const args = new Args(binaryArgs);
+
+  const newOwner = args.nextString().expect('Invalid new owner');
+
+  _onlyOwner();
+
+  assert(validateAddress(newOwner), 'INVALID_OWNER_ADDRESS');
+
+  // Set the new owner
+  _setOwner(newOwner);
 }
 
-/**
- * Throws if the caller is not the owner.
- */
-export function onlyOwner(): void {
-  _onlyOwner();
-}
+export * from '@massalabs/sc-standards/assembly/contracts/utils/ownership';

@@ -10,9 +10,9 @@ import { SCALING_FACTOR } from '../utils/constants';
  * @returns The calculated fee as a u256, derived by multiplying the input amount by the fee rate
  *          and dividing by the SCALING_FACTOR (1,000,000).
  */
-export function getFeeFromAmount(inputAmount: u256, feeRate: f64): u256 {
+export function getFeeFromAmount(inputAmount: u256, feeRate: u64): u256 {
   // convert fee rate to u256
-  const feeRate256 = u256.fromF64(feeRate);
+  const feeRate256 = u256.fromU64(feeRate);
 
   // Calculate the fee as: (inputAmount * feeRate256)
   const product = SafeMath256.mul(inputAmount, feeRate256);
@@ -32,14 +32,14 @@ export function getFeeFromAmount(inputAmount: u256, feeRate: f64): u256 {
  * @returns The amount without fee as a u256 value, calculated using the formula:
  *          amountWithoutFee = totalAmount * SCALING_FACTOR / (SCALING_FACTOR + feeRate).
  */
-export function getAmountWithoutFee(totalAmount: u256, feeRate: f64): u256 {
+export function getAmountWithoutFee(totalAmount: u256, feeRate: u64): u256 {
   // feeRate is an integer representing the fee rate * SCALING_FACTOR
   // Example: 3000 for 0.3% fee, 5000 for 0.5% fee
 
   // Calculate the amount without fee using the formula:
   // amountWithoutFee = totalAmount * SCALING_FACTOR / (SCALING_FACTOR + feeRate)
 
-  const feeRateU256 = u256.fromF64(feeRate);
+  const feeRateU256 = u256.fromU64(feeRate);
   const denominator = SafeMath256.add(SCALING_FACTOR, feeRateU256);
   const amountWithoutFee = SafeMath256.div(
     SafeMath256.mul(totalAmount, SCALING_FACTOR),

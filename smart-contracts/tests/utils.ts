@@ -24,6 +24,22 @@ export function calculateExpectedSwapAddedAmount(
   return amountWithoutFee;
 }
 
+export function calculateProtocolFeeAmount(
+  amount: number,
+  inputFee: number = 0.3,
+  protocolFee: number = 0.05,
+): number {
+  const feeRate = (amount * inputFee) / 100;
+  const protocolFeeAmount = (feeRate * protocolFee) / 100;
+  return protocolFeeAmount;
+}
+
 export const TOKEN_DEFAULT_DECIMALS = 9;
 
 export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
+
+export function truncateDecimals(value: number, decimals: number = 9): string {
+  return value
+    .toString()
+    .slice(0, value.toString().indexOf('.') + decimals + 1);
+}

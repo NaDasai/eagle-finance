@@ -1,8 +1,8 @@
 import { Args, SafeMath } from '@massalabs/as-types';
-import { DEFAULT_BUILDNET_WMAS_ADDRESS } from './constants';
 import {
   Address,
   Context,
+  generateEvent,
   transferCoins,
 } from '@massalabs/massa-as-sdk';
 import { IMRC20 } from '../interfaces/IMRC20';
@@ -18,8 +18,8 @@ import { u256 } from 'as-bignum/assembly';
 export function _buildPoolKey(
   tokenA: string,
   tokenB: string,
-  inputFeeRate: f64,
-  wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
+  inputFeeRate: u64,
+  wmasAddress: string,
 ): string {
   // sort the addresses to ensure that the key of the pool is always the same
   // Ensure WMAS if exists, it is always tokenB
@@ -29,13 +29,16 @@ export function _buildPoolKey(
   const sortedTokenB = sortedTokens[1];
 
   const key = `${sortedTokenA}-${sortedTokenB}-${inputFeeRate.toString()}`;
+
+  generateEvent(`Built pool key: ${key}`);
+
   return key;
 }
 
 export function sortPoolTokenAddresses(
   tokenA: string,
   tokenB: string,
-  wmasAddress: string = DEFAULT_BUILDNET_WMAS_ADDRESS,
+  wmasAddress: string,
 ): string[] {
   // If either token is wmasAddress, ensure it is always tokenB
   if (tokenA == wmasAddress) {
@@ -87,7 +90,8 @@ export function transferRemaining(
   if (balanceInit >= balanceFinal) {
     // Some operation might spend Massa by creating new storage space
     const spent = SafeMath.sub(balanceInit, balanceFinal);
-    assert(spent <= sent, 'Not enough coins to transfer');
+    generateEvent(`Spent ${spent} coins`);
+    assert(spent <= sent, 'SPENT_MORE_COINS_THAN_SENT');
     if (spent < sent) {
       // SafeMath not needed as spent is always less than sent
       const remaining: u64 = sent - spent;

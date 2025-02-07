@@ -7,6 +7,7 @@ import {
 import {
   Address,
   Context,
+  createEvent,
   createSC,
   fileToByteArray,
   generateEvent,
@@ -19,6 +20,7 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { deserializeStringArray, serializeStringArray } from '../utils';
 import { UserToken } from '../structs/userToken';
 import { u256 } from 'as-bignum/assembly';
+import { _setOwner } from '../utils/ownership-internal';
 
 // Array of all tokens addresses deployed
 export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
@@ -32,7 +34,12 @@ export function constructor(_: StaticArray<u8>): void {
   // If you remove this check, someone could call your constructor function and reset your smart contract.
   assert(isDeployingContract());
 
+  // Initialize the token addresses array
   Storage.set(tokenAddresses, serializeStringArray([]));
+
+  // Set the contract owner
+  _setOwner(Context.caller().toString());
+
   generateEvent(`Token Deployer deployed.`);
 }
 
@@ -99,7 +106,9 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   Storage.set(tokenAddresses, serializeStringArray(deserializedTokens));
 
   // Emit an event
-  generateEvent(`New Token ${tokenName} deployed at ${tokenAddress}.`);
+  generateEvent(
+    `CREATE_NEW_TOKEN:${Context.callee().toString()}||${Context.caller().toString()}||${tokenAddress.toString()}||${tokenName}||${tokenSymbol}||${decimals.toString()}||${totalSupply.toString()}||${url}||${description}||${coinsToUseOnDeploy.toString()}`,
+  );
 
   // Raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
   generateRawEvent(new Args().add(tokenAddress).serialize());

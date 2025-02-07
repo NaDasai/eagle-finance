@@ -4,7 +4,6 @@ import {
   Args,
   ArgTypes,
   ArrayTypes,
-  bytesToF64,
   Mas,
   OperationStatus,
   SmartContract,

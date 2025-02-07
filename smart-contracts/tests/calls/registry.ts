@@ -1,14 +1,22 @@
 import {
+  Account,
   Args,
+  bytesToStr,
   Mas,
   OperationStatus,
   parseMas,
   parseUnits,
   Provider,
   SmartContract,
+  Web3Provider,
 } from '@massalabs/massa-web3';
 import { getScByteCode, TOKEN_DEFAULT_DECIMALS } from '../utils';
 import { Pool } from '../../src/builnet-tests/structs/pool';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
+const user1Provider = Web3Provider.buildnet(await Account.fromEnv());
 
 export async function createNewPool(
   contract: SmartContract,
@@ -23,7 +31,7 @@ export async function createNewPool(
     new Args()
       .addString(aTokenAddress)
       .addString(bTokenAddress)
-      .addF64(inputFeeRate)
+      .addU64(BigInt(inputFeeRate))
       .serialize(),
     { coins: Mas.fromString('8.5') },
   );
@@ -54,8 +62,10 @@ export async function createNewPoolWithLiquidity(
   console.log('Creating new pool with liquidity...');
 
   const coinsToSendOnAddLiquidity = isBNativeMas
-    ? parseMas(Number(bAmount + 8.5).toString())
-    : Mas.fromString('8.5');
+    ? parseMas(Number(bAmount + 30).toString())
+    : Mas.fromString('30');
+
+  console.log('coinsToSendOnAddLiquidity', coinsToSendOnAddLiquidity);
   try {
     const operation = await contract.call(
       'createNewPoolWithLiquidity',
@@ -66,7 +76,7 @@ export async function createNewPoolWithLiquidity(
         .addU256(parseUnits(bAmount.toString(), bDecimals))
         .addU256(parseUnits(minAAmount.toString(), aDecimals))
         .addU256(parseUnits(minBAmount.toString(), bDecimals))
-        .addF64(inputFeeRate)
+        .addU64(BigInt(inputFeeRate))
         .addBool(isBNativeMas)
         .serialize(),
       { coins: coinsToSendOnAddLiquidity },
@@ -95,9 +105,9 @@ export async function deployRegistryContract(
   const registryByteCode = getScByteCode('build', 'registry.wasm');
 
   const constructorArgs = new Args()
-    .addF64(fee * 10000) // 0% fee share protocol
+    .addU64(BigInt(fee * 10000)) // 0% fee share protocol
     .addString(wmasAddress) // WMAS address
-    .addF64(flashLoanFee * 10_000) // 0% fee share protocol
+    .addU64(BigInt(flashLoanFee * 10_000)) // 0% fee share protocol
     .serialize();
 
   const contract = await SmartContract.deploy(
@@ -115,14 +125,130 @@ export async function deployRegistryContract(
 }
 
 export async function getPools(registryContract: SmartContract) {
-  // get pools from registry
-  const poolsRes = await registryContract.read('getPools');
-
-  const pools = new Args(poolsRes.value).nextSerializableObjectArray<Pool>(
-    Pool,
+  const keys = await user1Provider.getStorageKeys(
+    registryContract.address,
+    'pools::',
+    false,
   );
 
-  console.log('Pools: ', pools);
+  const poolsKeys = [];
+
+  for (const key of keys) {
+    const deserializedKey = bytesToStr(key);
+    poolsKeys.push(deserializedKey);
+  }
+
+  console.log('Pools keys:', poolsKeys);
+
+  const pools = [];
+
+  for (const key of poolsKeys) {
+    const pool = await getPoolByKey(registryContract, key);
+    pools.push(pool);
+  }
 
   return pools;
+}
+
+export async function getFeeShareProtocolReceiver(
+  registryContract: SmartContract,
+) {
+  const feeShareProtocolReceiver = bytesToStr(
+    (await registryContract.read('getFeeShareProtocolReceiver')).value,
+  );
+
+  return feeShareProtocolReceiver;
+}
+
+export async function getWmasTokenAddress(registryContract: SmartContract) {
+  const wmasTokenAddress = bytesToStr(
+    (await registryContract.read('getWmasTokenAddress')).value,
+  );
+
+  return wmasTokenAddress;
+}
+
+export async function setFeeShareProtocolReceiver(
+  registeryContract: SmartContract,
+  feeShareProtocolReceiver: string,
+) {
+  const operation = await registeryContract.call(
+    'setFeeShareProtocolReceiver',
+    new Args().addString(feeShareProtocolReceiver).serialize(),
+    {
+      coins: Mas.fromString('0.1'),
+    },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Fee share protocol receiver set successfully');
+  } else {
+    console.log('Status:', status);
+
+    console.log('Error events:', operation.getSpeculativeEvents());
+
+    throw new Error('Failed to set fee share protocol receiver');
+  }
+}
+
+export async function setWmasTokenAddress(
+  registeryContract: SmartContract,
+  wmasTokenAddress: string,
+) {
+  const operation = await registeryContract.call(
+    'setWmasTokenAddress',
+    new Args().addString(wmasTokenAddress).serialize(),
+    { coins: Mas.fromString('0.1') },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('WMAS token address set successfully');
+  } else {
+    console.log('Status:', status);
+    console.log('Error events:', operation.getSpeculativeEvents());
+    throw new Error('Failed to set WMAS token address');
+  }
+}
+
+export async function getPool(
+  registryContract: SmartContract,
+  aTokenAddress: string,
+  bTokenAddress: string,
+  inputFeeRate: number,
+) {
+  const poolResult = await registryContract.read(
+    'getPool',
+    new Args()
+      .addString(aTokenAddress)
+      .addString(bTokenAddress)
+      .addU64(BigInt(inputFeeRate))
+      .serialize(),
+  );
+
+  console.log('Pool RESULT', poolResult);
+
+  const pool = new Args(poolResult.value).nextSerializable<Pool>(Pool);
+
+  console.log('Pool:', pool);
+
+  return pool;
+}
+
+export async function getPoolByKey(
+  registryContract: SmartContract,
+  key: string,
+) {
+  const poolResult = await user1Provider.readStorage(
+    registryContract.address,
+    [key],
+    false,
+  );
+
+  const pool = new Args(poolResult[0]).nextSerializable<Pool>(Pool);
+
+  return pool;
 }

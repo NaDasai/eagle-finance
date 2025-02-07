@@ -136,7 +136,7 @@ describe('Scenario 1: Add liquidity, Swap', () => {
     print(`Reserve B After Swap: ${resB.toString()}`);
 
     expect(resA).toStrictEqual(
-      u256.fromF64(199.7 * 10 ** TOKENS_DEFAULT_DECIMALS),
+      u256.fromU64(199.7 * 10 ** TOKENS_DEFAULT_DECIMALS),
     );
 
     // convert teh resA(9 decimals) to normal number
@@ -252,7 +252,7 @@ describe('Scenario 2: Add liquidity, Swap with little amount', () => {
     print(`Reserve B After Swap: ${resB.toString()}`);
 
     // expect(resA).toStrictEqual(
-    //   u256.fromF64(199.7 * 10 ** TOKENS_DEFAULT_DECIMALS),
+    //   u256.fromU64(199.7 * 10 ** TOKENS_DEFAULT_DECIMALS),
     // );
 
     // convert teh resA(9 decimals) to normal number
