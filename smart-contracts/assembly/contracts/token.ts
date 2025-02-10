@@ -113,10 +113,16 @@ export function paused(_: StaticArray<u8>): StaticArray<u8> {
   return Storage.get(PAUSED);
 }
 
+/**
+ * Returns if the token supports minting or not.
+ */
 export function mintable(_: StaticArray<u8>): StaticArray<u8> {
   return Storage.get(MINTABLE);
 }
 
+/**
+ * Returns if the token supports burning or not.
+ */
 export function burnable(_: StaticArray<u8>): StaticArray<u8> {
   return Storage.get(BURNABLE);
 }
@@ -176,6 +182,22 @@ function _requireNotPaused(): void {
 function _requirePausable(): void {
   const pausableStored = byteToBool(Storage.get(PAUSABLE));
   assert(pausableStored, 'TOKEN_NOT_PAUSABLE');
+}
+
+/**
+ * Requires that the token supprots minting feature
+ */
+function _requireMintable(): void {
+  const mintableStored = byteToBool(Storage.get(MINTABLE));
+  assert(mintableStored, 'TOKEN_NOT_MINTABLE');
+}
+
+/**
+ * Requires that the token supports burning feature
+ */
+function _requireBurnable(): void {
+  const burnableStored = byteToBool(Storage.get(BURNABLE));
+  assert(burnableStored, 'TOKEN_NOT_BURNABLE');
 }
 
 /**
@@ -280,6 +302,9 @@ export function transferFrom(binaryArgs: StaticArray<u8>): void {
  * - the amount of tokens to mint (u256).
  */
 export function mint(binaryArgs: StaticArray<u8>): void {
+  // Token should be mintable
+  _requireMintable();
+
   // Token should be not paused
   _requireNotPaused();
 
@@ -296,6 +321,9 @@ export function mint(binaryArgs: StaticArray<u8>): void {
  * - the amount of tokens to burn obn the caller address (u256).
  */
 export function burn(binaryArgs: StaticArray<u8>): void {
+  // Token should be burnable
+  _requireBurnable();
+
   // Token should be not paused
   _requireNotPaused();
 
@@ -320,6 +348,9 @@ export function burn(binaryArgs: StaticArray<u8>): void {
  *
  */
 export function burnFrom(binaryArgs: StaticArray<u8>): void {
+  // Token should be burnable
+  _requireBurnable();
+
   // Token should be not paused
   _requireNotPaused();
 
