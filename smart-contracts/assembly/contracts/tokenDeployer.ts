@@ -21,6 +21,7 @@ import { deserializeStringArray, serializeStringArray } from '../utils';
 import { UserToken } from '../structs/userToken';
 import { u256 } from 'as-bignum/assembly';
 import { _setOwner } from '../utils/ownership-internal';
+import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 
 // Array of all tokens addresses deployed
 export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
@@ -40,6 +41,9 @@ export function constructor(_: StaticArray<u8>): void {
   // Set the contract owner
   _setOwner(Context.caller().toString());
 
+  // Initialize the reentrancy guard
+  ReentrancyGuard.__ReentrancyGuard_init();
+
   generateEvent(`Token Deployer deployed.`);
 }
 
@@ -49,6 +53,9 @@ export function constructor(_: StaticArray<u8>): void {
  * @returns void
  */
 export function createNewToken(binaryArgs: StaticArray<u8>): void {
+  // Start Reentrancy guard
+  ReentrancyGuard.nonReentrant();
+
   const args = new Args(binaryArgs);
 
   const tokenName = args.nextString().expect('Invalid token name');
@@ -121,6 +128,9 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
 
   // Raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
   generateRawEvent(new Args().add(tokenAddress).serialize());
+
+  // End Reentrancy guard
+  ReentrancyGuard.endNonReentrant();
 }
 
 /**
