@@ -1,6 +1,7 @@
 import {
   Address,
   changeCallStack,
+  print,
   resetStorage,
   setDeployContext,
 } from '@massalabs/massa-as-sdk';
@@ -8,23 +9,32 @@ import { u256 } from 'as-bignum/assembly';
 import {
   allowance,
   balanceOf,
+  burn,
+  burnFrom,
   decimals,
   decreaseAllowance,
   description,
   increaseAllowance,
+  mint,
   name,
+  pausable,
+  pause,
+  paused,
   symbol,
   constructor as TokenConstructor,
   totalSupply,
   transfer,
   transferFrom,
+  unpause,
   url,
   VERSION,
   version,
 } from '../../contracts/token';
 import {
   Args,
+  boolToByte,
   bytesToU256,
+  byteToBool,
   stringToBytes,
   u256ToBytes,
   u8toByte,
@@ -263,15 +273,14 @@ describe('transferFrom', () => {
 });
 
 let pausableToken = true;
+let mintaableToken = true;
+let bururnableToken = true;
 
 describe('Pausable token', () => {
   beforeAll(() => {
     switchUser(user1Address);
-
     resetStorage();
-
     setDeployContext(user1Address);
-
     TokenConstructor(
       new Args()
         .add(user1Address)
@@ -282,10 +291,180 @@ describe('Pausable token', () => {
         .add(TOKEN_URL)
         .add(TOKEN_DESCRIPTION)
         .add(pausableToken)
+        .add(mintaableToken)
+        .add(bururnableToken)
         .serialize(),
     );
   });
 
+  test('pausable should return true', () => {
+    expect(pausable([])).toStrictEqual(boolToByte(pausableToken));
+  });
 
-  
+  test('paused should by default return false', () => {
+    expect(paused([])).toStrictEqual(boolToByte(false));
+  });
+
+  test('Paused should return true after pause', () => {
+    pause([]);
+
+    expect(paused([])).toStrictEqual(boolToByte(true));
+  });
+
+  throws('Should throw error when trying to transfer when paused', () => {
+    transfer(new Args().add(user2Address).add(u256.One).serialize());
+  });
+
+  throws('Should throw error when trying to transferFrom when paused', () => {
+    transferFrom(
+      new Args().add(user1Address).add(user2Address).add(u256.One).serialize(),
+    );
+  });
+
+  test('Paused should return false after unpause', () => {
+    unpause([]);
+
+    expect(paused([])).toStrictEqual(boolToByte(false));
+  });
+
+  test('Should be able to transfer after unpause', () => {
+    const u1balanceBefore = balanceOf(new Args().add(user1Address).serialize());
+
+    transfer(new Args().add(user2Address).add(u256.One).serialize());
+
+    expect(balanceOf(new Args().add(user1Address).serialize())).toStrictEqual(
+      // @ts-ignore
+      u256ToBytes(bytesToU256(u1balanceBefore) - u256.One),
+    );
+
+    expect(balanceOf(new Args().add(user2Address).serialize())).toStrictEqual(
+      // @ts-ignore
+      u256ToBytes(u256.One),
+    );
+  });
+
+  test('should not be able to mint when paused', () => {
+    pause([]);
+
+    expect(() =>
+      mint(new Args().add(user2Address).add(u256.One).serialize()),
+    ).toThrow('TOKEN_PAUSED');
+  });
+
+  test('should not be able to burn when paused', () => {
+    expect(() => burn(new Args().add(u256.One).serialize())).toThrow(
+      'TOKEN_PAUSED',
+    );
+  });
+
+  test('should not be able to burnFrom when paused', () => {
+    expect(() =>
+      burnFrom(new Args().add(user2Address).add(u256.One).serialize()),
+    ).toThrow('TOKEN_PAUSED');
+  });
+});
+
+const mintAmount = new u256(5000, 33);
+
+describe('Mint ERC20 to U2', () => {
+  beforeAll(() => {
+    switchUser(user1Address);
+    resetStorage();
+    setDeployContext(user1Address);
+    TokenConstructor(
+      new Args()
+        .add(user1Address)
+        .add(TOKEN_NAME)
+        .add(TOKEN_SYMBOL)
+        .add(DECIMALS)
+        .add(TOTAL_SUPPLY)
+        .add(TOKEN_URL)
+        .add(TOKEN_DESCRIPTION)
+        .add(pausableToken)
+        .add(mintaableToken)
+        .add(bururnableToken)
+        .serialize(),
+    );
+  });
+
+  test('Should mint ERC20', () => {
+    mint(new Args().add(user2Address).add(mintAmount).serialize());
+    // check balance of U2
+    expect(balanceOf(new Args().add(user2Address).serialize())).toStrictEqual(
+      u256ToBytes(mintAmount),
+    );
+
+    // check totalSupply update
+    expect(totalSupply([])).toStrictEqual(
+      // @ts-ignore
+      u256ToBytes(mintAmount + TOTAL_SUPPLY),
+    );
+  });
+});
+
+describe('Fails mint ERC20', () => {
+  beforeAll(() => {
+    switchUser(user1Address);
+    resetStorage();
+    setDeployContext(user1Address);
+    TokenConstructor(
+      new Args()
+        .add(user1Address)
+        .add(TOKEN_NAME)
+        .add(TOKEN_SYMBOL)
+        .add(DECIMALS)
+        .add(TOTAL_SUPPLY)
+        .add(TOKEN_URL)
+        .add(TOKEN_DESCRIPTION)
+        .add(pausableToken)
+        .add(mintaableToken)
+        .add(bururnableToken)
+        .serialize(),
+    );
+  });
+
+  throws('Should overflow ERC20', () =>
+    mint(new Args().add(user2Address).add(u256.Max).serialize()),
+  );
+
+  throws('Should fail because the owner is not the tx emitter', () => {
+    switchUser(user2Address);
+
+    mint(new Args().add(user1Address).add(u256.fromU64(5000)).serialize());
+  });
+
+  test("Should check totalSupply didn't change", () => {
+    expect(totalSupply([])).toStrictEqual(
+      // @ts-ignore
+      u256ToBytes(TOTAL_SUPPLY),
+    );
+  });
+});
+
+describe('Mintable MRC20 tests', () => {
+  beforeAll(() => {
+    resetStorage();
+    switchUser(user1Address);
+    setDeployContext(user1Address);
+    TokenConstructor(
+      new Args()
+        .add(user1Address)
+        .add(TOKEN_NAME)
+        .add(TOKEN_SYMBOL)
+        .add(DECIMALS)
+        .add(TOTAL_SUPPLY)
+        .add(TOKEN_URL)
+        .add(TOKEN_DESCRIPTION)
+        .add(pausableToken) // pausable
+        .add(false) // mintable
+        .add(bururnableToken) // bururnable
+        .serialize(),
+    );
+  });
+
+  test('Should fails to mint MRC20 when not mintable', () => {
+    expect(() =>
+      mint(new Args().add(user2Address).add(mintAmount).serialize()),
+    ).toThrow('TOKEN_NOT_MINTABLE');
+  });
 });
