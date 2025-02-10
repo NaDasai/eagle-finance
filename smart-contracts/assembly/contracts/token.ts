@@ -326,4 +326,4 @@ export {
   increaseAllowance,
   decreaseAllowance,
 } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20';
-export { setOwner, onlyOwner, isOwner } from '../utils/ownership';
+export { onlyOwner, isOwner, transferOwnership } from '../utils/ownership';
