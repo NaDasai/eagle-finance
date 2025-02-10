@@ -200,7 +200,7 @@ describe('Allowance', () => {
     ).toStrictEqual(u256ToBytes(u256.Zero)));
 });
 
-const allowAmount = new u256(6000);
+let allowAmount = new u256(6000);
 
 describe('transferFrom', () => {
   beforeAll(() => {
@@ -467,4 +467,148 @@ describe('Mintable MRC20 tests', () => {
       mint(new Args().add(user2Address).add(mintAmount).serialize()),
     ).toThrow('TOKEN_NOT_MINTABLE');
   });
+});
+
+const burnAmount = new u256(5000, 0, 1);
+
+describe('Burn ERC20 to U1', () => {
+  beforeAll(() => {
+    switchUser(user1Address);
+    resetStorage();
+    setDeployContext(user1Address);
+    TokenConstructor(
+      new Args()
+        .add(user1Address)
+        .add(TOKEN_NAME)
+        .add(TOKEN_SYMBOL)
+        .add(DECIMALS)
+        .add(TOTAL_SUPPLY)
+        .add(TOKEN_URL)
+        .add(TOKEN_DESCRIPTION)
+        .add(pausableToken)
+        .add(mintaableToken)
+        .add(bururnableToken)
+        .serialize(),
+    );
+  });
+
+  test('Should burn ERC20', () => {
+    burn(new Args().add(burnAmount).serialize());
+
+    // check balance of U1
+    expect(
+      bytesToU256(balanceOf(new Args().add(user1Address).serialize())),
+      // @ts-ignore
+    ).toBe(TOTAL_SUPPLY - burnAmount);
+
+    // check totalSupply update
+    expect(totalSupply([])).toStrictEqual(
+      // @ts-ignore
+      u256ToBytes(TOTAL_SUPPLY - burnAmount),
+    );
+  });
+});
+
+describe('Fails burn ERC20', () => {
+  throws('Fails to burn because of underflow ', () =>
+    burn(new Args().add(u256.Max).serialize()),
+  );
+});
+
+allowAmount = new u256(1, 1, 1, 1);
+
+describe('burnFrom', () => {
+  beforeAll(() => {
+    switchUser(user1Address);
+    resetStorage();
+    setDeployContext(user1Address);
+    TokenConstructor(
+      new Args()
+        .add(user1Address)
+        .add(TOKEN_NAME)
+        .add(TOKEN_SYMBOL)
+        .add(DECIMALS)
+        .add(TOTAL_SUPPLY)
+        .add(TOKEN_URL)
+        .add(TOKEN_DESCRIPTION)
+        .add(pausableToken)
+        .add(mintaableToken)
+        .add(bururnableToken)
+        .serialize(),
+    );
+
+    switchUser(user3Address);
+
+    // Increase allowance for U1 to spend U3 tokens
+    increaseAllowance(
+      new Args().add(user1Address).add(allowAmount).serialize(),
+    );
+    switchUser(user1Address);
+  });
+
+  throws('on insufficient allowance', () => {
+    burnFrom(
+      new Args()
+        .add(user3Address)
+        // @ts-ignore
+        .add(allowAmount + u256.One)
+        .serialize(),
+    );
+  });
+
+  throws('on insufficient balance', () =>
+    burnFrom(new Args().add(user3Address).add(allowAmount).serialize()),
+  );
+
+  test('should burn tokens from an other address', () => {
+    const u1balanceBefore = balanceOf(new Args().add(user1Address).serialize());
+    const u3balanceBefore = balanceOf(new Args().add(user3Address).serialize());
+
+    transfer(new Args().add(user3Address).add(allowAmount).serialize());
+
+    burnFrom(new Args().add(user3Address).add(allowAmount).serialize());
+
+    // Check balance changes
+    expect(balanceOf(new Args().add(user1Address).serialize())).toStrictEqual(
+      // @ts-ignore
+      u256ToBytes(bytesToU256(u1balanceBefore) - allowAmount),
+    );
+
+    expect(balanceOf(new Args().add(user3Address).serialize())).toStrictEqual(
+      u3balanceBefore,
+    );
+
+    // Verify allowances after transferFrom
+    expect(
+      allowance(new Args().add(user1Address).add(user3Address).serialize()),
+    ).toStrictEqual(u256ToBytes(u256.Zero));
+  });
+});
+
+describe('should not allow burn hen burnable is false', () => {
+  beforeAll(() => {
+    switchUser(user1Address);
+    resetStorage();
+    setDeployContext(user1Address);
+    TokenConstructor(
+      new Args()
+        .add(user1Address)
+        .add(TOKEN_NAME)
+        .add(TOKEN_SYMBOL)
+        .add(DECIMALS)
+        .add(TOTAL_SUPPLY)
+        .add(TOKEN_URL)
+        .add(TOKEN_DESCRIPTION)
+        .add(pausableToken)
+        .add(mintaableToken)
+        .add(false)
+        .serialize(),
+    );
+  });
+
+  throws('on burn', () => burn(new Args().add(burnAmount).serialize()));
+
+  throws('on burnFrom', () =>
+    burnFrom(new Args().add(user3Address).add(burnAmount).serialize()),
+  );
 });
