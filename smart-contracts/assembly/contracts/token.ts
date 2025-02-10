@@ -8,6 +8,7 @@ import {
 import { u256 } from 'as-bignum/assembly';
 import {
   Address,
+  balance,
   Context,
   generateEvent,
   isDeployingContract,
@@ -34,6 +35,7 @@ import {
   SYMBOL_KEY,
   TOTAL_SUPPLY_KEY,
 } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20';
+import { transferRemaining } from '../utils';
 
 const TRANSFER_EVENT_NAME = 'TRANSFER SUCCESS';
 const BURN_EVENT = 'BURN_SUCCESS';
@@ -69,6 +71,11 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // optional parameter representing if the token is burnable or not (default false)
   const burnableInput = args.nextBool().unwrapOrDefault();
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   Storage.set(NAME_KEY, stringToBytes(tokenName));
   Storage.set(SYMBOL_KEY, stringToBytes(tokenSymbol));
   Storage.set(DECIMALS_KEY, [decimals]);
@@ -85,6 +92,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   setOwner(new Args().add(admin).serialize());
 
   _setBalance(new Address(admin), totalSupply);
+
+  // Transfer the remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, new Address(admin));
 
   generateEvent(`Token ${tokenName} deployed.`);
 }
@@ -353,7 +363,6 @@ export function burnFrom(binaryArgs: StaticArray<u8>): void {
 
   // Token should be not paused
   _requireNotPaused();
-
 
   const args = new Args(binaryArgs);
   const owner = new Address(

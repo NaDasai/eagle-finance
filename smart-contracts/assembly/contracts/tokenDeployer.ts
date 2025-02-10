@@ -6,6 +6,7 @@ import {
 } from '@massalabs/as-types';
 import {
   Address,
+  balance,
   Context,
   createEvent,
   createSC,
@@ -17,7 +18,11 @@ import {
   validateAddress,
 } from '@massalabs/massa-as-sdk';
 import { IMRC20 } from '../interfaces/IMRC20';
-import { deserializeStringArray, serializeStringArray } from '../utils';
+import {
+  deserializeStringArray,
+  serializeStringArray,
+  transferRemaining,
+} from '../utils';
 import { UserToken } from '../structs/userToken';
 import { u256 } from 'as-bignum/assembly';
 import { _setOwner } from '../utils/ownership-internal';
@@ -86,6 +91,11 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     coinsToUseOnDeploy = coinsToUseOnDeployIn.unwrap();
   }
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   // Get the token bytecode
   const tokenByteCode: StaticArray<u8> = fileToByteArray('build/token.wasm');
 
@@ -120,6 +130,9 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
 
   // Serialize the array of tokens
   Storage.set(tokenAddresses, serializeStringArray(deserializedTokens));
+
+  // Transfer the remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // Emit an event
   generateEvent(
