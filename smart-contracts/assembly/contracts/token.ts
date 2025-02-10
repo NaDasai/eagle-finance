@@ -354,6 +354,9 @@ export function burnFrom(binaryArgs: StaticArray<u8>): void {
   // Token should be not paused
   _requireNotPaused();
 
+  // Only the owner of the token can burnFrom tokens
+  onlyOwner();
+
   const args = new Args(binaryArgs);
   const owner = new Address(
     args.nextString().expect('owner argument is missing or invalid'),
