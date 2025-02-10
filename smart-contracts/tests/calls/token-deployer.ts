@@ -43,6 +43,9 @@ export async function createNewToken(
   url: string = '',
   description: string = '',
   coinsToUseOnDeploy: number = 0,
+  pausable: boolean = false,
+  mintable: boolean = false,
+  burnable: boolean = false,
 ) {
   console.log('Creating new token...');
 
@@ -52,7 +55,10 @@ export async function createNewToken(
     .addU8(BigInt(decimals))
     .addU256(parseUnits(totalSupply.toString(), decimals))
     .addString(url)
-    .addString(description);
+    .addString(description)
+    .addBool(pausable)
+    .addBool(mintable)
+    .addBool(burnable);
 
   if (coinsToUseOnDeploy > 0) {
     args.addU64(parseMas(coinsToUseOnDeploy.toString()));
@@ -62,7 +68,7 @@ export async function createNewToken(
     'createNewToken',
     args.serialize(),
     {
-      coins: Mas.fromString('5'),
+      coins: Mas.fromString('6'),
     },
   );
 
@@ -86,7 +92,7 @@ export async function getAllTokensAddresses(
 
   const result = await tokenDeployerContract.read('getTokens');
 
-  const tokens = new Args(result.value).nextArray(ArrayTypes.STRING);
+  const tokens: string[] = new Args(result.value).nextArray(ArrayTypes.STRING);
 
   console.log('Tokens:', tokens);
 
