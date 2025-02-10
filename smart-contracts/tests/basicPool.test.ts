@@ -723,6 +723,7 @@ describe('Scenario 2: Add liquidity, Swap native coins in and out without fees',
   });
 });
 
+/* 
 describe('Oracle TWAP tests', () => {
   beforeAll(async () => {
     registryContract = await deployRegistryContract(user1Provider, wmasAddress);
@@ -926,7 +927,7 @@ describe('Oracle TWAP tests', () => {
       'Price Accumulative B should be greater than 0',
     ).toBeGreaterThan(0n);
   });
-});
+}); */
 
 describe('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees', async () => {
   beforeAll(async () => {

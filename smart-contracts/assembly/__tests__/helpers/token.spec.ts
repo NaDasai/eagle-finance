@@ -261,3 +261,31 @@ describe('transferFrom', () => {
     ).toStrictEqual(u256ToBytes(u256.Zero));
   });
 });
+
+let pausableToken = true;
+
+describe('Pausable token', () => {
+  beforeAll(() => {
+    switchUser(user1Address);
+
+    resetStorage();
+
+    setDeployContext(user1Address);
+
+    TokenConstructor(
+      new Args()
+        .add(user1Address)
+        .add(TOKEN_NAME)
+        .add(TOKEN_SYMBOL)
+        .add(DECIMALS)
+        .add(TOTAL_SUPPLY)
+        .add(TOKEN_URL)
+        .add(TOKEN_DESCRIPTION)
+        .add(pausableToken)
+        .serialize(),
+    );
+  });
+
+
+  
+});
