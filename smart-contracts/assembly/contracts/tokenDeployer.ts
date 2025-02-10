@@ -59,6 +59,12 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   const url = args.nextString().unwrapOrDefault();
   // Optional parameter
   const description = args.nextString().unwrapOrDefault();
+  // Optional parameter representng that the token is pausable or not. Default value is false.
+  const pausable = args.nextBool().unwrapOrDefault();
+  // Optional parameter that specifies if the token is mintable or not. Default value is false.
+  const mintable = args.nextBool().unwrapOrDefault();
+  // Optional parameter that specifies if the token is burnable or not. Default value is false.
+  const burnable = args.nextBool().unwrapOrDefault();
   // Optional parameter that specifies the coins to use on deploy the new token.
   // Default value is 0.005 MAS, which is the minimum required to deploy a token contract.
   // Check storage costs documentation for more details at https://docs.massa.net/docs/learn/storage-costs
@@ -90,6 +96,9 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     totalSupply,
     url,
     description,
+    pausable,
+    mintable,
+    burnable,
     coinsToUseOnDeploy,
   );
 
