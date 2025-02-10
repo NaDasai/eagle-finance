@@ -42,6 +42,7 @@ const UNPAUSE_EVENT = 'UNPAUSE_SUCCESS';
 
 export const TOKEN_URL = stringToBytes('TOKEN_URL');
 export const TOKEN_DESCRIPTION = stringToBytes('TOKEN_DESCRIPTION');
+export const PAUSED = stringToBytes('PAUSED');
 export const PAUSABLE = stringToBytes('PAUSABLE');
 export const MINTABLE = stringToBytes('MINTABLE');
 export const BURNABLE = stringToBytes('BURNABLE');
@@ -74,9 +75,12 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(TOTAL_SUPPLY_KEY, u256ToBytes(totalSupply));
   Storage.set(TOKEN_URL, stringToBytes(url));
   Storage.set(TOKEN_DESCRIPTION, stringToBytes(description));
+
   Storage.set(PAUSABLE, boolToByte(pausableInput));
   Storage.set(MINTABLE, boolToByte(mintableInput));
   Storage.set(BURNABLE, boolToByte(burnableInput));
+
+  Storage.set(PAUSED, boolToByte(false));
 
   setOwner(new Args().add(admin).serialize());
 
@@ -94,12 +98,19 @@ export function description(_: StaticArray<u8>): StaticArray<u8> {
 }
 
 /**
- * Returns the current pausable state of the token.
- * @param _ - Unused parameter.
- * @returns The current pausable state of the token.
+ * Returns if the token supports pausable or not.
  */
 export function pausable(_: StaticArray<u8>): StaticArray<u8> {
   return Storage.get(PAUSABLE);
+}
+
+/**
+ * Returns if the token is paused or not.
+ * @param _ - Unused parameter.
+ * @returns A byte array representing the paused status of the token.
+ */
+export function paused(_: StaticArray<u8>): StaticArray<u8> {
+  return Storage.get(PAUSED);
 }
 
 export function mintable(_: StaticArray<u8>): StaticArray<u8> {
@@ -115,10 +126,15 @@ export function burnable(_: StaticArray<u8>): StaticArray<u8> {
  * Only the contract owner can call this function.
  */
 export function pause(_: StaticArray<u8>): void {
+  // Only tokens that are pausable can be paused
+  _requirePausable();
+
   // Only the owner can pause the token
   onlyOwner();
-  // Set the pausable flag to true
-  Storage.set(PAUSABLE, boolToByte(true));
+
+  // Set the PAUSED flag to true
+  Storage.set(PAUSED, boolToByte(true));
+
   // Generate an event to indicate that the token has been paused
   generateEvent(PAUSE_EVENT);
 }
@@ -128,10 +144,13 @@ export function pause(_: StaticArray<u8>): void {
  * Only the contract owner can call this function.
  */
 export function unpause(_: StaticArray<u8>): void {
+  // Only tokens that are pausable can be unpaused
+  _requirePausable();
+
   // Only the owner can unpause the token
   onlyOwner();
-  // Set the pausable flag to false
-  Storage.set(PAUSABLE, boolToByte(false));
+  // Set the paused flag to false
+  Storage.set(PAUSED, boolToByte(false));
   // Generate an event to indicate that the token has been unpaused
   generateEvent(UNPAUSE_EVENT);
 }
@@ -141,11 +160,22 @@ export function unpause(_: StaticArray<u8>): void {
  * @throws If the token is paused.
  */
 function _requireNotPaused(): void {
-  // Get the pausable flag from storage
-  const pausableStored = byteToBool(Storage.get(PAUSABLE));
+  // Only require not paused if the token is pausable
+  if (byteToBool(Storage.get(PAUSABLE))) {
+    // Get the pausable flag from storage
+    const pausedStored = byteToBool(Storage.get(PAUSED));
 
-  // If the token is paused, revert
-  assert(pausableStored === false, 'TOKEN_PAUSED');
+    // If the token is paused, revert
+    assert(pausedStored === false, 'TOKEN_PAUSED');
+  }
+}
+
+/**
+ * Requires that the token supports pausable feature
+ */
+function _requirePausable(): void {
+  const pausableStored = byteToBool(Storage.get(PAUSABLE));
+  assert(pausableStored, 'TOKEN_NOT_PAUSABLE');
 }
 
 /**
