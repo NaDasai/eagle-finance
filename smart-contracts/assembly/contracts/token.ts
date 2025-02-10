@@ -377,6 +377,7 @@ export function burnFrom(binaryArgs: StaticArray<u8>): void {
 }
 
 export {
+  VERSION,
   version,
   name,
   symbol,
