@@ -68,7 +68,7 @@ export async function createNewToken(
     'createNewToken',
     args.serialize(),
     {
-      coins: Mas.fromString('6'),
+      coins: Mas.fromString('8'),
     },
   );
 
