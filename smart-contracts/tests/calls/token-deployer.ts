@@ -1,4 +1,5 @@
 import {
+  Account,
   Args,
   ArrayTypes,
   bytesToArray,
@@ -9,8 +10,14 @@ import {
   parseUnits,
   Provider,
   SmartContract,
+  Web3Provider,
 } from '@massalabs/massa-web3';
 import { getScByteCode } from '../utils';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
+const user1Provider = Web3Provider.buildnet(await Account.fromEnv());
 
 export async function deployTokenDeployer(provider: Provider) {
   console.log('Deploying TokenDeployer contract...');
@@ -90,11 +97,19 @@ export async function getAllTokensAddresses(
 ) {
   console.log('Getting all tokens...');
 
-  const result = await tokenDeployerContract.read('getTokens');
+  const tokensSerialized = await user1Provider.getStorageKeys(
+    tokenDeployerContract.address,
+    'TOKENS',
+    false,
+  );
 
-  const tokens: string[] = new Args(result.value).nextArray(ArrayTypes.STRING);
+  const tokens = tokensSerialized.map((t) => {
+    const deserializedKey = bytesToStr(t);
+    const token = deserializedKey.split('::')[1];
+    return token;
+  });
 
-  console.log('Tokens:', tokens);
+  console.log('Tokens: ', tokens);
 
   return tokens;
 }

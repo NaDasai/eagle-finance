@@ -159,7 +159,7 @@ describe('Test pausable, mintable, burnable tokens', () => {
     await expect(
       mrc20TransferTo(tokenContract, receiverAddress, amount),
     ).rejects.toThrow(
-      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: TOKEN_PAUSED at assembly/contracts/token.ts:175 col: 5',
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: TOKEN_PAUSED at assembly/contracts/token.ts:185 col: 5',
     );
   });
 });
