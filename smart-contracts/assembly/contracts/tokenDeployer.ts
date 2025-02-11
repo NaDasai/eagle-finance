@@ -6,6 +6,7 @@ import {
 } from '@massalabs/as-types';
 import {
   Address,
+  balance,
   Context,
   createEvent,
   createSC,
@@ -17,13 +18,17 @@ import {
   validateAddress,
 } from '@massalabs/massa-as-sdk';
 import { IMRC20 } from '../interfaces/IMRC20';
-import { deserializeStringArray, serializeStringArray } from '../utils';
-import { UserToken } from '../structs/userToken';
-import { u256 } from 'as-bignum/assembly';
+import {
+  deserializeStringArray,
+  serializeStringArray,
+  transferRemaining,
+} from '../utils';
 import { _setOwner } from '../utils/ownership-internal';
+import { ReentrancyGuard } from '../lib/ReentrancyGuard';
+import { PersistentMap } from '../lib/PersistentMap';
 
-// Array of all tokens addresses deployed
-export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
+// Persistent map to store the tokens deployed and the address of the deployer
+const tokens = new PersistentMap<Address, Address>('TOKENS');
 
 /**
  * Constructor for the token deployer contract.
@@ -34,11 +39,11 @@ export function constructor(_: StaticArray<u8>): void {
   // If you remove this check, someone could call your constructor function and reset your smart contract.
   assert(isDeployingContract());
 
-  // Initialize the token addresses array
-  Storage.set(tokenAddresses, serializeStringArray([]));
-
   // Set the contract owner
   _setOwner(Context.caller().toString());
+
+  // Initialize the reentrancy guard
+  ReentrancyGuard.__ReentrancyGuard_init();
 
   generateEvent(`Token Deployer deployed.`);
 }
@@ -49,6 +54,9 @@ export function constructor(_: StaticArray<u8>): void {
  * @returns void
  */
 export function createNewToken(binaryArgs: StaticArray<u8>): void {
+  // Start Reentrancy guard
+  ReentrancyGuard.nonReentrant();
+
   const args = new Args(binaryArgs);
 
   const tokenName = args.nextString().expect('Invalid token name');
@@ -59,6 +67,12 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   const url = args.nextString().unwrapOrDefault();
   // Optional parameter
   const description = args.nextString().unwrapOrDefault();
+  // Optional parameter representng that the token is pausable or not. Default value is false.
+  const pausable = args.nextBool().unwrapOrDefault();
+  // Optional parameter that specifies if the token is mintable or not. Default value is false.
+  const mintable = args.nextBool().unwrapOrDefault();
+  // Optional parameter that specifies if the token is burnable or not. Default value is false.
+  const burnable = args.nextBool().unwrapOrDefault();
   // Optional parameter that specifies the coins to use on deploy the new token.
   // Default value is 0.005 MAS, which is the minimum required to deploy a token contract.
   // Check storage costs documentation for more details at https://docs.massa.net/docs/learn/storage-costs
@@ -72,6 +86,11 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   } else {
     coinsToUseOnDeploy = coinsToUseOnDeployIn.unwrap();
   }
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
 
   // Get the token bytecode
   const tokenByteCode: StaticArray<u8> = fileToByteArray('build/token.wasm');
@@ -90,85 +109,31 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     totalSupply,
     url,
     description,
+    pausable,
+    mintable,
+    burnable,
     coinsToUseOnDeploy,
   );
 
-  // Get the tokens array stored in storage
-  const tokensStored = Storage.get(tokenAddresses);
+  // Get the caller address
+  const callerAddress = Context.caller();
 
-  // Deserialize the tokens array to string array
-  const deserializedTokens = deserializeStringArray(tokensStored);
+  // Set the token address in the storage
+  tokens.set(tokenAddress, callerAddress);
 
-  // Add the token address to the array of tokens
-  deserializedTokens.push(tokenAddress.toString());
-
-  // Serialize the array of tokens
-  Storage.set(tokenAddresses, serializeStringArray(deserializedTokens));
+  // Transfer the remaining coins to the caller
+  transferRemaining(SCBalance, balance(), sent, callerAddress);
 
   // Emit an event
   generateEvent(
-    `CREATE_NEW_TOKEN:${Context.callee().toString()}||${Context.caller().toString()}||${tokenAddress.toString()}||${tokenName}||${tokenSymbol}||${decimals.toString()}||${totalSupply.toString()}||${url}||${description}||${coinsToUseOnDeploy.toString()}`,
+    `CREATE_NEW_TOKEN:${Context.callee().toString()}||${callerAddress}||${tokenAddress.toString()}||${tokenName}||${tokenSymbol}||${decimals.toString()}||${totalSupply.toString()}||${url}||${description}||${coinsToUseOnDeploy.toString()}`,
   );
 
   // Raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
   generateRawEvent(new Args().add(tokenAddress).serialize());
-}
 
-/**
- * Retrieves all tokens deployed on the blockchain.
- * @returns The array of tokens.
- */
-export function getTokens(): StaticArray<u8> {
-  return Storage.get(tokenAddresses);
-}
-
-/**
- * Retrieves the token balances for a user based on the provided binary arguments.
- *
- * @param binaryArgs - A serialized array of bytes representing the user's address.
- * - userAddress: The user's address.
- * @returns A serialized array of bytes containing the user's token balances.
- *
- * @throws Will throw an error if the user address is invalid.
- *
- * @remarks
- * This function deserializes the user address from the binary arguments, validates it,
- * and retrieves the stored token addresses from storage. It then iterates over each token,
- * checks the user's balance, and collects non-zero balances into a UserToken array.
- * The resulting array is serialized and returned.
- */
-export function getUserTokenBalances(
-  binaryArgs: StaticArray<u8>,
-): StaticArray<u8> {
-  const args = new Args(binaryArgs);
-
-  const userAddress = args.nextString().expect('Invalid user address');
-
-  assert(validateAddress(userAddress), 'Invalid user address');
-
-  // Get the tokens array stored in storage
-  const tokensStored = deserializeStringArray(Storage.get(tokenAddresses));
-
-  const userTokens: UserToken[] = [];
-
-  // loop on the tokens array and get the user token balance for each token
-  for (let i = 0; i < tokensStored.length; i++) {
-    const tokenAddress = new Address(tokensStored[i]);
-
-    const tokenContract = new IMRC20(tokenAddress);
-
-    const userTokenBalance = tokenContract.balanceOf(new Address(userAddress));
-
-    // Store only the user token if it's greater than 0
-    if (userTokenBalance > u256.Zero) {
-      userTokens.push(
-        new UserToken(new Address(userAddress), tokenAddress, userTokenBalance),
-      );
-    }
-  }
-
-  // Serialize the user tokens array
-  return serializableObjectsArrayToBytes(userTokens);
+  // End Reentrancy guard
+  ReentrancyGuard.endNonReentrant();
 }
 
 // Export ownership functions

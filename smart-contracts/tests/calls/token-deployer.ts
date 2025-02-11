@@ -1,4 +1,5 @@
 import {
+  Account,
   Args,
   ArrayTypes,
   bytesToArray,
@@ -9,8 +10,14 @@ import {
   parseUnits,
   Provider,
   SmartContract,
+  Web3Provider,
 } from '@massalabs/massa-web3';
 import { getScByteCode } from '../utils';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
+const user1Provider = Web3Provider.buildnet(await Account.fromEnv());
 
 export async function deployTokenDeployer(provider: Provider) {
   console.log('Deploying TokenDeployer contract...');
@@ -43,6 +50,9 @@ export async function createNewToken(
   url: string = '',
   description: string = '',
   coinsToUseOnDeploy: number = 0,
+  pausable: boolean = false,
+  mintable: boolean = false,
+  burnable: boolean = false,
 ) {
   console.log('Creating new token...');
 
@@ -52,7 +62,10 @@ export async function createNewToken(
     .addU8(BigInt(decimals))
     .addU256(parseUnits(totalSupply.toString(), decimals))
     .addString(url)
-    .addString(description);
+    .addString(description)
+    .addBool(pausable)
+    .addBool(mintable)
+    .addBool(burnable);
 
   if (coinsToUseOnDeploy > 0) {
     args.addU64(parseMas(coinsToUseOnDeploy.toString()));
@@ -62,7 +75,7 @@ export async function createNewToken(
     'createNewToken',
     args.serialize(),
     {
-      coins: Mas.fromString('5'),
+      coins: Mas.fromString('8'),
     },
   );
 
@@ -84,11 +97,19 @@ export async function getAllTokensAddresses(
 ) {
   console.log('Getting all tokens...');
 
-  const result = await tokenDeployerContract.read('getTokens');
+  const tokensSerialized = await user1Provider.getStorageKeys(
+    tokenDeployerContract.address,
+    'TOKENS',
+    false,
+  );
 
-  const tokens = new Args(result.value).nextArray(ArrayTypes.STRING);
+  const tokens = tokensSerialized.map((t) => {
+    const deserializedKey = bytesToStr(t);
+    const token = deserializedKey.split('::')[1];
+    return token;
+  });
 
-  console.log('Tokens:', tokens);
+  console.log('Tokens: ', tokens);
 
   return tokens;
 }

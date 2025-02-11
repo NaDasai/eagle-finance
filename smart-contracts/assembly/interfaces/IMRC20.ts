@@ -33,6 +33,9 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
     supply: u256,
     url: string,
     description: string,
+    pausable: bool,
+    mintable: bool,
+    burnable: bool,
     coins: u64 = 0,
   ): void {
     const args = new Args()
@@ -42,7 +45,10 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
       .add(decimals)
       .add(supply)
       .add(url)
-      .add(description);
+      .add(description)
+      .add(pausable)
+      .add(mintable)
+      .add(burnable);
 
     call(this._origin, 'constructor', args, coins);
   }
