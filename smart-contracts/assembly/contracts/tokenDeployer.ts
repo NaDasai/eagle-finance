@@ -23,13 +23,12 @@ import {
   serializeStringArray,
   transferRemaining,
 } from '../utils';
-import { UserToken } from '../structs/userToken';
-import { u256 } from 'as-bignum/assembly';
 import { _setOwner } from '../utils/ownership-internal';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
+import { PersistentMap } from '../lib/PersistentMap';
 
-// Array of all tokens addresses deployed
-export const tokenAddresses: StaticArray<u8> = stringToBytes('tokensAddresses');
+// Persistent map to store the tokens deployed and the address of the deployer
+const tokens = new PersistentMap<Address, Address>('TOKENS');
 
 /**
  * Constructor for the token deployer contract.
@@ -39,9 +38,6 @@ export function constructor(_: StaticArray<u8>): void {
   // This line is important. It ensures that this function can't be called in the future.
   // If you remove this check, someone could call your constructor function and reset your smart contract.
   assert(isDeployingContract());
-
-  // Initialize the token addresses array
-  Storage.set(tokenAddresses, serializeStringArray([]));
 
   // Set the contract owner
   _setOwner(Context.caller().toString());
@@ -119,24 +115,18 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     coinsToUseOnDeploy,
   );
 
-  // Get the tokens array stored in storage
-  const tokensStored = Storage.get(tokenAddresses);
+  // Get the caller address
+  const callerAddress = Context.caller();
 
-  // Deserialize the tokens array to string array
-  const deserializedTokens = deserializeStringArray(tokensStored);
-
-  // Add the token address to the array of tokens
-  deserializedTokens.push(tokenAddress.toString());
-
-  // Serialize the array of tokens
-  Storage.set(tokenAddresses, serializeStringArray(deserializedTokens));
+  // Set the token address in the storage
+  tokens.set(tokenAddress, callerAddress);
 
   // Transfer the remaining coins to the caller
-  transferRemaining(SCBalance, balance(), sent, Context.caller());
+  transferRemaining(SCBalance, balance(), sent, callerAddress);
 
   // Emit an event
   generateEvent(
-    `CREATE_NEW_TOKEN:${Context.callee().toString()}||${Context.caller().toString()}||${tokenAddress.toString()}||${tokenName}||${tokenSymbol}||${decimals.toString()}||${totalSupply.toString()}||${url}||${description}||${coinsToUseOnDeploy.toString()}`,
+    `CREATE_NEW_TOKEN:${Context.callee().toString()}||${callerAddress}||${tokenAddress.toString()}||${tokenName}||${tokenSymbol}||${decimals.toString()}||${totalSupply.toString()}||${url}||${description}||${coinsToUseOnDeploy.toString()}`,
   );
 
   // Raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
@@ -144,63 +134,6 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
 
   // End Reentrancy guard
   ReentrancyGuard.endNonReentrant();
-}
-
-/**
- * Retrieves all tokens deployed on the blockchain.
- * @returns The array of tokens.
- */
-export function getTokens(): StaticArray<u8> {
-  return Storage.get(tokenAddresses);
-}
-
-/**
- * Retrieves the token balances for a user based on the provided binary arguments.
- *
- * @param binaryArgs - A serialized array of bytes representing the user's address.
- * - userAddress: The user's address.
- * @returns A serialized array of bytes containing the user's token balances.
- *
- * @throws Will throw an error if the user address is invalid.
- *
- * @remarks
- * This function deserializes the user address from the binary arguments, validates it,
- * and retrieves the stored token addresses from storage. It then iterates over each token,
- * checks the user's balance, and collects non-zero balances into a UserToken array.
- * The resulting array is serialized and returned.
- */
-export function getUserTokenBalances(
-  binaryArgs: StaticArray<u8>,
-): StaticArray<u8> {
-  const args = new Args(binaryArgs);
-
-  const userAddress = args.nextString().expect('Invalid user address');
-
-  assert(validateAddress(userAddress), 'Invalid user address');
-
-  // Get the tokens array stored in storage
-  const tokensStored = deserializeStringArray(Storage.get(tokenAddresses));
-
-  const userTokens: UserToken[] = [];
-
-  // loop on the tokens array and get the user token balance for each token
-  for (let i = 0; i < tokensStored.length; i++) {
-    const tokenAddress = new Address(tokensStored[i]);
-
-    const tokenContract = new IMRC20(tokenAddress);
-
-    const userTokenBalance = tokenContract.balanceOf(new Address(userAddress));
-
-    // Store only the user token if it's greater than 0
-    if (userTokenBalance > u256.Zero) {
-      userTokens.push(
-        new UserToken(new Address(userAddress), tokenAddress, userTokenBalance),
-      );
-    }
-  }
-
-  // Serialize the user tokens array
-  return serializableObjectsArrayToBytes(userTokens);
 }
 
 // Export ownership functions
