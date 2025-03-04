@@ -64,7 +64,9 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   const decimals = args.nextU8().expect('Invalid decimals');
   const totalSupply = args.nextU256().expect('Invalid total supply');
   // Optional parameter
-  const url = args.nextString().unwrapOrDefault();
+  const image = args.nextString().unwrapOrDefault();
+  //  Optional parameter
+  const website = args.nextString().unwrapOrDefault();
   // Optional parameter
   const description = args.nextString().unwrapOrDefault();
   // Optional parameter representng that the token is pausable or not. Default value is false.
@@ -107,7 +109,8 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
     tokenSymbol,
     decimals,
     totalSupply,
-    url,
+    image,
+    website,
     description,
     pausable,
     mintable,
@@ -126,7 +129,7 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
 
   // Emit an event
   generateEvent(
-    `CREATE_NEW_TOKEN:${Context.callee().toString()}||${callerAddress}||${tokenAddress.toString()}||${tokenName}||${tokenSymbol}||${decimals.toString()}||${totalSupply.toString()}||${url}||${description}||${coinsToUseOnDeploy.toString()}`,
+    `CREATE_NEW_TOKEN:${Context.callee().toString()}||${callerAddress}||${tokenAddress.toString()}||${tokenName}||${tokenSymbol}||${decimals.toString()}||${totalSupply.toString()}||${image}||${website}||${description}||${pausable}||${mintable}||${burnable}||${coinsToUseOnDeploy.toString()}`,
   );
 
   // Raw event to be able to get the token address at the frotnend by using operation.getDeployedAddress(true)
