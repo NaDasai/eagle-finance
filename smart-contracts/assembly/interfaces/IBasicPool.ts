@@ -94,10 +94,17 @@ export class IBasicPool {
    *
    * @param {string} tokenInAddress - Address of the input token.
    * @param {u256} amountIn - Amount of the input token.
+   * @param {u256} minAmountOut - Minimum amount of the output token.
+   * @param {u64} coins - Number of coins to use.
    */
-  swap(tokenInAddress: string, amountIn: u256): void {
-    const args = new Args().add(tokenInAddress).add(amountIn);
-    call(this._origin, 'swap', args, 0);
+  swap(
+    tokenInAddress: string,
+    amountIn: u256,
+    minAmountOut: u256,
+    coins: u64 = 0,
+  ): void {
+    const args = new Args().add(tokenInAddress).add(amountIn).add(minAmountOut);
+    call(this._origin, 'swap', args, coins);
   }
 
   /**
@@ -313,9 +320,10 @@ export class IBasicPool {
     tokenInAddress: string,
     amountIn: u256,
     minAmountOut: u256,
+    coins: u64 = 0,
   ): void {
     const args = new Args().add(tokenInAddress).add(amountIn).add(minAmountOut);
-    call(this._origin, 'swapWithMas', args, 0);
+    call(this._origin, 'swapWithMas', args, coins);
   }
 
   /**
