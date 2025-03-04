@@ -42,8 +42,9 @@ const BURN_EVENT = 'BURN_SUCCESS';
 const PAUSE_EVENT = 'PAUSE_SUCCESS';
 const UNPAUSE_EVENT = 'UNPAUSE_SUCCESS';
 
-export const TOKEN_URL = stringToBytes('TOKEN_URL');
+export const TOKEN_IMAGE = stringToBytes('TOKEN_IMAGE');
 export const TOKEN_DESCRIPTION = stringToBytes('TOKEN_DESCRIPTION');
+export const TOKEN_WEBSITE = stringToBytes('TOKEN_WEBSITE');
 export const PAUSED = stringToBytes('PAUSED');
 export const PAUSABLE = stringToBytes('PAUSABLE');
 export const MINTABLE = stringToBytes('MINTABLE');
@@ -61,7 +62,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const decimals = args.nextU8().expect('Invalid decimals');
   const totalSupply = args.nextU256().expect('Invalid total supply');
   // optional parameter
-  const url = args.nextString().unwrapOrDefault();
+  const image = args.nextString().unwrapOrDefault();
+  // optional Parameter
+  const website = args.nextString().unwrapOrDefault();
   // optional parameter
   const description = args.nextString().unwrapOrDefault();
   // Optional parameter repreesenting if the token is pausable or not (default false)
@@ -80,9 +83,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(SYMBOL_KEY, stringToBytes(tokenSymbol));
   Storage.set(DECIMALS_KEY, [decimals]);
   Storage.set(TOTAL_SUPPLY_KEY, u256ToBytes(totalSupply));
-  Storage.set(TOKEN_URL, stringToBytes(url));
+  Storage.set(TOKEN_IMAGE, stringToBytes(image));
   Storage.set(TOKEN_DESCRIPTION, stringToBytes(description));
-
+  Storage.set(TOKEN_WEBSITE, stringToBytes(website));
   Storage.set(PAUSABLE, boolToByte(pausableInput));
   Storage.set(MINTABLE, boolToByte(mintableInput));
   Storage.set(BURNABLE, boolToByte(burnableInput));
@@ -99,8 +102,12 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   generateEvent(`Token ${tokenName} deployed.`);
 }
 
-export function url(_: StaticArray<u8>): StaticArray<u8> {
-  return Storage.get(TOKEN_URL);
+export function image(_: StaticArray<u8>): StaticArray<u8> {
+  return Storage.get(TOKEN_IMAGE);
+}
+
+export function website(_: StaticArray<u8>): StaticArray<u8> {
+  return Storage.get(TOKEN_WEBSITE);
 }
 
 export function description(_: StaticArray<u8>): StaticArray<u8> {

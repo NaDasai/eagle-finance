@@ -31,7 +31,8 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
     symbol: string,
     decimals: u8,
     supply: u256,
-    url: string,
+    image: string,
+    website: string,
     description: string,
     pausable: bool,
     mintable: bool,
@@ -44,7 +45,8 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
       .add(symbol)
       .add(decimals)
       .add(supply)
-      .add(url)
+      .add(image)
+      .add(website)
       .add(description)
       .add(pausable)
       .add(mintable)
@@ -53,8 +55,12 @@ export class IMRC20 extends MRC20Wrapper implements Serializable {
     call(this._origin, 'constructor', args, coins);
   }
 
-  url(): string {
-    return bytesToString(call(this._origin, 'url', NoArg, 0));
+  image(): string {
+    return bytesToString(call(this._origin, 'image', NoArg, 0));
+  }
+
+  website(): string {
+    return bytesToString(call(this._origin, 'website', NoArg, 0));
   }
 
   description(): string {

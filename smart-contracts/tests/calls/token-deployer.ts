@@ -47,7 +47,8 @@ export async function createNewToken(
   tokenSymbol: string,
   decimals: number,
   totalSupply: number,
-  url: string = '',
+  image: string = '',
+  website: string = '',
   description: string = '',
   coinsToUseOnDeploy: number = 0,
   pausable: boolean = false,
@@ -61,7 +62,8 @@ export async function createNewToken(
     .addString(tokenSymbol)
     .addU8(BigInt(decimals))
     .addU256(parseUnits(totalSupply.toString(), decimals))
-    .addString(url)
+    .addString(image)
+    .addString(website)
     .addString(description)
     .addBool(pausable)
     .addBool(mintable)

@@ -45,7 +45,8 @@ describe('Tests of create token', () => {
     const tokenSymbol = 'MTK';
     const decimals = 18;
     const totalSupply = 10000000;
-    const url = `https://www.mytoken.com`;
+    const image = `https://www.mytoken.com`;
+    const website = 'https://www.mytoken.com';
 
     const description =
       '(TKN) is the native utility and governance token of [Your DEX Name], a decentralized exchange (DEX) built on the Massa Blockchain. Designed for scalability and decentralization, our token powers a seamless and efficient trading experience while fostering community-driven decision-making.';
@@ -56,7 +57,8 @@ describe('Tests of create token', () => {
       tokenSymbol,
       decimals,
       totalSupply,
-      url,
+      image,
+      website,
       description,
       3,
     );
@@ -110,6 +112,7 @@ describe('Test pausable, mintable, burnable tokens', () => {
       decimals,
       totalSupply,
       url,
+      "", 
       description,
       coinsToUseOnDeploy,
       pausable,
