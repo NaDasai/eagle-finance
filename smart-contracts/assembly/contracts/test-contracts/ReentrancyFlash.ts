@@ -182,7 +182,12 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
     // call swap from the same poolCntract
     const poolContract = new IBasicPool(new Address(poolAddress));
 
-    poolContract.swap(tokenAAddress, amountB, u256.fromU64(0));
+    poolContract.swap(
+      tokenAAddress,
+      amountB,
+      u256.fromU64(0),
+      Context.caller(),
+    );
 
     // TRnasfer amountToRepay to the contract
     tokenB.transfer(new Address(poolAddress), amountToRepay);

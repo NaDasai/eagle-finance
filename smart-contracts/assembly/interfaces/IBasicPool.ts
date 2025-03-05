@@ -95,16 +95,24 @@ export class IBasicPool {
    * @param {string} tokenInAddress - Address of the input token.
    * @param {u256} amountIn - Amount of the input token.
    * @param {u256} minAmountOut - Minimum amount of the output token.
+   * @param {bool} isTokenOutNative - Indicates if the output token is a native coin.
    * @param {u64} coins - Number of coins to use.
    */
   swap(
     tokenInAddress: string,
     amountIn: u256,
     minAmountOut: u256,
+    toAddress: Address,
+    isTokenOutNative: bool = false,
     coins: u64 = 0,
   ): void {
-    const args = new Args().add(tokenInAddress).add(amountIn).add(minAmountOut);
-    call(this._origin, 'swap', args, coins);
+    const args = new Args()
+      .add(tokenInAddress)
+      .add(amountIn)
+      .add(minAmountOut)
+      .add(toAddress)
+      .add(isTokenOutNative);
+    call(this._origin, '_swap', args, coins);
   }
 
   /**

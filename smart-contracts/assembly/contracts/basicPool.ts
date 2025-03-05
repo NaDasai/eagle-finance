@@ -360,83 +360,87 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     .expect('TokenIn is missing or invalid');
 
   // Get the amount of tokenIn to swap
-  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
+  const amountIn = args.nextU256().expect('AmountIn is missing or invalid');
 
   // Get the minimum amount of tokenOut
   const minAmountOut = args
     .nextU256()
     .expect('minAmountOut is missing or invalid');
 
-  const SCBalance = balance();
-  const sent = Context.transferredCoins();
-
-  // Check if the amountIn is greater than 0
-  assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
-
-  // Check if the minAmountOut is greater than 0
-  assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
-
-  // Call the internal swap function
-  _swap(tokenInAddress, amountIn, minAmountOut);
-
-  transferRemaining(SCBalance, balance(), sent, Context.caller());
-
-  // End reentrancy guard
-  ReentrancyGuard.endNonReentrant();
-}
-
-/**
- *  Swaps Mas with the other token in the pool.
- * @returns void
- */
-export function swapWithMas(binaryArgs: StaticArray<u8>): void {
-  // Start reentrancy guard
-  ReentrancyGuard.nonReentrant();
-
-  // Get the tokenIn address and amountIn from the args
-  const args = new Args(binaryArgs);
-
-  const tokenInAddress = args
-    .nextString()
-    .expect('TokenIn is missing or invalid');
-
-  let amountIn = args.nextU256().expect('AmountIn is missing or invalid');
-
-  // Get the minimum amount of tokenOut
-  const minAmountOut = args
-    .nextU256()
-    .expect('minAmountOut is missing or invalid');
-
-  const SCBalance = balance();
-  const sent = Context.transferredCoins();
-
-  // Check if the amountIn is greater than 0
-  assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
-
-  // Check if the minAmountOut is greater than 0
-  assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
-
-  // Get the registry contract address
-  const registryContractAddressStored = bytesToString(
-    Storage.get(registryContractAddress),
+  const toAddress = new Address(
+    args.nextString().expect('ToAddress is missing or invalid'),
   );
 
-  // Get the wmas token address
-  const wmasTokenAddressStored = new IRegistery(
-    new Address(registryContractAddressStored),
-  ).getWmasTokenAddress();
+  const isTokenOutNative = args
+    .nextBool()
+    .expect('isTokenOutNative is missing or invalid');
 
-  // Check if the tokenIn or tokenOut is native Mas coin
-  if (tokenInAddress == NATIVE_MAS_COIN_ADDRESS) {
-    // Wrap Mas to WMAS
-    _wrapMasToWMAS(amountIn);
+  const swapOutData = _getSwapOut(amountIn, tokenInAddress);
 
-    // Call the swap internal function
-    _swap(wmasTokenAddressStored, amountIn, minAmountOut, true);
+  const amountOut = swapOutData.amountOut;
+  const tokenOutAddress = swapOutData.tokenOutAddress;
+  const reserveIn = swapOutData.reserveIn;
+  const reserveOut = swapOutData.reserveOut;
+  const totalFee = swapOutData.totalFee;
+  const lpFee = swapOutData.lpFee;
+  const protocolFee = swapOutData.protocolFee;
+  const amountInAfterFee = swapOutData.amountInAfterFee;
+
+  // Ensure that the amountOut is greater than or equal to minAmountOut
+  assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
+
+  if (!isTokenOutNative) {
+    // Transfer the amountOut to the toAddres
+    new IMRC20(new Address(tokenOutAddress)).transfer(
+      toAddress,
+      amountOut,
+      getBalanceEntryCost(tokenOutAddress, toAddress.toString()),
+    );
   } else {
-    // Call the swap internal function
-    _swap(tokenInAddress, amountIn, minAmountOut, false, true);
+    // unwrap the amountOut to MAs then transfer to the to address
+    _unwrapWMASToMas(amountOut, toAddress);
   }
+
+  // Update reserves:
+  // The input reserve increases by amountInAfterFee + lpFee (the portion of fees that goes to the LPs).
+  // The protocolFee is not added to reserves. Instead, we store it separately.
+  const newReserveIn = SafeMath256.add(
+    reserveIn,
+    SafeMath256.add(amountInAfterFee, lpFee),
+  );
+
+  const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
+
+  // Update the pool reserves
+  _updateReserve(tokenInAddress, newReserveIn);
+  _updateReserve(tokenOutAddress, newReserveOut);
+
+  // Accumulate protocol fees
+  if (protocolFee > u256.Zero) {
+    _addTokenAccumulatedProtocolFee(tokenInAddress, protocolFee);
+  }
+
+  // Update cumulative prices
+  _updateCumulativePrices();
+
+  generateEvent(
+    createEvent('SWAP', [
+      Context.callee().toString(), // Smart Contract Address
+      toAddress.toString(), // Caller Address
+      amountIn.toString(), // Amount In
+      tokenInAddress, // Token In Address
+      amountOut.toString(), // Amount Out
+      tokenOutAddress, // Token Out Address
+      totalFee.toString(), // Total Fee
+      protocolFee.toString(), // Protocol Fee
+      lpFee.toString(), // LP Fee
+      newReserveIn.toString(), // New Reserve In
+      newReserveOut.toString(), // New Reserve Out
+    ]),
+  );
+
+  const SCBalance = balance();
+  const sent = Context.transferredCoins();
 
   transferRemaining(SCBalance, balance(), sent, Context.caller());
 
@@ -1176,102 +1180,6 @@ function _updateReserveA(amount: u256): void {
  */
 function _updateReserveB(amount: u256): void {
   Storage.set(bTokenReserve, u256ToBytes(amount));
-}
-
-/**
- * Swaps tokens in the pool.
- * @param tokenInAddress - The address of the token to swap in.
- * @param amountIn - The amount of the token to swap in.
- * @param minAmountOut - The minimum amount of the token to swap out.
- * @param isTokenInNative - Whether the token to swap in is the native token.
- * @param isTokenOutNative - Whether the token to swap out is the native token.
- * @returns The amount of the token to swap out.
- */
-function _swap(
-  tokenInAddress: string,
-  amountIn: u256,
-  minAmountOut: u256,
-  isTokenInNative: bool = false,
-  isTokenOutNative: bool = false,
-): u256 {
-  const swapOutData = _getSwapOut(amountIn, tokenInAddress);
-
-  const amountOut = swapOutData.amountOut;
-  const tokenOutAddress = swapOutData.tokenOutAddress;
-  const reserveIn = swapOutData.reserveIn;
-  const reserveOut = swapOutData.reserveOut;
-  const totalFee = swapOutData.totalFee;
-  const lpFee = swapOutData.lpFee;
-  const protocolFee = swapOutData.protocolFee;
-  const amountInAfterFee = swapOutData.amountInAfterFee;
-
-  // Ensure that the amountOut is greater than or equal to minAmountOut
-  assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
-
-  const callerAddress = Context.caller();
-  const contractAddress = Context.callee();
-
-  if (!isTokenInNative) {
-    // Transfer the amountIn to the contract
-    new IMRC20(new Address(tokenInAddress)).transferFrom(
-      callerAddress,
-      contractAddress,
-      amountIn,
-      getBalanceEntryCost(tokenInAddress, contractAddress.toString()),
-    );
-  }
-
-  if (!isTokenOutNative) {
-    // Transfer the amountOut to the caller
-    new IMRC20(new Address(tokenOutAddress)).transfer(
-      callerAddress,
-      amountOut,
-      getBalanceEntryCost(tokenOutAddress, callerAddress.toString()),
-    );
-  } else {
-    // unwrap the amountOut to MAs then transfer to the caller
-    _unwrapWMASToMas(amountOut, callerAddress);
-  }
-
-  // Update reserves:
-  // The input reserve increases by amountInAfterFee + lpFee (the portion of fees that goes to the LPs).
-  // The protocolFee is not added to reserves. Instead, we store it separately.
-  const newReserveIn = SafeMath256.add(
-    reserveIn,
-    SafeMath256.add(amountInAfterFee, lpFee),
-  );
-
-  const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
-
-  // Update the pool reserves
-  _updateReserve(tokenInAddress, newReserveIn);
-  _updateReserve(tokenOutAddress, newReserveOut);
-
-  // Accumulate protocol fees
-  if (protocolFee > u256.Zero) {
-    _addTokenAccumulatedProtocolFee(tokenInAddress, protocolFee);
-  }
-
-  // Update cumulative prices
-  _updateCumulativePrices();
-
-  generateEvent(
-    createEvent('SWAP', [
-      Context.callee().toString(), // Smart Contract Address
-      callerAddress.toString(), // Caller Address
-      amountIn.toString(), // Amount In
-      tokenInAddress, // Token In Address
-      amountOut.toString(), // Amount Out
-      tokenOutAddress, // Token Out Address
-      totalFee.toString(), // Total Fee
-      protocolFee.toString(), // Protocol Fee
-      lpFee.toString(), // LP Fee
-      newReserveIn.toString(), // New Reserve In
-      newReserveOut.toString(), // New Reserve Out
-    ]),
-  );
-
-  return amountOut;
 }
 
 /**
