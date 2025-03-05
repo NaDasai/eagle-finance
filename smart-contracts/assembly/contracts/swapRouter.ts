@@ -59,75 +59,125 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const callerAddress = Context.caller();
   const contractAddress = Context.callee();
 
-  if (swapPathArray.length > 1) {
-    // TODO: Add support for multiple swaps
+  const swapRouteLength = swapPathArray.length;
+
+  if (swapRouteLength > 1) {
+    // Add support for multiple swaps
+    for (let i = 0; i < swapRouteLength; i++) {
+      const swapPath = swapPathArray[i];
+
+      const toAddress =
+        i == swapRouteLength - 1
+          ? callerAddress
+          : swapPathArray[i + 1].poolAddress;
+
+      const isFirstPath = i == 0 ? true : false;
+
+      _swap(
+        swapPath,
+        callerAddress,
+        contractAddress,
+        toAddress,
+        coinsOnEachSwap,
+        isFirstPath,
+      );
+    }
   } else {
     const swapPath = swapPathArray[0];
 
-    const poolAddress = swapPath.poolAddress;
-    const tokenInAddress = swapPath.tokenInAddress.toString();
-    const tokenOutAddress = swapPath.tokenOutAddress.toString();
-    const amountIn = swapPath.amountIn;
-    const minAmountOut = swapPath.minAmountOut;
-    const isNativeCoinIn =
-      tokenInAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
-    const isNativeCoinOut =
-      tokenOutAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
+    _swap(
+      swapPath,
+      callerAddress,
+      contractAddress,
+      callerAddress,
+      coinsOnEachSwap,
+      true,
+    );
+  }
+}
 
-    // Check if the amountIn is greater than 0
-    assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
+function _swap(
+  swapPath: SwapPath,
+  callerAddress: Address,
+  contractAddress: Address,
+  toAddress: Address,
+  coinsOnEachSwap: u64,
+  isFirstPath: bool = false,
+): void {
+  const poolAddress = swapPath.poolAddress;
+  const tokenInAddress = swapPath.tokenInAddress.toString();
+  const tokenOutAddress = swapPath.tokenOutAddress.toString();
+  const amountIn = swapPath.amountIn;
+  const minAmountOut = swapPath.minAmountOut;
+  const isNativeCoinIn =
+    tokenInAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
+  const isNativeCoinOut =
+    tokenOutAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
 
-    // Check if the minAmountOut is greater than 0
-    assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
+  // Check if the amountIn is greater than 0
+  assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
 
-    const pool = new IBasicPool(poolAddress);
+  // Check if the minAmountOut is greater than 0
+  assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
 
-    const tokenIn = new IMRC20(swapPath.tokenInAddress);
+  const pool = new IBasicPool(poolAddress);
 
-    if (isNativeCoinIn) {
-      // TODO: wrap mas before swap and transfer wmas
-      const registryContractAddressStored = bytesToString(
-        Storage.get(registryContractAddress),
-      );
+  const tokenIn = new IMRC20(swapPath.tokenInAddress);
 
-      // Get the wmas token address
-      const wmasTokenAddressStored = new Address(
-        new IRegistery(
-          new Address(registryContractAddressStored),
-        ).getWmasTokenAddress(),
-      );
+  if (isNativeCoinIn) {
+    // Wrap mas before swap and transfer wmas
+    const registryContractAddressStored = bytesToString(
+      Storage.get(registryContractAddress),
+    );
 
-      // Wrap Mas to WMAS
-      wrapMasToWMAS(amountIn, wmasTokenAddressStored);
+    // Get the wmas token address
+    const wmasTokenAddressStored = new Address(
+      new IRegistery(
+        new Address(registryContractAddressStored),
+      ).getWmasTokenAddress(),
+    );
 
-      // Transfer wmas to the pool contract
-      new IMRC20(wmasTokenAddressStored).transfer(
-        poolAddress,
-        amountIn,
-        getBalanceEntryCost(
-          wmasTokenAddressStored.toString(),
-          poolAddress.toString(),
-        ),
-      );
+    // Wrap Mas to WMAS
+    wrapMasToWMAS(amountIn, wmasTokenAddressStored);
 
-      // Call the swap internal function
-      pool.swap(
+    // Transfer wmas to the pool contract
+    new IMRC20(wmasTokenAddressStored).transfer(
+      poolAddress,
+      amountIn,
+      getBalanceEntryCost(
         wmasTokenAddressStored.toString(),
-        amountIn,
-        minAmountOut,
-        callerAddress,
-        false,
-      );
-    } else {
+        poolAddress.toString(),
+      ),
+    );
+
+    // Call the swap internal function
+    pool.swap(
+      wmasTokenAddressStored.toString(),
+      amountIn,
+      minAmountOut,
+      toAddress,
+      false,
+      coinsOnEachSwap,
+    );
+  } else {
+    if (isFirstPath) {
       // Check for balance
       const tokenInBalance = tokenIn.balanceOf(callerAddress);
 
       assert(tokenInBalance >= amountIn, 'Insufficient balance for tokenIn');
 
+      const tokenInAllownace = tokenIn.allowance(
+        callerAddress,
+        contractAddress,
+      );
+
       // Check for allowance
       assert(
-        tokenIn.allowance(callerAddress, contractAddress) >= amountIn,
-        'Insufficient allowance for tokenIn',
+        tokenInAllownace >= amountIn,
+        'Insufficient allowance for tokenIn' +
+          amountIn.toString() +
+          ' ' +
+          tokenInAllownace.toString(),
       );
 
       // Transfer amountIn from user to this contract
@@ -140,16 +190,16 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
       // Transfer tokens to the pool contract
       tokenIn.transfer(poolAddress, amountIn);
-
-      // Call the swap function on the pool contract
-      pool.swap(
-        tokenInAddress,
-        amountIn,
-        minAmountOut,
-        callerAddress,
-        isNativeCoinOut,
-        coinsOnEachSwap,
-      );
     }
+
+    // Call the swap function on the pool contract
+    pool.swap(
+      tokenInAddress,
+      amountIn,
+      minAmountOut,
+      toAddress,
+      isNativeCoinOut,
+      coinsOnEachSwap,
+    );
   }
 }

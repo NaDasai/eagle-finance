@@ -112,7 +112,7 @@ export class IBasicPool {
       .add(minAmountOut)
       .add(toAddress)
       .add(isTokenOutNative);
-    call(this._origin, '_swap', args, coins);
+    call(this._origin, 'swap', args, coins);
   }
 
   /**
