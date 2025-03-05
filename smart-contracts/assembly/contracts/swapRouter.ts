@@ -1,22 +1,49 @@
-/**
- * This smart contract is not intended to be deployed on the Massa blockchain.
- * It is designed to execute multiple swaps in a single transaction.
- * For an example, refer to the following link:
- * https://github.com/massalabs/massa-sc-examples/blob/4ecea9cbfdd59a4410c99f268f35f0485068081d/airdrop/smart-contract/src/airdrop.ts#L28
- */
-
 import {
+  Address,
+  assertIsSmartContract,
   Context,
   createEvent,
   generateEvent,
+  Storage,
 } from '@massalabs/massa-as-sdk';
 import { _setOwner } from '../utils/ownership-internal';
-import { Args } from '@massalabs/as-types';
+import { Args, bytesToString, stringToBytes } from '@massalabs/as-types';
 import { SwapPath } from '../structs/swapPath';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
+import { IMRC20 } from '../interfaces/IMRC20';
+import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
+import { IRegistery } from '../interfaces/IRegistry';
+import { u256 } from 'as-bignum/assembly';
+import { wrapMasToWMAS } from '../utils';
 
-export function main(binaryArgs: StaticArray<u8>): void {
+const registryContractAddress = stringToBytes('registry');
+
+export function constructor(binaryArgs: StaticArray<u8>): void {
+  // This line is important. It ensures that this function can't be called in the future.
+  // If you remove this check, someone could call your constructor function and reset your smart contract.
+  assert(Context.isDeployingContract());
+
+  const args = new Args(binaryArgs);
+
+  const registryAddress = args
+    .nextString()
+    .expect('RegistryAddress is missing or invalid');
+
+  // ensure that the registryAddress is a valid smart contract address
+  assertIsSmartContract(registryAddress);
+
+  // Store the registry address
+  Storage.set(registryContractAddress, stringToBytes(registryAddress));
+
+  // Get the registry contract instance
+  const registry = new IRegistery(new Address(registryAddress));
+
+  // Set the owner of the router contract to the same registry owner address
+  _setOwner(registry.ownerAddress());
+}
+
+export function swap(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
   // Read the swap Path array args
@@ -27,56 +54,152 @@ export function main(binaryArgs: StaticArray<u8>): void {
   // Read coins to use on each swap
   const coinsOnEachSwap = args.nextU64().expect('Invalid coins');
 
-  // Check if the swap path array is empty
-  assert(swapPathArray.length > 0, 'Swap path array is empty');
+  assert(swapPathArray.length > 0, 'Swap Route is empty');
 
-  // Loop through the swap path array
-  for (let i = 0; i < swapPathArray.length; i++) {
-    const swapPath = swapPathArray[i];
+  const callerAddress = Context.caller();
+  const contractAddress = Context.callee();
 
-    const poolAddress = swapPath.poolAddress;
-    const tokenInAddress = swapPath.tokenInAddress.toString();
-    const tokenOutAddress = swapPath.tokenOutAddress.toString();
-    const amountIn = swapPath.amountIn;
-    const minAmountOut = swapPath.minAmountOut;
+  const swapRouteLength = swapPathArray.length;
 
-    // Init pool contract
-    const poolContract = new IBasicPool(poolAddress);
+  if (swapRouteLength > 1) {
+    // Add support for multiple swaps
+    for (let i = 0; i < swapRouteLength; i++) {
+      const swapPath = swapPathArray[i];
 
-    // Check if token In is the nativecoin
-    const isNativeCoinIn =
-      tokenInAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
+      const toAddress =
+        i == swapRouteLength - 1
+          ? callerAddress
+          : swapPathArray[i + 1].poolAddress;
 
-    // check if it should call swapWithMas or swap
-    const isWithMAS =
-      isNativeCoinIn || tokenOutAddress == NATIVE_MAS_COIN_ADDRESS
-        ? true
-        : false;
+      const isFirstPath = i == 0 ? true : false;
 
-    // swap the tokens
-    if (isWithMAS) {
-      const coinsToUse = isNativeCoinIn
-        ? coinsOnEachSwap + amountIn.toU64()
-        : coinsOnEachSwap;
-
-      poolContract.swapWithMas(
-        tokenInAddress,
-        amountIn,
-        minAmountOut,
-        coinsToUse,
-      );
-    } else {
-      poolContract.swap(
-        tokenInAddress,
-        amountIn,
-        minAmountOut,
+      _swap(
+        swapPath,
+        callerAddress,
+        contractAddress,
+        toAddress,
         coinsOnEachSwap,
+        isFirstPath,
       );
     }
-  }
+  } else {
+    const swapPath = swapPathArray[0];
 
-  // Emit the event
-  generateEvent(
-    createEvent('Multiple Swap Executed', [Context.caller().toString()]),
-  );
+    _swap(
+      swapPath,
+      callerAddress,
+      contractAddress,
+      callerAddress,
+      coinsOnEachSwap,
+      true,
+    );
+  }
+}
+
+function _swap(
+  swapPath: SwapPath,
+  callerAddress: Address,
+  contractAddress: Address,
+  toAddress: Address,
+  coinsOnEachSwap: u64,
+  isFirstPath: bool = false,
+): void {
+  const poolAddress = swapPath.poolAddress;
+  const tokenInAddress = swapPath.tokenInAddress.toString();
+  const tokenOutAddress = swapPath.tokenOutAddress.toString();
+  const amountIn = swapPath.amountIn;
+  const minAmountOut = swapPath.minAmountOut;
+  const isNativeCoinIn =
+    tokenInAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
+  const isNativeCoinOut =
+    tokenOutAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
+
+  // Check if the amountIn is greater than 0
+  assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
+
+  // Check if the minAmountOut is greater than 0
+  assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
+
+  const pool = new IBasicPool(poolAddress);
+
+  const tokenIn = new IMRC20(swapPath.tokenInAddress);
+
+  if (isNativeCoinIn) {
+    // Wrap mas before swap and transfer wmas
+    const registryContractAddressStored = bytesToString(
+      Storage.get(registryContractAddress),
+    );
+
+    // Get the wmas token address
+    const wmasTokenAddressStored = new Address(
+      new IRegistery(
+        new Address(registryContractAddressStored),
+      ).getWmasTokenAddress(),
+    );
+
+    // Wrap Mas to WMAS
+    wrapMasToWMAS(amountIn, wmasTokenAddressStored);
+
+    // Transfer wmas to the pool contract
+    new IMRC20(wmasTokenAddressStored).transfer(
+      poolAddress,
+      amountIn,
+      getBalanceEntryCost(
+        wmasTokenAddressStored.toString(),
+        poolAddress.toString(),
+      ),
+    );
+
+    // Call the swap internal function
+    pool.swap(
+      wmasTokenAddressStored.toString(),
+      amountIn,
+      minAmountOut,
+      toAddress,
+      false,
+      coinsOnEachSwap,
+    );
+  } else {
+    if (isFirstPath) {
+      // Check for balance
+      const tokenInBalance = tokenIn.balanceOf(callerAddress);
+
+      assert(tokenInBalance >= amountIn, 'Insufficient balance for tokenIn');
+
+      const tokenInAllownace = tokenIn.allowance(
+        callerAddress,
+        contractAddress,
+      );
+
+      // Check for allowance
+      assert(
+        tokenInAllownace >= amountIn,
+        'Insufficient allowance for tokenIn' +
+          amountIn.toString() +
+          ' ' +
+          tokenInAllownace.toString(),
+      );
+
+      // Transfer amountIn from user to this contract
+      tokenIn.transferFrom(
+        callerAddress,
+        contractAddress,
+        amountIn,
+        getBalanceEntryCost(tokenInAddress, contractAddress.toString()),
+      );
+
+      // Transfer tokens to the pool contract
+      tokenIn.transfer(poolAddress, amountIn);
+    }
+
+    // Call the swap function on the pool contract
+    pool.swap(
+      tokenInAddress,
+      amountIn,
+      minAmountOut,
+      toAddress,
+      isNativeCoinOut,
+      coinsOnEachSwap,
+    );
+  }
 }

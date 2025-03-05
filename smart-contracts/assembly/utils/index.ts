@@ -7,6 +7,9 @@ import {
 } from '@massalabs/massa-as-sdk';
 import { IMRC20 } from '../interfaces/IMRC20';
 import { u256 } from 'as-bignum/assembly';
+import { IRegistery } from '../interfaces/IRegistry';
+import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
+import { SafeMath256 } from '../lib/safeMath';
 
 /**
  * Builds a pool key using the token addresses and the input fee rate.
@@ -123,4 +126,48 @@ export function _computeMintStorageCost(receiver: Address): u64 {
 export function getTokenBalance(address: Address): u256 {
   const token = new IMRC20(address);
   return token.balanceOf(Context.callee());
+}
+
+/**
+ * Wraps a specified amount of MAS coins into WMAS tokens.
+ *
+ * This function ensures that the amount of MAS coins transferred is sufficient
+ * before proceeding to wrap them into WMAS tokens. It retrieves the registry
+ * contract address and the WMAS token address from storage, then uses these
+ * addresses to create an instance of the WMAS contract. Finally, it deposits
+ * the specified amount of MAS coins into the WMAS contract.
+ *
+ * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
+ * @param wmasAddress - The address of the WMAS token contract.
+ * @throws Will throw an error if the transferred MAS coins are insufficient.
+ */
+export function wrapMasToWMAS(amount: u256, wmasAddress: Address): void {
+  // Get the transferred coins from the operation
+  const transferredCoins = Context.transferredCoins();
+
+  // Get the wmas token address
+  // const wmasTokenAddressStored = new IRegistery(
+  //   new Address(registryContractAddressStored),
+  // ).getWmasTokenAddress();
+
+  // Get the wmas contract instance
+  const wmasToken = new IWMAS(wmasAddress);
+
+  const mintStorageCost = u256.fromU64(
+    _computeMintStorageCost(Context.callee()),
+  );
+
+  const amountToWrap = SafeMath256.add(amount, mintStorageCost);
+
+  // Ensure bAmount is equal to MAS coins transferred
+  assert(
+    u256.fromU64(transferredCoins) >= amountToWrap,
+    'INSUFFICIENT MAS COINS TRANSFERRED',
+  );
+
+  // Wrap MAS coins into WMAS
+  wmasToken.deposit(amountToWrap.toU64());
+
+  // Generate an event to indicate that MAS coins have been wrapped into WMAS
+  generateEvent(`WRAP_MAS: ${amount.toString()} of MAS wrapped into WMAS`);
 }

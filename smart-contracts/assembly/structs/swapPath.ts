@@ -36,4 +36,14 @@ export class SwapPath implements Serializable {
 
     return new Result(args.offset);
   }
+
+  toString(): string {
+    return (
+      `Pool Address: ${this.poolAddress.toString()}\n` +
+      `Token In Address: ${this.tokenInAddress.toString()}\n` +
+      `Token Out Address: ${this.tokenOutAddress.toString()}\n` +
+      `Amount In: ${this.amountIn.toString()}\n` +
+      `Min Amount Out: ${this.minAmountOut.toString()}`
+    );
+  }
 }
