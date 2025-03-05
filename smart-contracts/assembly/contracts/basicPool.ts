@@ -387,7 +387,13 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const amountInAfterFee = swapOutData.amountInAfterFee;
 
   // Ensure that the amountOut is greater than or equal to minAmountOut
-  assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE LIMIT EXCEEDED');
+  assert(
+    amountOut >= minAmountOut,
+    'SWAP: SLIPPAGE LIMIT EXCEEDED =====> ' +
+      amountOut.toString() +
+      ' < ' +
+      minAmountOut.toString(),
+  );
 
   if (!isTokenOutNative) {
     // Transfer the amountOut to the toAddres

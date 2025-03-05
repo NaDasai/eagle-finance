@@ -12,6 +12,7 @@
         "coverage": "vitest run --coverage",
         "test:summary": "asp --summary",
         "test:verbose": "asp --verbose",
+        "test:multiSwap": "tsx tests/multiSwap.ts",
         "test:swapRouter": "tsx tests/swapRouter.ts",
         "buildnet:registry": "npm run build && tsx src/builnet-tests/registry.ts",
         "buildnet:flashSwap": "npm run build && tsx src/builnet-tests/flashSwap.ts",
