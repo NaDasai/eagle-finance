@@ -83,6 +83,26 @@ export class IRegistery {
   }
 
   /**
+   * Sets the address of the swap router contract.
+   *
+   * @param {string} swapRouterAddress - The address of the swap router contract.
+   * @param {u64} [coins=0] - The amount of coins to be used for the operation.
+   */
+  setSwapRouterAddress(swapRouterAddress: string, coins: u64 = 0): void {
+    const args = new Args().add(swapRouterAddress);
+    call(this._origin, 'setSwapRouterAddress', args, coins);
+  }
+
+  /**
+   * Calls the `getSwapRouterAddress` function of the registry contract.
+   * @returns {Address} The address of the swap router.
+   */
+  getSwapRouterAddress(): Address {
+    const result = call(this._origin, 'getSwapRouterAddress', new Args(), 0);
+    return new Address(bytesToString(result));
+  }
+
+  /**
    * Calls the `getPool` function of the registry contract to retrieve a pool.
    *
    * @param {string} aTokenAddress - Address of Token A.
