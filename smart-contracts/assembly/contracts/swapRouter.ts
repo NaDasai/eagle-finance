@@ -16,6 +16,7 @@ import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/
 import { IRegistery } from '../interfaces/IRegistry';
 import { u256 } from 'as-bignum/assembly';
 import { wrapMasToWMAS } from '../utils';
+import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 
 const registryContractAddress = stringToBytes('registry');
 
@@ -36,14 +37,14 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
 
-  // Get the registry contract instance
-  const registry = new IRegistery(new Address(registryAddress));
-
-  // Set the owner of the router contract to the same registry owner address
-  _setOwner(registry.ownerAddress());
+  // Initialize the ReentrancyGuard
+  ReentrancyGuard.__ReentrancyGuard_init();
 }
 
 export function swap(binaryArgs: StaticArray<u8>): void {
+  // Start the reentrancy guard
+  ReentrancyGuard.nonReentrant();
+
   const args = new Args(binaryArgs);
 
   // Read the swap Path array args
@@ -94,6 +95,9 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       true,
     );
   }
+
+  // End the reentrancy guard
+  ReentrancyGuard.endNonReentrant();
 }
 
 function _swap(
@@ -202,4 +206,7 @@ function _swap(
       coinsOnEachSwap,
     );
   }
+
+  // Emit swap details events
+  generateEvent(`Swap Route Exexcuted: ${swapPath.toString()}`);
 }
