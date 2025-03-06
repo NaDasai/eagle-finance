@@ -14,6 +14,7 @@ import {
 } from '@massalabs/massa-web3';
 import { TOKEN_DEFAULT_DECIMALS } from '../utils';
 import { Pool } from '../../src/builnet-tests/structs/pool';
+import { SwapPath } from '../classes/swapPath';
 
 export async function addLiquidity(
   poolContract: SmartContract,
@@ -136,35 +137,6 @@ export async function swapWithMAS(
   }
 
   return coinsToSend;
-}
-
-export async function swap(
-  poolContract: SmartContract,
-  tokenInAddress: string,
-  amountIn: number,
-  minAmountOut: number,
-  inDecimals: number = TOKEN_DEFAULT_DECIMALS,
-  outDecimals: number = TOKEN_DEFAULT_DECIMALS,
-) {
-  console.log(`Swap ${amountIn} ${tokenInAddress} to pool...`);
-  const operation = await poolContract.call(
-    'swap',
-    new Args()
-      .addString(tokenInAddress)
-      .addU256(parseUnits(amountIn.toString(), inDecimals))
-      .addU256(parseUnits(minAmountOut.toString(), outDecimals))
-      .serialize(),
-    { coins: Mas.fromString('0.1') },
-  );
-
-  const operationStatus = await operation.waitSpeculativeExecution();
-
-  if (operationStatus === OperationStatus.SpeculativeSuccess) {
-    console.log('Swap successful');
-  } else {
-    console.log('Status:', operationStatus);
-    throw new Error('Failed to swap');
-  }
 }
 
 export async function removeLiquidityUsingPercentage(
@@ -446,5 +418,31 @@ export async function syncReserves(poolContract: SmartContract) {
     console.log('Error Events : ', await operation.getSpeculativeEvents());
 
     throw new Error('Failed to sync reserves');
+  }
+}
+
+export async function swap(
+  swapContract: SmartContract,
+  swapRoute: SwapPath[],
+  coinsOnEachSwap: string = '0.01',
+  coins: bigint = Mas.fromString('0.01'),
+) {
+  console.log(`swap ${swapRoute.length} times... : ${swapRoute}`);
+  const operation = await swapContract.call(
+    'swap',
+    new Args()
+      .addSerializableObjectArray<SwapPath>(swapRoute)
+      .addU64(parseMas(coinsOnEachSwap))
+      .serialize(),
+    { coins },
+  );
+
+  const operationStatus = await operation.waitSpeculativeExecution();
+
+  if (operationStatus === OperationStatus.SpeculativeSuccess) {
+    console.log('Swap successful');
+  } else {
+    console.log('Status:', operationStatus);
+    throw new Error('Failed to swap');
   }
 }
