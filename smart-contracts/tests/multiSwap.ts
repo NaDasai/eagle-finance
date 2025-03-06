@@ -20,6 +20,7 @@ import {
   createNewPoolWithLiquidity,
   deployRegistryContract,
   getPools,
+  setSwapRouterAddress,
 } from './calls/registry';
 import { getPoolReserves } from './calls/basicPool';
 import { increaseAllownace } from './calls/basicPool';
@@ -46,6 +47,9 @@ const swapRouterContract = await deploySwapRouterContract(
   user1Provider,
   registryContract.address,
 );
+
+// Set the swap router address in the registry contract
+await setSwapRouterAddress(registryContract, swapRouterContract.address);
 
 // Increase allowance for the tokens
 await increaseAllownace(
