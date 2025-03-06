@@ -352,6 +352,11 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   const args = new Args(binaryArgs);
 
   // Get the tokenIn address
@@ -444,9 +449,6 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       newReserveOut.toString(), // New Reserve Out
     ]),
   );
-
-  const SCBalance = balance();
-  const sent = Context.transferredCoins();
 
   transferRemaining(SCBalance, balance(), sent, Context.caller());
 
