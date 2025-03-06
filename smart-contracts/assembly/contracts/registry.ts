@@ -108,6 +108,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // set the owner of the registry contract to the caller of the constructor
   _setOwner(callerAddress);
 
+  // Set an empty addres for the swap router address
+  Storage.set(swapRouterAddress, stringToBytes(''));
+
+  // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
 
   // Emit an event
