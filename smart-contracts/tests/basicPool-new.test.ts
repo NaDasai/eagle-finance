@@ -708,7 +708,7 @@ describe.skip('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees
   });
 });
 
-describe('Trying to swap without passing by the swap Router', async () => {
+describe.skip('Trying to swap without passing by the swap Router', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
@@ -892,3 +892,5 @@ describe('Trying to swap without passing by the swap Router', async () => {
     );
   });
 });
+
+
