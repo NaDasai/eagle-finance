@@ -32,4 +32,12 @@ export class SwapPath implements Serializable<SwapPath> {
 
     return { instance: this, offset: args.getOffset() };
   }
+
+  toString(): string {
+    return `SwapPath(poolAddress: ${this.poolAddress}, tokenInAddress: ${this.tokenInAddress}, tokenOutAddress: ${this.tokenOutAddress}, amountIn: ${this.amountIn}, minAmountOut: ${this.minAmountOut})`;
+  }
+
+  toJson(): string {
+    return JSON.stringify(this);
+  }
 }

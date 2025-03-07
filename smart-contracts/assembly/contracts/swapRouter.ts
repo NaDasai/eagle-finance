@@ -1,6 +1,7 @@
 import {
   Address,
   assertIsSmartContract,
+  balance,
   Context,
   createEvent,
   generateEvent,
@@ -15,7 +16,8 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 import { IRegistery } from '../interfaces/IRegistry';
 import { u256 } from 'as-bignum/assembly';
-import { wrapMasToWMAS } from '../utils';
+import { transferRemaining, wrapMasToWMAS } from '../utils';
+import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 
 const registryContractAddress = stringToBytes('registry');
 
@@ -36,14 +38,19 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
 
-  // Get the registry contract instance
-  const registry = new IRegistery(new Address(registryAddress));
-
-  // Set the owner of the router contract to the same registry owner address
-  _setOwner(registry.ownerAddress());
+  // Initialize the ReentrancyGuard
+  ReentrancyGuard.__ReentrancyGuard_init();
 }
 
 export function swap(binaryArgs: StaticArray<u8>): void {
+  // Start the reentrancy guard
+  ReentrancyGuard.nonReentrant();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
   const args = new Args(binaryArgs);
 
   // Read the swap Path array args
@@ -94,6 +101,12 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       true,
     );
   }
+
+  // Transfer remaining balance to the caller
+  transferRemaining(SCBalance, balance(), sent, callerAddress);
+
+  // End the reentrancy guard
+  ReentrancyGuard.endNonReentrant();
 }
 
 function _swap(
@@ -202,4 +215,7 @@ function _swap(
       coinsOnEachSwap,
     );
   }
+
+  // Emit swap details events
+  generateEvent(`Swap Route Exexcuted: ${swapPath.toString()}`);
 }

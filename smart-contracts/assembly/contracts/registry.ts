@@ -49,6 +49,8 @@ export const feeShareProtocolReceiver: StaticArray<u8> = stringToBytes(
 export const wmasTokenAddress = stringToBytes('wmasTokenAddress');
 // Storage key containning the flash loan fee value of the pool. value is between 0 and 1
 export const flashLoanFee = stringToBytes('flashLoanFee');
+// Storage Key containning the address of the swap Router contract to be used on all the pools
+export const swapRouterAddress = stringToBytes('swapRouterAddress');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -106,6 +108,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // set the owner of the registry contract to the caller of the constructor
   _setOwner(callerAddress);
 
+  // Set an empty addres for the swap router address
+  Storage.set(swapRouterAddress, stringToBytes(''));
+
+  // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
 
   // Emit an event
@@ -335,6 +341,56 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
+}
+
+/**
+ * Sets the swap router address in the registry contract.
+ * This function can only be called by the contract owner.
+ * It starts a reentrancy guard to prevent reentrancy attacks.
+ * The function asserts that the provided swap router address is a valid smart contract address.
+ * It then stores the swap router address in the contract's storage.
+ * Finally, it generates an event to notify about the updated swap router address.
+ *
+ * @param binaryArgs - A static array of bytes representing the serialized input arguments.
+ *   - swapRouterAddress - The address of the swap router contract.
+ */
+export function setSwapRouterAddress(binaryArgs: StaticArray<u8>): void {
+  // Only the owner can call this function
+  onlyOwner();
+
+  // Start reentrancy guard
+  ReentrancyGuard.nonReentrant();
+
+  const args = new Args(binaryArgs);
+
+  const swapRouterAddressInput = args
+    .nextString()
+    .expect('SwapRouterAddress is missing or invalid');
+
+  // Assert that the swapRouterAddress is a smart contract
+  assertIsSmartContract(swapRouterAddressInput);
+
+  // Set the swapRouterAddress
+  Storage.set(swapRouterAddress, stringToBytes(swapRouterAddressInput));
+
+  generateEvent(`Set SwapRouterAddress to :  ${swapRouterAddressInput}`);
+
+  // End reentrancy guard
+  ReentrancyGuard.endNonReentrant();
+}
+
+/**
+ * Retrieves the stored swap router address.
+ * @returns The stored swap router address as a static array of bytes.
+ * @throws Will throw an error if the swap router address is not set.
+ */
+export function getSwapRouterAddress(): StaticArray<u8> {
+  // Get the swapRouterAddress
+  const swapRouterAddressStored = Storage.get(swapRouterAddress);
+
+  assert(swapRouterAddressStored.length > 0, 'Swap Router Address is not set');
+
+  return swapRouterAddressStored;
 }
 
 /**

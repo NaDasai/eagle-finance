@@ -19,6 +19,7 @@ The project is structured to promote clarity and maintainability:
 
 *   `contracts/`: Contains all smart contract source code and related libraries.
     *   `basicPool.ts`: Implements the core logic for a liquidity pool, including swapping, liquidity management, flash loans, and last comulative prices calculations.
+    *   `swapRouter.ts`: Implements the logic for multi pool swaps, enabling complex trading strategies. It handles the transfer of tokens during the swap. 
     *   `registry.ts`: Manages the deployment of pools. Acts as a factory for creating new pools.
     *   `token.ts`: Implements an MRC-20 token with additional metadata (URL, description), adhering to the MRC-20 standard.
     *   `tokenDeployer.ts`: Provides a contract to deploy new MRC-20 tokens, simplifying token creation.
@@ -36,6 +37,7 @@ The project is structured to promote clarity and maintainability:
     *   `structs/`: Contains data structures.
         *   `pool.ts`: Defines the structure of a pool object.
         *   `userToken.ts`: Defines the structure of a user token object.
+        *   `swapPath.ts`: Defines the structure of a swap path object.
     *   `utils/`: Contains utility functions for the contracts.
         *   `index.ts`: Exports all the utility files in this folder.
         *   `ownership-internal.ts`: Implements internal functions for ownership management.
@@ -50,7 +52,6 @@ The `basicPool.ts` contract is the core of the Eagle Finance DEX, implementing a
 *   **Add Liquidity:** Deposit tokens A and B into the pool, receiving LP tokens in return.
 *   **Remove Liquidity:** Burn LP tokens to withdraw tokens A and B.
 *   **Swap Tokens:** Exchange tokens A for B or vice-versa based on the current pool reserves and a defined fee.
-*   **Swap With MAS:** Swap with native MAS tokens by wrapping them into WMAS.
 *   **Claim Protocol Fees:** Collect accumulated fees that are reserved for the protocol.
 *   **Estimate Swap Output:** Calculate the expected output amount for a given swap input.
 *   **Synchronize Reserves:** Update the pool's reserves to match the actual token balances. (Only callable by the registry owner)
@@ -85,7 +86,6 @@ The `basicPool.ts` contract is the core of the Eagle Finance DEX, implementing a
 *   `addLiquidityWithMas(binaryArgs: StaticArray<u8>): void`: Adds liquidity to the pool with native MAS token.
 *   `addLiquidityFromRegistry(binaryArgs: StaticArray<u8>): void`: Adds liquidity to the pool from the registry contract.
 *   `swap(binaryArgs: StaticArray<u8>): void`: Swaps tokens in the pool.
-*   `swapWithMas(binaryArgs: StaticArray<u8>): void`: Swaps tokens with native MAS token when it is wrapped to WMAS.
 *   `claimProtocolFees(): void`: Claims accumulated protocol fees.
 *   `removeLiquidity(binaryArgs: StaticArray<u8>): void`: Removes liquidity from the pool.
 *   `getSwapOutEstimation(binaryArgs: StaticArray<u8>): StaticArray<u8>`: Retrieves the swap estimation for a given input amount.
@@ -96,7 +96,6 @@ The `basicPool.ts` contract is the core of the Eagle Finance DEX, implementing a
 *   `getAPriceCumulativeLast(): StaticArray<u8>`: Retrieves the last recorded cumulative price of token A.
 *   `getBPriceCumulativeLast(): StaticArray<u8>`: Retrieves the last recorded cumulative price of token B.
 *   `getLastTimestamp(): StaticArray<u8>`: Retrieves the last recorded timestamp.
-*   `getSwapInEstimation(binaryArgs: StaticArray<u8>): StaticArray<u8>`: Retrieves the swap in estimation for a given output amount.
 *   `flash(binaryArgs: StaticArray<u8>): void`: Executes a Flash Loan.
 
 ### 2. Registry (`registry.ts`)
@@ -111,7 +110,9 @@ The `registry.ts` contract manages the deployment and configuration of liquidity
 *   **Set WMAS Token Address:** Sets the address of the WMAS token.
 *   **Get WMAS Token Address:** Gets the address of the WMAS token.
 *   **Get Protocol Fee Share:** Returns the protocol fee share.
-*   **Ownership:** Only the owner of the contract can set the protocol fee receiver and the WMAS token address.
+*   **Set Swap Router Address:** Sets the address of the swap router contract.
+*   **Get Swap Router Address:** Gets the address of the swap router contract.
+*   **Ownership:** Only the owner of the contract can set the protocol fee receiver and the WMAS token address and the swap router address.
 *   **Pool Existence Check:** Checks if a pool with the given token addresses and input fee rate exists in the registry.
 
 **Key Features:**
@@ -120,6 +121,7 @@ The `registry.ts` contract manages the deployment and configuration of liquidity
 *   **Fee Configuration:** Sets the default protocol fee share for all pools.
 *   **Security:** Only the owner of the contract can perform sensitive actions.
 *   **WMAS Address Management:** Stores and manages the address of the wrapped MAS token.
+*   **Swap Router Address Management:** Stores and manages the address of the swap router contract.
 *   **Reentrancy Guard:** Implements a reentrancy guard to prevent reentrant calls.
 
 **Constructor Arguments:**
@@ -140,6 +142,8 @@ The `registry.ts` contract manages the deployment and configuration of liquidity
 *   `setWmasTokenAddress(binaryArgs: StaticArray<u8>): void`: Set the WMAS token address.
 *   `isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8>`: Checks if a pool with the given token addresses and input fee rate exists in the registry.
 *   Other Ownership functions.
+*   `getSwapRouterAddress(): StaticArray<u8>`: Get the swap router address.
+*   `setSwapRouterAddress(binaryArgs: StaticArray<u8>): void`: Set the swap router address.
 
 ### 3. MRC-20 Token (`token.ts`)
 
@@ -160,14 +164,24 @@ The `token.ts` contract implements a standard MRC-20 token, providing functional
 *   `tokenSymbol` (`string`): The symbol of the token.
 *   `decimals` (`u8`): The number of decimals the token uses.
 *   `totalSupply` (`u256`): The total supply of the token.
-*   `url` (`string`) (optional): The URL of the token.
+*   `image` (`string`) (optional): The image of the token.
+*   `website` (`string`) (optional): The website of the token.
 *   `description` (`string`) (optional): The description of the token.
+*   `pausable` (`bool`) (optional): If the token is pausable or not. Default value is false.
+*   `mintable` (`bool`) (optional): If the token is mintable or not. Default value is false.
+*   `burnable` (`bool`) (optional): If the token is burnable or not. Default value is false.
 
 **Public Functions:**
 
 *   `constructor(binaryArgs: StaticArray<u8>): void`: Constructor for the MRC-20 token.
-*   `url(_: StaticArray<u8>): StaticArray<u8>`: Returns the token URL.
+*   `image(_: StaticArray<u8>): StaticArray<u8>`: Returns the token image url.
+*   `website(_: StaticArray<u8>): StaticArray<u8>`: Returns the token website url.
 *   `description(_: StaticArray<u8>): StaticArray<u8>`: Returns the token description.
+*   `pausable(_: StaticArray<u8>): StaticArray<u8>`: Returns if the token is pausable or not.
+*   `paused(_: StaticArray<u8>): StaticArray<u8>`: Returns if the token is paused or not.
+*   `mintable(_: StaticArray<u8>): StaticArray<u8>`: Returns if the token is mintable or not.
+*   `burnable(_: StaticArray<u8>): StaticArray<u8>`: Returns if the token is burnable or not.
+*   `pause(_: StaticArray<u8>): void`: Pauses the token. Only callable by the owner of the token.
 *   Other default MRC-20 functions like `transfer`, `approve`, `allowance`, `balanceOf`.
 
 ### 4. Token Deployer (`tokenDeployer.ts`)

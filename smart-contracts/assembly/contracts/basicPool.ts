@@ -341,7 +341,7 @@ export function getAddLiquidityLPEstimation(binaryArgs: StaticArray<u8>): u256 {
 }
 
 /**
- *  Swaps tokens in the pool.
+ *  Swaps tokens in the pool. This function call is limited to a specific caller which is the swap Router Getted from the registry contract.
  * @param binaryArgs - Arguments serialized with Args (tokenInAddress, amountIn)
  * - `tokenInAddress`: The address of the token to swap in.
  * - `amountIn`: The amount of the token to swap in.
@@ -351,6 +351,26 @@ export function getAddLiquidityLPEstimation(binaryArgs: StaticArray<u8>): u256 {
 export function swap(binaryArgs: StaticArray<u8>): void {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
+  // Get the registry contract address
+  const registeryAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Ensure that the caller is the Swap Router stored in the registry contract
+  const registry = new IRegistery(new Address(registeryAddressStored));
+
+  const swapRouterAddress = registry.getSwapRouterAddress();
+
+  assert(
+    Context.caller() == swapRouterAddress,
+    'Caller is not the swap router stored in the registry.',
+  );
 
   const args = new Args(binaryArgs);
 
@@ -444,9 +464,6 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       newReserveOut.toString(), // New Reserve Out
     ]),
   );
-
-  const SCBalance = balance();
-  const sent = Context.transferredCoins();
 
   transferRemaining(SCBalance, balance(), sent, Context.caller());
 
