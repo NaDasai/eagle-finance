@@ -28,6 +28,7 @@ import {
   createNewPool,
   deployRegistryContract,
   getPool,
+  getSwapRouterAddress,
   setSwapRouterAddress,
 } from './calls/registry';
 import { Pool } from '../src/builnet-tests/structs/pool';
@@ -708,7 +709,7 @@ describe.skip('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees
   });
 });
 
-describe.skip('Trying to swap without passing by the swap Router', async () => {
+describe.skip('Should fail when trying to swap without passing by the swap Router', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
@@ -830,7 +831,7 @@ describe.skip('Trying to swap without passing by the swap Router', async () => {
     );
   });
 
-  test("User 2 swaps B token for A token in pool's reserves", async () => {
+  test('User 2 should not be able to swaps B token for A token directly without swap router', async () => {
     // switch poolContrcat to user2 provider
     poolContract = new SmartContract(user2Provider, poolAddress);
 
@@ -893,4 +894,70 @@ describe.skip('Trying to swap without passing by the swap Router', async () => {
   });
 });
 
+describe('Swap Router tests', async () => {
+  beforeAll(async () => {
+    poolFeeRate = 0.3 * 10_000;
 
+    registryContract = await deployRegistryContract(
+      user1Provider,
+      wmasAddress,
+      0.05,
+    );
+
+    swapRouterContract = await deploySwapRouterContract(
+      user1Provider,
+      registryContract.address,
+    );
+
+    // Set the swap router address in the registry contract
+    await setSwapRouterAddress(registryContract, swapRouterContract.address);
+
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    // get the last pool address
+    poolAddress = pool.poolAddress;
+
+    poolContract = new SmartContract(user1Provider, poolAddress);
+  });
+
+  test('Owner Should be able to update the swap router address', async () => {
+    // Deploy a new swap router contract
+    const newSwapRouterContract = await deploySwapRouterContract(
+      user1Provider,
+      registryContract.address,
+    );
+
+    await setSwapRouterAddress(registryContract, newSwapRouterContract.address);
+
+    const swapRouterAddress = await getSwapRouterAddress(registryContract);
+
+    // expect the swap router address to be the new swap router address
+    expect(swapRouterAddress).toBe(newSwapRouterContract.address);
+  });
+
+  test('Should Fail when non owner trying to update the swap router address', async () => {
+    // switch registry contract to user 2 which is not the owner
+    registryContract = new SmartContract(
+      user2Provider,
+      registryContract.address,
+    );
+
+    await expect(
+      setSwapRouterAddress(registryContract, swapRouterContract.address),
+    ).rejects.toThrowError(
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:49 col: 3',
+    );
+  });
+});
