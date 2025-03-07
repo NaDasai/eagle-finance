@@ -253,8 +253,6 @@ export async function getPoolByKey(
   return pool;
 }
 
-
-
 export async function setSwapRouterAddress(
   registryContract: SmartContract,
   swapRouterAddress: string,
@@ -274,4 +272,12 @@ export async function setSwapRouterAddress(
     console.log('Error events:', operation.getSpeculativeEvents());
     throw new Error('Failed to set swap router address');
   }
+}
+
+export async function getSwapRouterAddress(registryContract: SmartContract) {
+  const swapRouterAddress = bytesToStr(
+    (await registryContract.read('getSwapRouterAddress')).value,
+  );
+
+  return swapRouterAddress;
 }

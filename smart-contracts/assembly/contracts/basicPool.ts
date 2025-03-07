@@ -365,8 +365,10 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // Ensure that the caller is the Swap Router stored in the registry contract
   const registry = new IRegistery(new Address(registeryAddressStored));
 
+  // Get the swap router address from registry contract
   const swapRouterAddress = registry.getSwapRouterAddress();
 
+  // Ensure that the caller is the swap router stored in the registry contract
   assert(
     Context.caller() == swapRouterAddress,
     'Caller is not the swap router stored in the registry.',
@@ -405,6 +407,17 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const lpFee = swapOutData.lpFee;
   const protocolFee = swapOutData.protocolFee;
   const amountInAfterFee = swapOutData.amountInAfterFee;
+
+  // Get the balance of the smart contract for the tokenIn
+  const contractInBalance = new IMRC20(new Address(tokenInAddress)).balanceOf(
+    Context.callee(),
+  );
+
+  // Ensure that the balance of the smart contract of tokenIn is greater than or equal to the reserveIn + amountIn
+  assert(
+    contractInBalance >= SafeMath256.add(reserveIn, amountIn),
+    'SWAP: INSUFFICIENT_IN_SEND',
+  );
 
   // Ensure that the amountOut is greater than or equal to minAmountOut
   assert(
