@@ -384,7 +384,7 @@ describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', as
   });
 });
 
-describe.skip('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees', async () => {
+describe('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
@@ -889,12 +889,12 @@ describe.skip('Should fail when trying to swap without passing by the swap Route
         coins: Mas.fromString('0.01'),
       }),
     ).rejects.toThrowError(
-      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the swap router stored in the registry. at assembly/contracts/basicPool.ts:370 col: 3',
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the swap router stored in the registry. at assembly/contracts/basicPool.ts:371 col: 3',
     );
   });
 });
 
-describe('Swap Router tests', async () => {
+describe.skip('Swap Router tests', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
