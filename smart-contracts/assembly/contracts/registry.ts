@@ -34,6 +34,7 @@ import { isBetweenZeroAndTenPercent } from '../lib/math';
 import { u256 } from 'as-bignum/assembly';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
+import { CreateNewPoolData } from '../types/basicPool';
 
 // pools persistent map to store the pools in the registery
 export const pools = new PersistentMap<string, Pool>('pools');
@@ -177,13 +178,26 @@ export function createNewPool(binaryArgs: StaticArray<u8>): void {
   bTokenAddress = sortedTokens[1];
 
   // Call the internal function
-  _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
+  const result = _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
 
   // Transfer the remaining coins to the caller
   transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
+
+  // Emit an event
+  generateEvent(
+    createEvent('CREATE_NEW_POOL', [
+      Context.callee().toString(), // Smart contract address
+      Context.caller().toString(), // Caller address
+      result.poolAddress, // Pool address
+      aTokenAddress, // Token A address
+      bTokenAddress, // Token B address
+      inputFeeRate.toString(), // Input fee rate
+      result.flashLoanFee.toString(), // Flash loan fee
+    ]),
+  );
 }
 
 /**
@@ -279,11 +293,9 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
   let coinsToSendOnAddLiquidity = u64(0);
 
   // Call the internal function
-  const poolContract = _createNewPool(
-    aTokenAddress,
-    bTokenAddress,
-    inputFeeRate,
-  );
+  const result = _createNewPool(aTokenAddress, bTokenAddress, inputFeeRate);
+
+  const poolContract = result.poolContract;
 
   const callerAddress = Context.caller();
 
@@ -341,6 +353,18 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
+
+  generateEvent(
+    createEvent('CREATE_NEW_POOL_WITH_LIQUIDITY', [
+      Context.callee().toString(), // Smart contract address
+      callerAddress.toString(), // Caller address
+      result.poolAddress, // Pool address
+      aTokenAddress, // Token A address
+      bTokenAddress, // Token B address
+      inputFeeRate.toString(), // Input fee rate
+      result.flashLoanFee.toString(), // Flash loan fee
+    ]),
+  );
 }
 
 /**
@@ -585,13 +609,13 @@ export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
  *  @param aTokenAddress - Address of Token A.
  *  @param bTokenAddress - Address of Token B.
  *  @param inputFeeRate - Input fee rate.
- *  @returns IBasicPool
+ *  @returns CreateNewPoolData
  */
 function _createNewPool(
   aTokenAddress: string,
   bTokenAddress: string,
   inputFeeRate: u64,
-): IBasicPool {
+): CreateNewPoolData {
   // Ensure that the input fee rate is between 0 and 10%
   assert(
     isBetweenZeroAndTenPercent(inputFeeRate),
@@ -650,20 +674,11 @@ function _createNewPool(
   // Store the pool in the pools persistent map
   pools.set(poolKey, pool);
 
-  // Emit an event
-  generateEvent(
-    createEvent('CREATE_NEW_POOL', [
-      Context.callee().toString(), // Smart contract address
-      Context.caller().toString(), // Caller address
-      poolAddress.toString(), // Pool address
-      aTokenAddress, // Token A address
-      bTokenAddress, // Token B address
-      inputFeeRate.toString(), // Input fee rate
-      flashLoanFeeStored.toString(), // Flash loan fee
-    ]),
+  return new CreateNewPoolData(
+    poolAddress.toString(),
+    flashLoanFeeStored,
+    poolContract,
   );
-
-  return poolContract;
 }
 
 /**
