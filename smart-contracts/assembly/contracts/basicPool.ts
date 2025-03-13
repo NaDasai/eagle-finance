@@ -426,10 +426,17 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     .nextU256()
     .expect('minAmountOut is missing or invalid');
 
+  // The address to transfer the swapped tokens to
   const toAddress = new Address(
     args.nextString().expect('ToAddress is missing or invalid'),
   );
 
+  // The address of user that initiated the swap operation
+  const originalCaller = args
+    .nextString()
+    .expect('originalCaller is missing or invalid');
+
+  // Bool args to know if the tokenOut is native or not
   const isTokenOutNative = args
     .nextBool()
     .expect('isTokenOutNative is missing or invalid');
@@ -502,7 +509,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   generateEvent(
     createEvent('SWAP', [
       Context.callee().toString(), // Smart Contract Address
-      toAddress.toString(), // Caller Address
+      originalCaller, // Caller Address
       amountIn.toString(), // Amount In
       tokenInAddress, // Token In Address
       amountOut.toString(), // Amount Out

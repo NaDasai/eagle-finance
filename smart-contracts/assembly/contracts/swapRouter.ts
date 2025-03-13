@@ -126,6 +126,7 @@ function _swap(
     tokenInAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
   const isNativeCoinOut =
     tokenOutAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
+  const originalCaller = Context.caller();
 
   // Check if the amountIn is greater than 0
   assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
@@ -169,6 +170,7 @@ function _swap(
       amountIn,
       minAmountOut,
       toAddress,
+      originalCaller,
       false,
       coinsOnEachSwap,
     );
@@ -211,6 +213,7 @@ function _swap(
       amountIn,
       minAmountOut,
       toAddress,
+      originalCaller,
       isNativeCoinOut,
       coinsOnEachSwap,
     );

@@ -187,6 +187,7 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
       amountB,
       u256.fromU64(0),
       Context.caller(),
+      Context.caller(),
     );
 
     // TRnasfer amountToRepay to the contract
