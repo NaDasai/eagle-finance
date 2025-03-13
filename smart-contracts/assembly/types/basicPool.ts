@@ -75,18 +75,9 @@ export class addLiquidityData {
 }
 
 export class CreateNewPoolData {
-  constructor(public poolAddress: string, public flashLoanFee: u64, public poolContract: IBasicPool) {}
+  constructor(
+    public poolAddress: string,
+    public flashLoanFee: u64,
+    public poolContract: IBasicPool,
+  ) {}
 }
-
-// Emit event
-// generateEvent(
-//   createEvent('ADD_LIQUIDITY', [
-//     Context.callee().toString(), // Smart contract address
-//     callerAddress.toString(), // Caller address
-//     finalAmountA.toString(), // A amount
-//     finalAmountB.toString(), // B amount
-//     liquidity.toString(), // Minted LP amount
-//     newResA.toString(), // New reserve A
-//     newResB.toString(), // New reserve B
-//   ]),
-// );
