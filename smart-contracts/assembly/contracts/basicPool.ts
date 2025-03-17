@@ -928,9 +928,9 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Ensure that the new pool K value is greater than or equal to the old pool K value
   assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
 
-  // Update the reserves of the pool
-  _updateReserveA(aContractBalanceAfter);
-  _updateReserveB(bContractBalanceAfter);
+  // Add fees to protocol fee accumulated instead of adding them to the reserves
+  _addTokenAccumulatedProtocolFee(aTokenAddressStored, aFee);
+  _addTokenAccumulatedProtocolFee(bTokenAddressStored, bFee);
 
   // Update the cumulative prices
   _updateCumulativePrices();
