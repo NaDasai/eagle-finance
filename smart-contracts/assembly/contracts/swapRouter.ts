@@ -73,12 +73,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     for (let i = 0; i < swapRouteLength; i++) {
       const swapPath = swapPathArray[i];
 
-      const toAddress =
-        i == swapRouteLength - 1
-          ? callerAddress
-          : swapPathArray[i + 1].poolAddress;
-
-      const isFirstPath = i == 0 ? true : false;
+      const toAddress = swapPath.receiverAddress;
 
       const amoutOut = _swap(
         swapPath,
@@ -86,13 +81,12 @@ export function swap(binaryArgs: StaticArray<u8>): void {
         contractAddress,
         toAddress,
         coinsOnEachSwap,
-        isFirstPath,
       );
 
       assert(amoutOut >= swapPath.minAmountOut, `SLIPPAGE_EXCEEDED_PATH_${i}`);
 
-      // Update the amountIn for the next swap if it's not the last swap
-      if (i < swapRouteLength - 1) {
+      // Update the amountIn for the next swap if it's not the last swap and the swap isTransferFrom is false which will mean that this is not multiswap by splitting the original amoutn by different pools but it is is a multihop swap
+      if (i < swapRouteLength - 1 && !swapPath.isTranferFrom) {
         swapPathArray[i + 1].amountIn = amoutOut;
       }
     }
@@ -105,7 +99,6 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       contractAddress,
       callerAddress,
       coinsOnEachSwap,
-      true,
     );
   }
 
@@ -122,7 +115,6 @@ function _swap(
   contractAddress: Address,
   toAddress: Address,
   coinsOnEachSwap: u64,
-  isFirstPath: bool = false,
 ): u256 {
   const poolAddress = swapPath.poolAddress;
   const tokenInAddress = swapPath.tokenInAddress.toString();
@@ -184,11 +176,11 @@ function _swap(
       coinsOnEachSwap,
     );
   } else {
-    if (isFirstPath) {
+    if (swapPath.isTranferFrom) {
       // Check for balance
       const tokenInBalance = tokenIn.balanceOf(callerAddress);
 
-      assert(tokenInBalance >= amountIn, 'Insufficient balance for tokenIn');
+      assert(tokenInBalance >= amountIn, 'INSUFFICIENT_TOKEN_IN_BALANCE');
 
       const tokenInAllownace = tokenIn.allowance(
         callerAddress,
@@ -198,7 +190,7 @@ function _swap(
       // Check for allowance
       assert(
         tokenInAllownace >= amountIn,
-        'Insufficient allowance for tokenIn' +
+        'INSUFFICIENT_TOKEN_IN_ALLOWANCE ' +
           amountIn.toString() +
           ' ' +
           tokenInAllownace.toString(),
@@ -213,7 +205,11 @@ function _swap(
       );
 
       // Transfer tokens to the pool contract
-      tokenIn.transfer(poolAddress, amountIn);
+      tokenIn.transfer(
+        poolAddress,
+        amountIn,
+        getBalanceEntryCost(tokenInAddress, poolAddress.toString()),
+      );
     }
 
     // Call the swap function on the pool contract
