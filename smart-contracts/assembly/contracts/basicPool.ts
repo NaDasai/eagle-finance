@@ -385,7 +385,7 @@ export function getAddLiquidityLPEstimation(binaryArgs: StaticArray<u8>): u256 {
  * - `minAmountOut`: The minimum amount of the token to swap out.
  * @returns void
  */
-export function swap(binaryArgs: StaticArray<u8>): void {
+export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
@@ -526,6 +526,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
+
+  return u256ToBytes(amountOut);
 }
 
 /**

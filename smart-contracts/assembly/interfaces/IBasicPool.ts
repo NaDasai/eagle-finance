@@ -108,7 +108,7 @@ export class IBasicPool {
     originalCaller: Address,
     isTokenOutNative: bool = false,
     coins: u64 = 0,
-  ): void {
+  ): u256 {
     const args = new Args()
       .add(tokenInAddress)
       .add(amountIn)
@@ -116,7 +116,9 @@ export class IBasicPool {
       .add(toAddress)
       .add(originalCaller)
       .add(isTokenOutNative);
-    call(this._origin, 'swap', args, coins);
+    const result = call(this._origin, 'swap', args, coins);
+    
+    return bytesToU256(result);
   }
 
   /**

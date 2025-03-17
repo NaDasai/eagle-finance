@@ -54,7 +54,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
   // Read the swap Path array args
-  const swapPathArray = args
+  let swapPathArray = args
     .nextSerializableObjectArray<SwapPath>()
     .expect('Invalid swap path array');
 
@@ -80,7 +80,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
       const isFirstPath = i == 0 ? true : false;
 
-      _swap(
+      const amoutOut = _swap(
         swapPath,
         callerAddress,
         contractAddress,
@@ -88,6 +88,13 @@ export function swap(binaryArgs: StaticArray<u8>): void {
         coinsOnEachSwap,
         isFirstPath,
       );
+
+      assert(amoutOut >= swapPath.minAmountOut, `SLIPPAGE_EXCEEDED_PATH_${i}`);
+
+      // Update the amountIn for the next swap if it's not the last swap
+      if (i < swapRouteLength - 1) {
+        swapPathArray[i + 1].amountIn = amoutOut;
+      }
     }
   } else {
     const swapPath = swapPathArray[0];
@@ -116,7 +123,7 @@ function _swap(
   toAddress: Address,
   coinsOnEachSwap: u64,
   isFirstPath: bool = false,
-): void {
+): u256 {
   const poolAddress = swapPath.poolAddress;
   const tokenInAddress = swapPath.tokenInAddress.toString();
   const tokenOutAddress = swapPath.tokenOutAddress.toString();
@@ -133,6 +140,8 @@ function _swap(
 
   // Check if the minAmountOut is greater than 0
   assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
+
+  let amountOut = u256.Zero;
 
   const pool = new IBasicPool(poolAddress);
 
@@ -165,7 +174,7 @@ function _swap(
     );
 
     // Call the swap internal function
-    pool.swap(
+    amountOut = pool.swap(
       wmasTokenAddressStored.toString(),
       amountIn,
       minAmountOut,
@@ -208,7 +217,7 @@ function _swap(
     }
 
     // Call the swap function on the pool contract
-    pool.swap(
+    amountOut = pool.swap(
       tokenInAddress,
       amountIn,
       minAmountOut,
@@ -221,4 +230,7 @@ function _swap(
 
   // Emit swap details events
   generateEvent(`Swap Route Exexcuted: ${swapPath.toString()}`);
+  generateEvent(`Amount Out: ${amountOut.toString()}`);
+
+  return amountOut;
 }
