@@ -10,3 +10,8 @@ import { ONE_PERCENT } from '../utils/constants';
 export function isBetweenZeroAndTenPercent(value: u64): bool {
   return value >= 0 && value <= 10 * u64(ONE_PERCENT);
 }
+
+
+export function isBetweenZeroAndThirtyPercent(value: u64): bool {
+  return value >= 0 && value <= 30 * ONE_PERCENT;
+}

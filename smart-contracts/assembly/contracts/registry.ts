@@ -30,7 +30,7 @@ import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
-import { isBetweenZeroAndTenPercent } from '../lib/math';
+import { isBetweenZeroAndTenPercent, isBetweenZeroAndThirtyPercent } from '../lib/math';
 import { u256 } from 'as-bignum/assembly';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
@@ -76,10 +76,10 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   const flashLoanFeeInput = args.nextU64().expect('FlashLoanFee is missing');
 
-  // ensure that the fee share protocol is between 0 and 10%
+  // ensure that the fee share protocol is between 0 and 30%
   assert(
-    isBetweenZeroAndTenPercent(feeShareProtocolInput),
-    'Fee share protocol must be between 0 and 10%',
+    isBetweenZeroAndThirtyPercent(feeShareProtocolInput),
+    'Fee share protocol must be between 0 and 30%',
   );
 
   // Ensure that the flash loan fee is between 0 and 10%
