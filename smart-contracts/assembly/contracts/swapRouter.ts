@@ -73,21 +73,21 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     for (let i = 0; i < swapRouteLength; i++) {
       const swapPath = swapPathArray[i];
 
-      const toAddress = swapPath.receiverAddress;
-
       const amoutOut = _swap(
         swapPath,
         callerAddress,
         contractAddress,
-        toAddress,
+        swapPath.receiverAddress,
         coinsOnEachSwap,
       );
 
-      assert(amoutOut >= swapPath.minAmountOut, `SLIPPAGE_EXCEEDED_PATH_${i}`);
 
       // Update the amountIn for the next swap if it's not the last swap and the swap isTransferFrom is false which will mean that this is not multiswap by splitting the original amoutn by different pools but it is is a multihop swap
-      if (i < swapRouteLength - 1 && !swapPath.isTranferFrom) {
-        swapPathArray[i + 1].amountIn = amoutOut;
+      if (i < swapRouteLength - 1) {
+        const nextSwapPath = swapPathArray[i + 1];
+        if (!nextSwapPath.isTranferFrom) {
+          nextSwapPath.amountIn = amoutOut;
+        }
       }
     }
   } else {
@@ -97,7 +97,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       swapPath,
       callerAddress,
       contractAddress,
-      callerAddress,
+      swapPath.receiverAddress,
       coinsOnEachSwap,
     );
   }
@@ -139,44 +139,44 @@ function _swap(
 
   const tokenIn = new IMRC20(swapPath.tokenInAddress);
 
-  if (isNativeCoinIn) {
-    // Wrap mas before swap and transfer wmas
-    const registryContractAddressStored = bytesToString(
-      Storage.get(registryContractAddress),
-    );
+  if (swapPath.isTranferFrom) {
+    if (isNativeCoinIn) {
+      // Wrap mas before swap and transfer wmas
+      const registryContractAddressStored = bytesToString(
+        Storage.get(registryContractAddress),
+      );
 
-    // Get the wmas token address
-    const wmasTokenAddressStored = new Address(
-      new IRegistery(
-        new Address(registryContractAddressStored),
-      ).getWmasTokenAddress(),
-    );
+      // Get the wmas token address
+      const wmasTokenAddressStored = new Address(
+        new IRegistery(
+          new Address(registryContractAddressStored),
+        ).getWmasTokenAddress(),
+      );
 
-    // Wrap Mas to WMAS
-    wrapMasToWMAS(amountIn, wmasTokenAddressStored);
+      // Wrap Mas to WMAS
+      wrapMasToWMAS(amountIn, wmasTokenAddressStored);
 
-    // Transfer wmas to the pool contract
-    new IMRC20(wmasTokenAddressStored).transfer(
-      poolAddress,
-      amountIn,
-      getBalanceEntryCost(
+      // Transfer wmas to the pool contract
+      new IMRC20(wmasTokenAddressStored).transfer(
+        poolAddress,
+        amountIn,
+        getBalanceEntryCost(
+          wmasTokenAddressStored.toString(),
+          poolAddress.toString(),
+        ),
+      );
+
+      // Call the swap internal function
+      amountOut = pool.swap(
         wmasTokenAddressStored.toString(),
-        poolAddress.toString(),
-      ),
-    );
-
-    // Call the swap internal function
-    amountOut = pool.swap(
-      wmasTokenAddressStored.toString(),
-      amountIn,
-      minAmountOut,
-      toAddress,
-      originalCaller,
-      false,
-      coinsOnEachSwap,
-    );
-  } else {
-    if (swapPath.isTranferFrom) {
+        amountIn,
+        minAmountOut,
+        toAddress,
+        originalCaller,
+        false,
+        coinsOnEachSwap,
+      );
+    } else {
       // Check for balance
       const tokenInBalance = tokenIn.balanceOf(callerAddress);
 
@@ -210,8 +210,19 @@ function _swap(
         amountIn,
         getBalanceEntryCost(tokenInAddress, poolAddress.toString()),
       );
-    }
 
+      // Call the swap function on the pool contract
+      amountOut = pool.swap(
+        tokenInAddress,
+        amountIn,
+        minAmountOut,
+        toAddress,
+        originalCaller,
+        isNativeCoinOut,
+        coinsOnEachSwap,
+      );
+    }
+  } else {
     // Call the swap function on the pool contract
     amountOut = pool.swap(
       tokenInAddress,
@@ -226,7 +237,6 @@ function _swap(
 
   // Emit swap details events
   generateEvent(`Swap Route Exexcuted: ${swapPath.toString()}`);
-  generateEvent(`Amount Out: ${amountOut.toString()}`);
 
   return amountOut;
 }
