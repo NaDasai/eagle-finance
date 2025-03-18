@@ -5,8 +5,10 @@ export class SwapPath implements Serializable<SwapPath> {
     public poolAddress: string = '',
     public tokenInAddress: string = '',
     public tokenOutAddress: string = '',
+    public receiverAddress: string = '',
     public amountIn: bigint = 0n,
     public minAmountOut: bigint = 0n,
+    public isTranferFrom: boolean = false,
   ) {}
 
   serialize(): Uint8Array {
@@ -14,8 +16,10 @@ export class SwapPath implements Serializable<SwapPath> {
       .addString(this.poolAddress)
       .addString(this.tokenInAddress)
       .addString(this.tokenOutAddress)
+      .addString(this.receiverAddress)
       .addU256(this.amountIn)
       .addU256(this.minAmountOut)
+      .addBool(this.isTranferFrom)
       .serialize();
 
     return new Uint8Array(args);
@@ -27,8 +31,10 @@ export class SwapPath implements Serializable<SwapPath> {
     this.poolAddress = args.nextString();
     this.tokenInAddress = args.nextString();
     this.tokenOutAddress = args.nextString();
+    this.receiverAddress = args.nextString();
     this.amountIn = args.nextU256();
     this.minAmountOut = args.nextU256();
+    this.isTranferFrom = args.nextBool();
 
     return { instance: this, offset: args.getOffset() };
   }

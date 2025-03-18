@@ -50,6 +50,9 @@ export async function swap(
 
   console.log('Swap status:', status);
 
+  const events = await operation.getSpeculativeEvents();
+  console.log('Swap Events:', events);
+
   if (status === OperationStatus.SpeculativeSuccess) {
     console.log('Swap successful');
   } else {

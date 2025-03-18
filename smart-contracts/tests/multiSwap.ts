@@ -139,16 +139,20 @@ const swapPath = new SwapPath(
   usdtPool.poolAddress,
   usdtAddress,
   wmasAddress,
+  usdcPool.poolAddress,
   parseUnits('50', 18),
   parseUnits('0.0001', 9),
+  true,
 );
 
 const swapPath2 = new SwapPath(
   usdcPool.poolAddress,
   wmasAddress,
   usdcAddress,
+  user1Provider.address,
   parseUnits('1.663329996', 9),
   parseUnits('0.00001', 9),
+  false,
 );
 
 const wmasBalanceBefore = await new WMASBuildnet(user1Provider).balanceOf(
