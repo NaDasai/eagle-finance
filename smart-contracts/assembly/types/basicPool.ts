@@ -1,4 +1,5 @@
 import { u256 } from 'as-bignum/assembly';
+import { IBasicPool } from '../interfaces/IBasicPool';
 
 // Define the GetSwapOutResult type
 export class GetSwapOutResult {
@@ -59,4 +60,24 @@ export class GetLiquidityDataResult {
     this.aTokenAddressStored = aTokenAddressStored;
     this.bTokenAddressStored = bTokenAddressStored;
   }
+}
+
+export class addLiquidityData {
+  constructor(
+    public contractAddress: string,
+    public callerAddress: string,
+    public finalAmountA: u256,
+    public finalAmountB: u256,
+    public liquidity: u256,
+    public newResA: u256,
+    public newResB: u256,
+  ) {}
+}
+
+export class CreateNewPoolData {
+  constructor(
+    public poolAddress: string,
+    public flashLoanFee: u64,
+    public poolContract: IBasicPool,
+  ) {}
 }

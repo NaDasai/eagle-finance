@@ -54,7 +54,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
   // Read the swap Path array args
-  const swapPathArray = args
+  let swapPathArray = args
     .nextSerializableObjectArray<SwapPath>()
     .expect('Invalid swap path array');
 
@@ -73,21 +73,22 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     for (let i = 0; i < swapRouteLength; i++) {
       const swapPath = swapPathArray[i];
 
-      const toAddress =
-        i == swapRouteLength - 1
-          ? callerAddress
-          : swapPathArray[i + 1].poolAddress;
-
-      const isFirstPath = i == 0 ? true : false;
-
-      _swap(
+      const amoutOut = _swap(
         swapPath,
         callerAddress,
         contractAddress,
-        toAddress,
+        swapPath.receiverAddress,
         coinsOnEachSwap,
-        isFirstPath,
       );
+
+
+      // Update the amountIn for the next swap if it's not the last swap and the swap isTransferFrom is false which will mean that this is not multiswap by splitting the original amoutn by different pools but it is is a multihop swap
+      if (i < swapRouteLength - 1) {
+        const nextSwapPath = swapPathArray[i + 1];
+        if (!nextSwapPath.isTranferFrom) {
+          nextSwapPath.amountIn = amoutOut;
+        }
+      }
     }
   } else {
     const swapPath = swapPathArray[0];
@@ -96,9 +97,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       swapPath,
       callerAddress,
       contractAddress,
-      callerAddress,
+      swapPath.receiverAddress,
       coinsOnEachSwap,
-      true,
     );
   }
 
@@ -115,8 +115,7 @@ function _swap(
   contractAddress: Address,
   toAddress: Address,
   coinsOnEachSwap: u64,
-  isFirstPath: bool = false,
-): void {
+): u256 {
   const poolAddress = swapPath.poolAddress;
   const tokenInAddress = swapPath.tokenInAddress.toString();
   const tokenOutAddress = swapPath.tokenOutAddress.toString();
@@ -126,6 +125,7 @@ function _swap(
     tokenInAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
   const isNativeCoinOut =
     tokenOutAddress == NATIVE_MAS_COIN_ADDRESS ? true : false;
+  const originalCaller = Context.caller();
 
   // Check if the amountIn is greater than 0
   assert(amountIn > u256.Zero, 'AmountIn must be greater than 0');
@@ -133,51 +133,54 @@ function _swap(
   // Check if the minAmountOut is greater than 0
   assert(minAmountOut > u256.Zero, 'minAmountOut must be greater than 0');
 
+  let amountOut = u256.Zero;
+
   const pool = new IBasicPool(poolAddress);
 
   const tokenIn = new IMRC20(swapPath.tokenInAddress);
 
-  if (isNativeCoinIn) {
-    // Wrap mas before swap and transfer wmas
-    const registryContractAddressStored = bytesToString(
-      Storage.get(registryContractAddress),
-    );
+  if (swapPath.isTranferFrom) {
+    if (isNativeCoinIn) {
+      // Wrap mas before swap and transfer wmas
+      const registryContractAddressStored = bytesToString(
+        Storage.get(registryContractAddress),
+      );
 
-    // Get the wmas token address
-    const wmasTokenAddressStored = new Address(
-      new IRegistery(
-        new Address(registryContractAddressStored),
-      ).getWmasTokenAddress(),
-    );
+      // Get the wmas token address
+      const wmasTokenAddressStored = new Address(
+        new IRegistery(
+          new Address(registryContractAddressStored),
+        ).getWmasTokenAddress(),
+      );
 
-    // Wrap Mas to WMAS
-    wrapMasToWMAS(amountIn, wmasTokenAddressStored);
+      // Wrap Mas to WMAS
+      wrapMasToWMAS(amountIn, wmasTokenAddressStored);
 
-    // Transfer wmas to the pool contract
-    new IMRC20(wmasTokenAddressStored).transfer(
-      poolAddress,
-      amountIn,
-      getBalanceEntryCost(
+      // Transfer wmas to the pool contract
+      new IMRC20(wmasTokenAddressStored).transfer(
+        poolAddress,
+        amountIn,
+        getBalanceEntryCost(
+          wmasTokenAddressStored.toString(),
+          poolAddress.toString(),
+        ),
+      );
+
+      // Call the swap internal function
+      amountOut = pool.swap(
         wmasTokenAddressStored.toString(),
-        poolAddress.toString(),
-      ),
-    );
-
-    // Call the swap internal function
-    pool.swap(
-      wmasTokenAddressStored.toString(),
-      amountIn,
-      minAmountOut,
-      toAddress,
-      false,
-      coinsOnEachSwap,
-    );
-  } else {
-    if (isFirstPath) {
+        amountIn,
+        minAmountOut,
+        toAddress,
+        originalCaller,
+        false,
+        coinsOnEachSwap,
+      );
+    } else {
       // Check for balance
       const tokenInBalance = tokenIn.balanceOf(callerAddress);
 
-      assert(tokenInBalance >= amountIn, 'Insufficient balance for tokenIn');
+      assert(tokenInBalance >= amountIn, 'INSUFFICIENT_TOKEN_IN_BALANCE');
 
       const tokenInAllownace = tokenIn.allowance(
         callerAddress,
@@ -187,7 +190,7 @@ function _swap(
       // Check for allowance
       assert(
         tokenInAllownace >= amountIn,
-        'Insufficient allowance for tokenIn' +
+        'INSUFFICIENT_TOKEN_IN_ALLOWANCE ' +
           amountIn.toString() +
           ' ' +
           tokenInAllownace.toString(),
@@ -202,15 +205,31 @@ function _swap(
       );
 
       // Transfer tokens to the pool contract
-      tokenIn.transfer(poolAddress, amountIn);
-    }
+      tokenIn.transfer(
+        poolAddress,
+        amountIn,
+        getBalanceEntryCost(tokenInAddress, poolAddress.toString()),
+      );
 
+      // Call the swap function on the pool contract
+      amountOut = pool.swap(
+        tokenInAddress,
+        amountIn,
+        minAmountOut,
+        toAddress,
+        originalCaller,
+        isNativeCoinOut,
+        coinsOnEachSwap,
+      );
+    }
+  } else {
     // Call the swap function on the pool contract
-    pool.swap(
+    amountOut = pool.swap(
       tokenInAddress,
       amountIn,
       minAmountOut,
       toAddress,
+      originalCaller,
       isNativeCoinOut,
       coinsOnEachSwap,
     );
@@ -218,4 +237,6 @@ function _swap(
 
   // Emit swap details events
   generateEvent(`Swap Route Exexcuted: ${swapPath.toString()}`);
+
+  return amountOut;
 }

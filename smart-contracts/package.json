@@ -31,7 +31,8 @@
         "lint:fix": "eslint . --fix",
         "fmt:check": "npm run prettier && npm run lint",
         "fmt": "npm run prettier:fix && npm run lint:fix",
-        "buoya": "tsx src/buoya.ts"
+        "buoya": "tsx src/buoya.ts",
+        "collect-fees": "tsx src/collect-fees.ts"
     },
     "keywords": [],
     "author": "",

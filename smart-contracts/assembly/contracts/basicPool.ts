@@ -40,7 +40,11 @@ import {
   transferRemaining,
 } from '../utils';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
-import { GetLiquidityDataResult, GetSwapOutResult } from '../types/basicPool';
+import {
+  addLiquidityData,
+  GetLiquidityDataResult,
+  GetSwapOutResult,
+} from '../types/basicPool';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 
 // Storage key containning the value of the token A reserve inside the pool
@@ -191,13 +195,26 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): void {
   // Get the coins transferred to the smart contract
   const sent = Context.transferredCoins();
 
-  _addLiquidity(amountA, amountB, minAmountA, minAmountB);
+  const result = _addLiquidity(amountA, amountB, minAmountA, minAmountB);
 
   // Transfer the remaining balance of the smart contract to the caller
   transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
+
+  // Emit event
+  generateEvent(
+    createEvent('ADD_LIQUIDITY', [
+      result.contractAddress, // Smart contract address
+      result.callerAddress, // Caller address
+      result.finalAmountA.toString(), // A amount
+      result.finalAmountB.toString(), // B amount
+      result.liquidity.toString(), // Minted LP amount
+      result.newResA.toString(), // New reserve A
+      result.newResB.toString(), // New reserve B
+    ]),
+  );
 }
 
 /**
@@ -232,13 +249,33 @@ export function addLiquidityWithMas(binaryArgs: StaticArray<u8>): void {
   _wrapMasToWMAS(bAmount);
 
   // Add liquidity with WMAS
-  _addLiquidity(aAmount, bAmount, minAmountA, minAmountB, false, true);
+  const result = _addLiquidity(
+    aAmount,
+    bAmount,
+    minAmountA,
+    minAmountB,
+    false,
+    true,
+  );
 
   // Transfer Remainning coins
   transferRemaining(SCBalance, balance(), sent, Context.caller());
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
+
+  // Emit event
+  generateEvent(
+    createEvent('ADD_LIQUIDITY', [
+      result.contractAddress, // Smart contract address
+      result.callerAddress, // Caller address
+      result.finalAmountA.toString(), // A amount
+      result.finalAmountB.toString(), // B amount
+      result.liquidity.toString(), // Minted LP amount
+      result.newResA.toString(), // New reserve A
+      result.newResB.toString(), // New reserve B
+    ]),
+  );
 }
 
 /**
@@ -348,7 +385,7 @@ export function getAddLiquidityLPEstimation(binaryArgs: StaticArray<u8>): u256 {
  * - `minAmountOut`: The minimum amount of the token to swap out.
  * @returns void
  */
-export function swap(binaryArgs: StaticArray<u8>): void {
+export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   // Start reentrancy guard
   ReentrancyGuard.nonReentrant();
 
@@ -389,10 +426,17 @@ export function swap(binaryArgs: StaticArray<u8>): void {
     .nextU256()
     .expect('minAmountOut is missing or invalid');
 
+  // The address to transfer the swapped tokens to
   const toAddress = new Address(
     args.nextString().expect('ToAddress is missing or invalid'),
   );
 
+  // The address of user that initiated the swap operation
+  const originalCaller = args
+    .nextString()
+    .expect('originalCaller is missing or invalid');
+
+  // Bool args to know if the tokenOut is native or not
   const isTokenOutNative = args
     .nextBool()
     .expect('isTokenOutNative is missing or invalid');
@@ -465,7 +509,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   generateEvent(
     createEvent('SWAP', [
       Context.callee().toString(), // Smart Contract Address
-      toAddress.toString(), // Caller Address
+      originalCaller, // Caller Address
       amountIn.toString(), // Amount In
       tokenInAddress, // Token In Address
       amountOut.toString(), // Amount Out
@@ -482,6 +526,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // End reentrancy guard
   ReentrancyGuard.endNonReentrant();
+
+  return u256ToBytes(amountOut);
 }
 
 /**
@@ -884,9 +930,9 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Ensure that the new pool K value is greater than or equal to the old pool K value
   assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
 
-  // Update the reserves of the pool
-  _updateReserveA(aContractBalanceAfter);
-  _updateReserveB(bContractBalanceAfter);
+  // Add fees to protocol fee accumulated instead of adding them to the reserves
+  _addTokenAccumulatedProtocolFee(aTokenAddressStored, aFee);
+  _addTokenAccumulatedProtocolFee(bTokenAddressStored, bFee);
 
   // Update the cumulative prices
   _updateCumulativePrices();
@@ -1079,7 +1125,7 @@ function _addLiquidity(
   isCalledByRegistry: bool = false,
   isWithMAS: bool = false,
   callerAddress: Address = Context.caller(),
-): void {
+): addLiquidityData {
   const liquidityData = _getAddLiquidityData(
     amountA,
     amountB,
@@ -1135,17 +1181,14 @@ function _addLiquidity(
   _updateReserveA(newResA);
   _updateReserveB(newResB);
 
-  // Emit event
-  generateEvent(
-    createEvent('ADD_LIQUIDITY', [
-      Context.callee().toString(), // Smart contract address
-      callerAddress.toString(), // Caller address
-      finalAmountA.toString(), // A amount
-      finalAmountB.toString(), // B amount
-      liquidity.toString(), // Minted LP amount
-      newResA.toString(), // New reserve A
-      newResB.toString(), // New reserve B
-    ]),
+  return new addLiquidityData(
+    contractAddress.toString(),
+    callerAddress.toString(),
+    finalAmountA,
+    finalAmountB,
+    liquidity,
+    newResA,
+    newResB,
   );
 }
 
