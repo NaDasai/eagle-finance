@@ -699,5 +699,11 @@ function _getFlashLoanFee(): u64 {
   return bytesToU64(Storage.get(flashLoanFee));
 }
 
-// Export all the functions from the ownership functions
-export * from '../utils/ownership';
+// Export necessary functions from the ownership functions
+export {
+  ownerAddress,
+  transferOwnership,
+  isOwner,
+  acceptOwnership,
+  pendingOwnerAddress,
+} from '../utils/ownership';
