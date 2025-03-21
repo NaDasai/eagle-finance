@@ -35,31 +35,16 @@ export class GetSwapOutResult {
 
 // Define the GetLiquidityDataResult type
 export class GetLiquidityDataResult {
-  liquidity: u256;
-  finalAmountA: u256;
-  finalAmountB: u256;
-  reserveA: u256;
-  reserveB: u256;
-  aTokenAddressStored: string;
-  bTokenAddressStored: string;
-
   constructor(
-    liquidity: u256,
-    finalAmountA: u256,
-    finalAmountB: u256,
-    reserveA: u256,
-    reserveB: u256,
-    aTokenAddressStored: string,
-    bTokenAddressStored: string,
-  ) {
-    this.liquidity = liquidity;
-    this.finalAmountA = finalAmountA;
-    this.finalAmountB = finalAmountB;
-    this.reserveA = reserveA;
-    this.reserveB = reserveB;
-    this.aTokenAddressStored = aTokenAddressStored;
-    this.bTokenAddressStored = bTokenAddressStored;
-  }
+    public liquidity: u256,
+    public finalAmountA: u256,
+    public finalAmountB: u256,
+    public reserveA: u256,
+    public reserveB: u256,
+    public aTokenAddressStored: string,
+    public bTokenAddressStored: string,
+    public isInitialLiquidity: boolean = false,
+  ) {}
 }
 
 export class addLiquidityData {

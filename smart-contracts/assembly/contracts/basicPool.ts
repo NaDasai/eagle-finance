@@ -29,7 +29,7 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
+import { MINIMUM_LIQUIDITY, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
 import {
@@ -139,9 +139,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
-
-  // Get the registry contract instance
-  const registry = new IRegistery(new Address(registryAddress));
 
   // Set the default prices to zero
   Storage.set(aPriceCumulative, u256ToBytes(u256.Zero));
@@ -459,10 +456,7 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   );
 
   // Ensure that the amountOut is greater than or equal to minAmountOut
-  assert(
-    amountOut >= minAmountOut,
-    'SWAP: SLIPPAGE_LIMIT_EXCEEDED'
-  );
+  assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE_LIMIT_EXCEEDED');
 
   if (!isTokenOutNative) {
     // Transfer the amountOut to the toAddres
@@ -491,10 +485,7 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const oldK = SafeMath256.mul(reserveIn, reserveOut);
 
   // Final K-value invariant check
-  assert(
-    newK >= oldK,
-    'SWAP: INVARIENT_CHECK_FAILED_K',
-  );
+  assert(newK >= oldK, 'SWAP: INVARIENT_CHECK_FAILED_K');
 
   // Update the pool reserves
   _updateReserve(tokenInAddress, newReserveIn);
@@ -846,7 +837,7 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Ensure that the callbackAddress is not one of the two tokens in the pool
   assert(
     callbackAddress.toString() != aTokenAddressStored &&
-    callbackAddress.toString() != bTokenAddressStored,
+      callbackAddress.toString() != bTokenAddressStored,
     'FLASH_ERROR: INVALID_CALLBACK_ADDRESS',
   );
 
@@ -1142,6 +1133,7 @@ function _addLiquidity(
   const reserveB = liquidityData.reserveB;
   const aTokenAddressStored = liquidityData.aTokenAddressStored;
   const bTokenAddressStored = liquidityData.bTokenAddressStored;
+  const isInitialLiquidity = liquidityData.isInitialLiquidity;
 
   assert(liquidity > u256.Zero, 'INSUFFICIENT LIQUIDITY MINTED');
 
@@ -1170,6 +1162,12 @@ function _addLiquidity(
         getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
       );
     }
+  }
+
+  // Permanently lock the first MINIMUM_LIQUIDITY tokens
+  if (isInitialLiquidity) {
+    // Mint MINIMUM_LIQUIDITY tokens to empty address
+    liquidityManager.mint(new Address(''), MINIMUM_LIQUIDITY);
   }
 
   // Mint LP tokens to user
@@ -1427,7 +1425,7 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
   // Check if the token address is one of the two tokens in the pool
   assert(
     tokenInAddress == aTokenAddressStored ||
-    tokenInAddress == bTokenAddressStored,
+      tokenInAddress == bTokenAddressStored,
     'Invalid token address',
   );
 
@@ -1508,12 +1506,14 @@ function _getAddLiquidityData(
   let finalAmountA = amountA;
   let finalAmountB = amountB;
   let liquidity: u256;
+  let isInitialLiquidity = false;
 
   if (reserveA == u256.Zero && reserveB == u256.Zero) {
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = SafeMath256.mul(amountA, amountB);
-    // liquidity = sqrt(product)
-    liquidity = SafeMath256.sqrt(product);
+    // liquidity = sqrt(product) - MINIMUM_LIQUIDITY
+    liquidity = SafeMath256.sub(SafeMath256.sqrt(product), MINIMUM_LIQUIDITY);
+    isInitialLiquidity = true;
   } else {
     // Add liquidity proportionally
     // Optimal amountB given amountA:
@@ -1559,6 +1559,7 @@ function _getAddLiquidityData(
     reserveB,
     aTokenAddressStored,
     bTokenAddressStored,
+    isInitialLiquidity,
   );
 }
 
@@ -1659,18 +1660,13 @@ function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
   }
 }
 
-
-
-
 /**
  * Checks if the caller is the owner of the registry contract.
  * @param registryAddress The address of the registry contract.
  * @returns void
  */
 export function _onlyRegistryOwner(
-  registryAddress: string = bytesToString(
-    Storage.get(registryContractAddress),
-  )
+  registryAddress: string = bytesToString(Storage.get(registryContractAddress)),
 ): void {
   const registry = new IRegistery(new Address(registryAddress));
 
