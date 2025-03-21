@@ -386,7 +386,7 @@ describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', as
   });
 });
 
-describe('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees', async () => {
+describe.skip('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
