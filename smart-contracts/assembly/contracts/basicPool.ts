@@ -22,10 +22,8 @@ import {
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
-import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
 import { IRegistery } from '../interfaces/IRegistry';
-import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
 import {
   LiquidityManager,
@@ -144,9 +142,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Get the registry contract instance
   const registry = new IRegistery(new Address(registryAddress));
-
-  // Set the owner of the pool contract to the same registry owner address
-  _setOwner(registry.ownerAddress());
 
   // Set the default prices to zero
   Storage.set(aPriceCumulative, u256ToBytes(u256.Zero));
@@ -737,7 +732,7 @@ export function syncReserves(): void {
   const sent = Context.transferredCoins();
 
   // only owner of registery contract can call this function
-  _onlyOwner();
+  _onlyRegistryOwner();
 
   // get the balance of this contract for token A
   const balanceA = getTokenBalance(
@@ -1664,5 +1659,20 @@ function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
   }
 }
 
-// Export ownership functions
-export * from '../utils/ownership';
+
+
+
+/**
+ * Checks if the caller is the owner of the registry contract.
+ * @param registryAddress The address of the registry contract.
+ * @returns void
+ */
+export function _onlyRegistryOwner(
+  registryAddress: string = bytesToString(
+    Storage.get(registryContractAddress),
+  )
+): void {
+  const registry = new IRegistery(new Address(registryAddress));
+
+  registry.onlyOwner();
+}
