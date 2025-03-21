@@ -466,10 +466,7 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   // Ensure that the amountOut is greater than or equal to minAmountOut
   assert(
     amountOut >= minAmountOut,
-    'SWAP: SLIPPAGE LIMIT EXCEEDED =====> ' +
-      amountOut.toString() +
-      ' < ' +
-      minAmountOut.toString(),
+    'SWAP: SLIPPAGE_LIMIT_EXCEEDED'
   );
 
   if (!isTokenOutNative) {
@@ -493,6 +490,16 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   );
 
   const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
+
+  // K value invarient check before updating the reserves
+  const newK = SafeMath256.mul(newReserveIn, newReserveOut);
+  const oldK = SafeMath256.mul(reserveIn, reserveOut);
+
+  // Final K-value invariant check
+  assert(
+    newK >= oldK,
+    'SWAP: INVARIENT_CHECK_FAILED_K',
+  );
 
   // Update the pool reserves
   _updateReserve(tokenInAddress, newReserveIn);
@@ -844,7 +851,7 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Ensure that the callbackAddress is not one of the two tokens in the pool
   assert(
     callbackAddress.toString() != aTokenAddressStored &&
-      callbackAddress.toString() != bTokenAddressStored,
+    callbackAddress.toString() != bTokenAddressStored,
     'FLASH_ERROR: INVALID_CALLBACK_ADDRESS',
   );
 
@@ -1425,7 +1432,7 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
   // Check if the token address is one of the two tokens in the pool
   assert(
     tokenInAddress == aTokenAddressStored ||
-      tokenInAddress == bTokenAddressStored,
+    tokenInAddress == bTokenAddressStored,
     'Invalid token address',
   );
 
