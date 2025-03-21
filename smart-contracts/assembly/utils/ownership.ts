@@ -1,5 +1,5 @@
 import { Address, Context, generateEvent, Storage, validateAddress } from '@massalabs/massa-as-sdk';
-import { Args } from '@massalabs/as-types';
+import { Args, stringToBytes } from '@massalabs/as-types';
 import {
   OWNER_KEY,
   _isOwner,
@@ -59,7 +59,7 @@ export function acceptOwnership(): void {
   assert(caller.toString() === storedPendingOwner, 'CALLER_IS_NOT_PENDING_OWNER');
 
   // Set the new owner
-  _setOwner(storedPendingOwner);
+  Storage.set(OWNER_KEY, caller.toString());
 
   // Delete the pending owner
   Storage.del(pendingOwner);
@@ -74,14 +74,14 @@ export function acceptOwnership(): void {
  *
  * @returns The pending owner address.
  */
-export function pendingOwnerAddress(): Address {
+export function pendingOwnerAddress(): StaticArray<u8> {
   // If there is no pending owner, return an empty address
   if (!Storage.has(pendingOwner)) {
-    return new Address('');
+    return stringToBytes('');
   }
 
   // Return the pending owner address
-  return new Address(Storage.get(pendingOwner));
+  return stringToBytes(Storage.get(pendingOwner));
 }
 
 
