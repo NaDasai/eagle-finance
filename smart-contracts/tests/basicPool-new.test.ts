@@ -248,8 +248,10 @@ describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', as
         poolContract.address,
         bTokenAddress,
         aTokenAddress,
+        user2Provider.address,
         parseMas(bSwapAmount.toString()),
         parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
       ),
     ];
 
@@ -569,8 +571,10 @@ describe('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees', as
         poolContract.address,
         bTokenAddress,
         aTokenAddress,
+        user2Provider.address,
         parseMas(bSwapAmount.toString()),
         parseUnits(minASwapOutAmount.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
       ),
     ];
 
