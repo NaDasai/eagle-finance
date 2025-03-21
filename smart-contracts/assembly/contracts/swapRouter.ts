@@ -3,11 +3,9 @@ import {
   assertIsSmartContract,
   balance,
   Context,
-  createEvent,
   generateEvent,
   Storage,
 } from '@massalabs/massa-as-sdk';
-import { _setOwner } from '../utils/ownership-internal';
 import { Args, bytesToString, stringToBytes } from '@massalabs/as-types';
 import { SwapPath } from '../structs/swapPath';
 import { IBasicPool } from '../interfaces/IBasicPool';
@@ -190,10 +188,7 @@ function _swap(
       // Check for allowance
       assert(
         tokenInAllownace >= amountIn,
-        'INSUFFICIENT_TOKEN_IN_ALLOWANCE ' +
-          amountIn.toString() +
-          ' ' +
-          tokenInAllownace.toString(),
+        'INSUFFICIENT_TOKEN_IN_ALLOWANCE'
       );
 
       // Transfer amountIn from user to this contract
