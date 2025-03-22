@@ -19,7 +19,7 @@ const byteCode = getScByteCode('build', 'registry.wasm');
 
 // constructr takes fee share protocol as a parameter
 const constructorArgs = new Args()
-  .addU64(BigInt(0.005 * 10000)) // 0.005% fee share protocol
+  .addU64(BigInt(25 * 10000)) // 25% fee share protocol
   .addString(wmasAddress) // WMAS address
   .addU64(BigInt(0.3 * 10_000)) // Flash loan fees
   .serialize();

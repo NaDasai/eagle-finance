@@ -6,7 +6,7 @@ import {
   getPools,
 } from './calls/registry';
 import * as dotenv from 'dotenv';
-import { getContractOwner, transferOwnership } from './calls/ownership';
+import { acceptOwnership, getContractOwner, getPendingContractOwner, transferOwnership } from './calls/ownership';
 import { deployTokenDeployer } from './calls/token-deployer';
 
 dotenv.config();
@@ -35,18 +35,14 @@ describe.skip('Registry Ownership', () => {
     expect(owner).toBe(user1Provider.address);
   });
 
-  test('Registry owner should be able to transfer ownership', async () => {
+  test('Non Registry Owner should not be able to start transfer ownership', async () => {
+    // switch registry to user2
+    registryContract = new SmartContract(
+      user2Provider,
+      registryContract.address,
+    );
+
     const newOwner = user2Provider.address;
-
-    await transferOwnership(registryContract, newOwner);
-
-    const newOwnerAddress = await getContractOwner(registryContract);
-
-    expect(newOwnerAddress).toBe(newOwner);
-  });
-
-  test('Non Registry Owner should not be able to transfer ownership', async () => {
-    const newOwner = user1Provider.address;
 
     await expect(
       transferOwnership(registryContract, newOwner),
@@ -54,59 +50,45 @@ describe.skip('Registry Ownership', () => {
       'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:49 col: 3',
     );
   });
-});
 
-describe.skip('Basic Pool OwnerShip', () => {
-  beforeAll(async () => {
-    registryContract = await deployRegistryContract(user1Provider, wmasAddress);
-
-    // switch registry to user2
+  test('Registry owner should be able to start transfer ownership proccess', async () => {
+    // switch back registry to user1
     registryContract = new SmartContract(
-      user2Provider,
+      user1Provider,
       registryContract.address,
     );
 
-    await createNewPool(registryContract, aTokenAddress, wmasAddress, 0);
-
-    const pools = await getPools(registryContract);
-
-    expect(pools.length > 0, 'No pools found');
-
-    // get the last pool address
-    const pool = pools[pools.length - 1].poolAddress;
-
-    poolContract = new SmartContract(user2Provider, pool);
-  });
-
-  test('Pool owner should be the deployer of the registry not the pool', async () => {
-    const owner = await getContractOwner(poolContract);
-
-    expect(owner).toBe(user1Provider.address);
-  });
-
-  test('Pool owner should be able to transfer ownership', async () => {
-    // switch to the owner
-    poolContract = new SmartContract(user1Provider, poolContract.address);
-
     const newOwner = user2Provider.address;
 
-    await transferOwnership(poolContract, newOwner);
+    await transferOwnership(registryContract, newOwner);
 
-    const newOwnerAddress = await getContractOwner(poolContract);
+    const pendingOwnerAddress = await getPendingContractOwner(registryContract);
 
-    expect(newOwnerAddress).toBe(newOwner);
+    expect(pendingOwnerAddress).toBe(newOwner);
   });
 
-  test('Non Pool Owner should not be able to transfer ownership', async () => {
-    const newOwner = user1Provider.address;
-
+  test("Non Pending Owner should not be able to accept ownership", async () => {
     await expect(
-      transferOwnership(poolContract, newOwner),
+      acceptOwnership(registryContract),
     ).rejects.toThrowError(
-      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:49 col: 3',
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: CALLER_IS_NOT_PENDING_OWNER at assembly/utils/ownership.ts:59 col: 3',
     );
-  });
+  })
+
+  test("The new Owner should be able to accept ownership", async () => {
+    registryContract = new SmartContract(user2Provider, registryContract.address);
+
+    // Accept ownership
+    await acceptOwnership(registryContract);
+
+    const owner = await getContractOwner(registryContract);
+
+    // expect the owner to be the new owner after accepting
+    expect(owner).toBe(user2Provider.address);
+
+  })
 });
+
 
 describe.skip('Token Deployer OwnerShip', () => {
   beforeAll(async () => {

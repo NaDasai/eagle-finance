@@ -139,5 +139,11 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
   ReentrancyGuard.endNonReentrant();
 }
 
-// Export ownership functions
-export * from '../utils/ownership';
+// Export necessary functions from the ownership functions
+export {
+  ownerAddress,
+  transferOwnership,
+  isOwner,
+  acceptOwnership,
+  pendingOwnerAddress,
+} from '../utils/ownership';

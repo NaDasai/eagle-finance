@@ -8,7 +8,7 @@ export class SwapPath implements Serializable<SwapPath> {
     public receiverAddress: string = '',
     public amountIn: bigint = 0n,
     public minAmountOut: bigint = 0n,
-    public isTranferFrom: boolean = false,
+    public isTranferFrom: boolean = true,
   ) {}
 
   serialize(): Uint8Array {
