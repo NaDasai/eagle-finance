@@ -43,6 +43,7 @@ import {
   getAPriceCumulativeLast,
   getBPriceCumulativeLast,
   getLPBalance,
+  getPoolLPTotalSupply,
   getPoolReserves,
   getSwapOutEstimation,
   getTokenBalance,
@@ -962,6 +963,179 @@ describe.skip('Swap Router tests', async () => {
       setSwapRouterAddress(registryContract, swapRouterContract.address),
     ).rejects.toThrowError(
       'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:49 col: 3',
+    );
+  });
+});
+
+describe('MINIMUM_LIQUIDITY tests', async () => {
+  beforeAll(async () => {
+    aTokenAddress = 'AS1Jg6cLstoXEVe6uGr3gTd3dhWLVqFPbYcMuHjcpzRQTJMtvY9k';
+    poolFeeRate = 0.3 * 10_000;
+
+    registryContract = await deployRegistryContract(
+      user1Provider,
+      wmasAddress,
+      25,
+    );
+
+    // create new pool
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    // get the last pool address
+    poolAddress = pool.poolAddress;
+
+    poolContract = new SmartContract(user1Provider, poolAddress);
+  });
+
+  test('User 1 adds liquidity to the pool', async () => {
+    // get all pool reserves and expect them to be 0
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0n);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0n);
+
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const aAmount = 10;
+    const bAmount = 10;
+
+    // increase allowance of both tokerns amoutns first before adding liquidity
+    await increaseAllownace(
+      aTokenAddress,
+      poolAddress,
+      aAmount,
+      user1Provider,
+      18,
+    );
+    await increaseAllownace(bTokenAddress, poolAddress, bAmount, user1Provider);
+
+    // add liquidity
+    await addLiquidity(poolContract, aAmount, bAmount, 0, 0, 18);
+
+    // get teh reserves
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    expect(reserveAAfter, 'Reserve A should be 10 after adding liquidity').toBe(
+      parseUnits('10', 18),
+    );
+
+    expect(reserveBAfter, 'Reserve B should be 10 after adding liquidity').toBe(
+      parseMas('10'),
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+    // Expect balances beffore - after should be equal a_amount and b_amount
+    expect(
+      user1ATokenBalanceBefore - user1ATokenBalanceAfter,
+      'User1 A Token balance should decrease after adding liquidity',
+    ).toBe(parseUnits(aAmount.toString(), 18));
+
+    expect(
+      user1BTokenBalanceBefore - user1BTokenBalanceAfter,
+      'User1 B Token balance should decrease after adding liquidity',
+    ).toBe(parseMas(bAmount.toString()));
+
+    // get the lp balance of user1
+    const user1LPBalance = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance: ', user1LPBalance);
+
+    expect(
+      user1LPBalance,
+      'User1 LP balance should be 10 - MINIMUM_LIQUIDITY',
+    ).toBe(parseUnits('9.999999999999999', 18));
+
+    // Get pool total supply
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+
+    // expect the pool total supply to be 10
+    expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
+      parseUnits('10', 18),
+    );
+  });
+
+  test('User 1 Should be able to remove liquidity minus the MINIMUM_LIQUIDITY', async () => {
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const lpBalanceBefore = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    await removeLiquidityUsingPercentage(
+      poolContract,
+      user1Provider,
+      100,
+      0,
+      0,
+      18,
+      9,
+    );
+
+    const lpBalanceAfter = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    expect(lpBalanceAfter, 'User1 LP balance should be 0').toBe(0n);
+
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+    console.log('Reserve B after: ', reserveBAfter);
+
+    expect(
+      reserveAAfter,
+      'Reserve A should be 1000 after remove liquidity',
+    ).toBe(1000n);
+
+    expect(reserveBAfter, 'Reserve B should be 1 after remove liquidity').toBe(
+      1n,
     );
   });
 });

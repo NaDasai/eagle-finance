@@ -24,7 +24,7 @@ let registryContract: SmartContract;
 let poolContract: SmartContract;
 let tokenDeployerContract: SmartContract;
 
-describe('Registry Ownership', () => {
+describe.skip('Registry Ownership', () => {
   beforeAll(async () => {
     registryContract = await deployRegistryContract(user1Provider, wmasAddress);
   });

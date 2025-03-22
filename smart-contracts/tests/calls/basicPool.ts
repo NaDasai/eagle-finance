@@ -252,6 +252,16 @@ export async function getLPBalance(
   return lpBalance;
 }
 
+export async function getPoolLPTotalSupply(
+  poolContract: SmartContract,
+): Promise<bigint> {
+  const result = await poolContract.read('getLPTotalSupply');
+
+  const lpBalance = new Args(result.value).nextU256();
+
+  return lpBalance;
+}
+
 export async function increaseAllownace(
   tokenAddress: string,
   spenderAddress: string,
