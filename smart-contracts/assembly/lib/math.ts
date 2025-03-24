@@ -1,7 +1,6 @@
 import { ONE_PERCENT } from '../utils/constants';
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
-
 /**
  * Checks if a given floating-point value is between 0 and 10 percent.
  * Used to check if the value is a valid fee.
@@ -54,10 +53,10 @@ export function normalizeToDecimals(
   }
 
   if (difference > 0) {
-    const multiplier = u256.from(10 ** difference);
+    const multiplier = u256.fromU64(10 ** difference);
     return SafeMath256.mul(value, multiplier);
   } else {
-    const divider = u256.from(10 ** -difference);
+    const divider = u256.fromU64(10 ** -difference);
     return SafeMath256.div(value, divider);
   }
 }
@@ -92,6 +91,6 @@ export function denormalizeFromDecimals(
   }
 
   // For tokens with fewer decimals, we scale down by dividing.
-  const divider = u256.from(10 ** difference);
+  const divider = u256.fromU64(10 ** difference);
   return SafeMath256.div(value, divider);
 }
