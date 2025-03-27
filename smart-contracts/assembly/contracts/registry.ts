@@ -30,7 +30,10 @@ import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
-import { isBetweenZeroAndTenPercent, isBetweenZeroAndThirtyPercent } from '../lib/math';
+import {
+  isBetweenZeroAndTenPercent,
+  isBetweenZeroAndThirtyPercent,
+} from '../lib/math';
 import { u256 } from 'as-bignum/assembly';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';

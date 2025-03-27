@@ -1766,5 +1766,8 @@ export function _onlyRegistryOwner(
 ): void {
   const registry = new IRegistery(new Address(registryAddress));
 
-  registry.onlyOwner();
+  assert(
+    Context.caller().toString() == registry.ownerAddress(),
+    'CALLER_IS_NOT_REGISTRY_OWNER',
+  );
 }
