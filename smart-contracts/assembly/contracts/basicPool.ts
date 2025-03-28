@@ -31,7 +31,7 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { MINIMUM_LIQUIDITY, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
+import { MINIMUM_LIQUIDITY } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
 import {

@@ -77,26 +77,4 @@ export function getAmountOut(
   return returnAmount;
 }
 
-/**
- * Calculates the required input amount for a given output amount in a liquidity pool.
- *
- * @param amountOut - The desired output amount of the asset.
- * @param reserveIn - The current reserve of the input asset in the pool.
- * @param reserveOut - The current reserve of the output asset in the pool.
- * @returns The calculated input amount required to achieve the desired output amount.
- * @throws Will throw an error if any of the input parameters are zero.
- */
-export function getAmountIn(
-  amountOut: u256,
-  reserveIn: u256,
-  reserveOut: u256,
-): u256 {
-  assert(amountOut > u256.Zero, 'amountOut must be greater than zero');
-  assert(reserveIn > u256.Zero, 'reserveIn must be greater than zero');
-  assert(reserveOut > u256.Zero, 'reserveOut must be greater than zero');
 
-  // amountIn = (amountOut * reserveIn) / (reserveOut - amountOut)
-  const numerator = SafeMath256.mul(reserveIn, amountOut);
-  const denominator = SafeMath256.sub(reserveOut, amountOut);
-  return SafeMath256.div(numerator, denominator);
-}
