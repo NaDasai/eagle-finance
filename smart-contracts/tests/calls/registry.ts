@@ -84,6 +84,9 @@ export async function createNewPoolWithLiquidity(
 
     const status = await operation.waitSpeculativeExecution();
 
+    const events = await operation.getSpeculativeEvents();
+    console.log('Events:', events);
+
     if (status === OperationStatus.SpeculativeSuccess) {
       console.log('Pool created successfully');
     } else {

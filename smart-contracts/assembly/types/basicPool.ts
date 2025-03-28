@@ -32,6 +32,7 @@ export class GetLiquidityDataResult {
     public aTokenAddressStored: string,
     public bTokenAddressStored: string,
     public isInitialLiquidity: boolean = false,
+    public minimumLiquidityStored: u256 = u256.Zero,
   ) {}
 }
 

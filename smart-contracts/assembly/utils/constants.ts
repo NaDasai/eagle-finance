@@ -14,3 +14,6 @@ export const SCALING_FACTOR = u256.fromU64(1_000_000);
 // Minimum liquidity constant used to prevent the first liquidity provider from withdrawing all liquidity
 // This creates a minimum reserve in the pool, improving price stability and preventing division by zero
 export const MINIMUM_LIQUIDITY = u256.fromU64(1_000);
+// export const MINIMUM_LIQUIDITY = u256.fromU64(1_000_000_000);
+
+

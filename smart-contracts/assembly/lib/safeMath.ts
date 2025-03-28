@@ -126,8 +126,12 @@ export class SafeMath256 {
    * @returns Returns the integer division of two unsigned integers. Reverts with custom message on
    * division by zero. The result is rounded towards zero.
    */
-  static sub(a: u256, b: u256): u256 {
-    assert(b <= a, 'SafeMath256: substraction overflow');
+  static sub(
+    a: u256,
+    b: u256,
+    errorMessage: string = 'SafeMath: substraction overflow',
+  ): u256 {
+    assert(b <= a, errorMessage);
     const c = u256.sub(a, b);
 
     return c;

@@ -31,7 +31,6 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { MINIMUM_LIQUIDITY, NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
 import {
@@ -80,6 +79,8 @@ export const flashLoanFee = stringToBytes('flashLoanFee');
 export const aTokenDecimals = stringToBytes('aTokenDecimals');
 // Storage key containning the decimals of the token B inside the pool
 export const bTokenDecimals = stringToBytes('bTokenDecimals');
+// Storage key containning the address of a minimum liquidity value
+export const minimumLiquidity = stringToBytes('minimumLiquidity');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -161,6 +162,16 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Store the tokens a and b decimals
   Storage.set(aTokenDecimals, u32ToBytes(aTokenDecimalsIn));
   Storage.set(bTokenDecimals, u32ToBytes(bTokenDecimalsIn));
+
+  // Extract the minimum decimals between the two tokens
+  const minDecimals =
+    aTokenDecimalsIn < bTokenDecimalsIn ? aTokenDecimalsIn : bTokenDecimalsIn;
+
+  // Store the minimum liquidity as 10^minDecimals
+  Storage.set(
+    minimumLiquidity,
+    u256ToBytes(u256.fromU64(10 ** u64(minDecimals))),
+  );
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
@@ -674,19 +685,35 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const normReserveA = normalizeToDecimals(reserveA, aDecimalsStored);
   const normReserveB = normalizeToDecimals(reserveB, bDecimalsStored);
 
+  generateEvent(
+    `ReserveA: ${reserveA.toString()}, ReserveB: ${reserveB.toString()}`,
+  );
+  generateEvent(
+    `NormReserveA: ${normReserveA.toString()}, NormReserveB: ${normReserveB.toString()}`,
+  );
+  generateEvent(`TotalSupply: ${totalSupply.toString()}`);
+  generateEvent(`lpAmount: ${lpAmount.toString()}`);
+  generateEvent(`aDecimalsStored: ${aDecimalsStored.toString()}`);
+  generateEvent(`bDecimalsStored: ${bDecimalsStored.toString()}`);
+
   // amountAOut = (lpAmount * reserveA) / totalSupply
   const normAmountAOut = SafeMath256.div(
     SafeMath256.mul(lpAmount, normReserveA),
     totalSupply,
   );
+
+  generateEvent(`normAmountAOut: ${normAmountAOut.toString()}`);
   const amountAOut = denormalizeFromDecimals(normAmountAOut, aDecimalsStored);
+  generateEvent(`amountAOut: ${amountAOut.toString()}`);
 
   // amountBOut = (lpAmount * reserveB) / totalSupply
   const normAmountBOut = SafeMath256.div(
     SafeMath256.mul(lpAmount, normReserveB),
     totalSupply,
   );
+  generateEvent(`normAmountBOut: ${normAmountBOut.toString()}`);
   const amountBOut = denormalizeFromDecimals(normAmountBOut, bDecimalsStored);
+  generateEvent(`amountBOut: ${amountBOut.toString()}`);
 
   // check if the amountAOut and amountBOut are greater than or equal to minAmountA and minAmountB
   assert(
@@ -993,6 +1020,14 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
 }
 
 /**
+ * Gets the minimum liquidity value for the basic pool.
+ * @returns The minimum liquidity value as a static array of 8-bit unsigned integers.
+ */
+export function getMinimumLiquidity(): StaticArray<u8> {
+  return Storage.get(minimumLiquidity);
+}
+
+/**
  * Gets the current claimable protocol fee for token A in the basic pool.
  * @returns The claimable protocol fee for token A as a static array of 8-bit unsigned integers.
  */
@@ -1175,6 +1210,7 @@ function _addLiquidity(
   const aTokenAddressStored = liquidityData.aTokenAddressStored;
   const bTokenAddressStored = liquidityData.bTokenAddressStored;
   const isInitialLiquidity = liquidityData.isInitialLiquidity;
+  const minimumLiquidityStored = liquidityData.minimumLiquidityStored;
 
   assert(liquidity > u256.Zero, 'INSUFFICIENT LIQUIDITY MINTED');
 
@@ -1208,7 +1244,7 @@ function _addLiquidity(
   // Permanently lock the first MINIMUM_LIQUIDITY tokens
   if (isInitialLiquidity) {
     // Mint MINIMUM_LIQUIDITY tokens to empty address
-    liquidityManager.mint(new Address(''), MINIMUM_LIQUIDITY);
+    liquidityManager.mint(new Address(''), minimumLiquidityStored);
   }
 
   // Mint LP tokens to user
@@ -1593,15 +1629,26 @@ function _getAddLiquidityData(
   const normReserveA = normalizeToDecimals(reserveA, aDecimalsStored);
   const normReserveB = normalizeToDecimals(reserveB, bDecimalsStored);
 
+  // Final normalized amounts
   let normFinalAmountA = normAmountA;
   let normFinalAmountB = normAmountB;
+
+  // Get the minimum liquidity value from storage
+  const minimumLiquidityStored = _getMinimumLiquidity();
 
   if (reserveA == u256.Zero && reserveB == u256.Zero) {
     // Use normalized values to calculate liquidity:
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = SafeMath256.mul(normAmountA, normAmountB);
     // liquidity = sqrt(product) - MINIMUM_LIQUIDITY
-    liquidity = SafeMath256.sub(SafeMath256.sqrt(product), MINIMUM_LIQUIDITY);
+    liquidity = SafeMath256.sub(
+      SafeMath256.sqrt(product),
+      minimumLiquidityStored,
+      'sqrt(product) < MINIMUM_LIQUIDITY ' +
+        product.toString() +
+        ' < ' +
+        minimumLiquidityStored.toString(),
+    );
     isInitialLiquidity = true;
   } else {
     // Adding liquidity proportional to the current pool
@@ -1656,7 +1703,17 @@ function _getAddLiquidityData(
     aTokenAddressStored,
     bTokenAddressStored,
     isInitialLiquidity,
+    minimumLiquidityStored,
   );
+}
+
+/**
+ * Retrieves the minimum liquidity value for the pool.
+ *
+ * @returns The minimum liquidity value.
+ */
+function _getMinimumLiquidity(): u256 {
+  return bytesToU256(Storage.get(minimumLiquidity));
 }
 
 /**
