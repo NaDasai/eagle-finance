@@ -162,6 +162,12 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(aTokenDecimals, u32ToBytes(aTokenDecimalsIn));
   Storage.set(bTokenDecimals, u32ToBytes(bTokenDecimalsIn));
 
+  // Compare the decimals of the two tokens and ensure that its difference is less than 12
+  assert(
+    abs(aTokenDecimalsIn - bTokenDecimalsIn) <= 12,
+    'DECIMALS_DIFFERENCE_TOO_LARGE',
+  );
+
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
 
