@@ -26,6 +26,7 @@ import {
 import { _setOwner } from '../utils/ownership-internal';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 import { PersistentMap } from '../lib/PersistentMap';
+import { MINIMUM_COINS_TO_DEPLOY_TOKEN } from '../utils/constants';
 
 // Persistent map to store the tokens deployed and the address of the deployer
 const tokens = new PersistentMap<Address, Address>('TOKENS');
@@ -83,9 +84,10 @@ export function createNewToken(binaryArgs: StaticArray<u8>): void {
 
   // IsErr() returns true, if coinsToUseOnDeployIn is not passed or some error occurs
   if (coinsToUseOnDeployIn.isErr()) {
-    // default value
-    coinsToUseOnDeploy = u64(5 * 10 ** 7);
+    // Default coins to use on deploy the new token contract
+    coinsToUseOnDeploy = MINIMUM_COINS_TO_DEPLOY_TOKEN;
   } else {
+    // Get the coins to use on deploy the new token contract from the arguments
     coinsToUseOnDeploy = coinsToUseOnDeployIn.unwrap();
   }
 
