@@ -9,11 +9,25 @@ import { SafeMath256 } from './safeMath';
  * @returns A boolean indicating whether the value is greater than 0 and less than or equal to 10 percent.
  */
 export function isBetweenZeroAndTenPercent(value: u64): bool {
-  return value >= 0 && value <= 10 * u64(ONE_PERCENT);
+  return value >= 0 && value <= 10 * ONE_PERCENT;
 }
 
 export function isBetweenZeroAndThirtyPercent(value: u64): bool {
   return value >= 0 && value <= 30 * ONE_PERCENT;
+}
+
+// Ensure that the input fee is allowed
+export function assertIsAllowedInputFee(value: u64): void {
+  // Define the allowed input fees
+  const allowedInputFees = [
+    u64(0.01 * f64(ONE_PERCENT)),
+    u64(0.05 * f64(ONE_PERCENT)),
+    u64(0.3 * f64(ONE_PERCENT)),
+    u64(1 * ONE_PERCENT),
+  ];
+
+  // Assert that the value is one of the allowed input fees
+  assert(allowedInputFees.includes(value), 'INPUT_FEE_NOT_ALLOWED');
 }
 
 /**

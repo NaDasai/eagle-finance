@@ -31,6 +31,7 @@ import { onlyOwner } from '../utils/ownership';
 import { IBasicPool } from '../interfaces/IBasicPool';
 import { IMRC20 } from '../interfaces/IMRC20';
 import {
+  assertIsAllowedInputFee,
   isBetweenZeroAndTenPercent,
   isBetweenZeroAndThirtyPercent,
 } from '../lib/math';
@@ -619,11 +620,8 @@ function _createNewPool(
   bTokenAddress: string,
   inputFeeRate: u64,
 ): CreateNewPoolData {
-  // Ensure that the input fee rate is between 0 and 10%
-  assert(
-    isBetweenZeroAndTenPercent(inputFeeRate),
-    'Input fee rate must be between 0 and 10%',
-  );
+  // Ensure that the inputFeeRate is allowed
+  assertIsAllowedInputFee(inputFeeRate);
 
   // Ensure that the aTokenAddress and bTokenAddress are different
   assert(aTokenAddress !== bTokenAddress, 'Tokens must be different');
