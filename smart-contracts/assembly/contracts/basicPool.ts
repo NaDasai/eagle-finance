@@ -747,9 +747,6 @@ export function syncReserves(): void {
   const SCBalance = balance();
   const sent = Context.transferredCoins();
 
-  // only owner of registery contract can call this function
-  _onlyRegistryOwner();
-
   // get the balance of this contract for token A
   const balanceA = getTokenBalance(
     new Address(bytesToString(Storage.get(aTokenAddress))),
@@ -763,6 +760,9 @@ export function syncReserves(): void {
   // update reserves
   _updateReserveA(balanceA);
   _updateReserveB(balanceB);
+
+  // Update cumulative prices
+  _updateCumulativePrices();
 
   // Transfer remaining coins to the caller
   transferRemaining(SCBalance, balance(), sent, Context.caller());
