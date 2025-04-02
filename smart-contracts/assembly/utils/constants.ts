@@ -15,3 +15,6 @@ export const MINIMUM_LIQUIDITY = u256.fromU64(1_000);
 
 // Minimum coins required to deploy a token smart contract from the token deployer.Its value is determined by estimating the storage costs.
 export const MINIMUM_COINS_TO_DEPLOY_TOKEN = u64(50_000_000);
+
+// Default route length limit for the swap router
+export const DEFAULT_ROUTE_LENGTH_LIMIT: i32 = 4;
