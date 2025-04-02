@@ -54,7 +54,11 @@ import {
   swapWithMAS,
   syncReserves,
 } from './calls/basicPool';
-import { deploySwapRouterContract } from './calls/swapRouter';
+import {
+  deploySwapRouterContract,
+  getRouteLimit,
+  setRouteLimit,
+} from './calls/swapRouter';
 import { SwapPath } from './classes/swapPath';
 
 dotenv.config();
@@ -716,7 +720,7 @@ describe.skip('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees
   });
 });
 
-describe('Tesing workflow using different decimals tokens', async () => {
+describe.skip('Tesing workflow using different decimals tokens', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
@@ -1231,7 +1235,7 @@ describe.skip('Should fail when trying to swap without passing by the swap Route
   });
 });
 
-describe.skip('Swap Router tests', async () => {
+describe.only('Swap Router tests', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
@@ -1269,6 +1273,18 @@ describe.skip('Swap Router tests', async () => {
     poolContract = new SmartContract(user1Provider, poolAddress);
   });
 
+  test('Should get the swap router address from registry', async () => {
+    const swapRouterAddress = await getSwapRouterAddress(registryContract);
+
+    expect(swapRouterAddress).toBe(swapRouterContract.address);
+  });
+
+  test('Should get the route length limit and expect it to be 4', async () => {
+    const routeLimit = await getRouteLimit(swapRouterContract);
+
+    expect(routeLimit).toBe(4n);
+  });
+
   test('Owner Should be able to update the swap router address', async () => {
     // Deploy a new swap router contract
     const newSwapRouterContract = await deploySwapRouterContract(
@@ -1295,6 +1311,190 @@ describe.skip('Swap Router tests', async () => {
       setSwapRouterAddress(registryContract, swapRouterContract.address),
     ).rejects.toThrowError(
       'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:49 col: 3',
+    );
+  });
+
+  test('Owner should be able to update the route length limit', async () => {
+    // switch swap router contract to user 1 which is the owner
+    swapRouterContract = new SmartContract(
+      user1Provider,
+      swapRouterContract.address,
+    );
+
+    // set the route limit to 5
+    await setRouteLimit(swapRouterContract, 5);
+
+    const routeLimit = await getRouteLimit(swapRouterContract);
+
+    expect(routeLimit).toBe(5n);
+  });
+
+  test('Non owner should not be able to update the route length limit', async () => {
+    // switch swap router contract to user 2 which is not the owner
+    swapRouterContract = new SmartContract(
+      user2Provider,
+      swapRouterContract.address,
+    );
+
+    await expect(setRouteLimit(swapRouterContract, 5)).rejects.toThrowError(
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: CALLER_IS_NOT_REGISTRY_OWNER at assembly/contracts/swapRouter.ts:321 col: 3',
+    );
+  });
+
+  test.skip('User1 adds liquidity to the pool', async () => {
+    // get all pool reserves and expect them to be 0
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0n);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0n);
+
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const aAmount = 10;
+    const bAmount = 10;
+    const minAmountA = 0;
+    const minAmountB = 0;
+    const aDecimals = TOKEN_DEFAULT_DECIMALS;
+    const bDecimals = TOKEN_DEFAULT_DECIMALS;
+
+    // increase allowance of both tokerns amoutns first before adding liquidity
+    await increaseAllownace(
+      aTokenAddress,
+      poolAddress,
+      aAmount,
+      user1Provider,
+      aDecimals,
+    );
+
+    await increaseAllownace(
+      bTokenAddress,
+      poolAddress,
+      bAmount,
+      user1Provider,
+      bDecimals,
+    );
+
+    // add liquidity
+    await addLiquidity(poolContract, aAmount, bAmount, minAmountA, minAmountB);
+
+    // get the reserves after adding liquidity
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    expect(reserveAAfter, 'Reserve A should be 10 after adding liquidity').toBe(
+      parseUnits('10', TOKEN_DEFAULT_DECIMALS),
+    );
+
+    expect(reserveBAfter, 'Reserve B should be 10 after adding liquidity').toBe(
+      parseUnits('10', TOKEN_DEFAULT_DECIMALS),
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    // Expect balances beffore - after should be equal a_amount and b_amount
+    expect(
+      user1ATokenBalanceBefore - user1ATokenBalanceAfter,
+      'User1 A Token balance should decrease after adding liquidity',
+    ).toBe(parseUnits(aAmount.toString(), TOKEN_DEFAULT_DECIMALS));
+
+    expect(
+      user1BTokenBalanceBefore - user1BTokenBalanceAfter,
+      'User1 B Token balance should decrease after adding liquidity',
+    ).toBe(parseUnits(bAmount.toString(), TOKEN_DEFAULT_DECIMALS));
+  });
+
+  test('User 2 try to swap with a route length greater than 4', async () => {
+    // switch to user 2*
+    swapRouterContract = new SmartContract(
+      user2Provider,
+      swapRouterContract.address,
+    );
+
+    const bSwapAmount = 0.5;
+    const minAmountOut = 0.000001;
+
+    // route length is 6
+    const swapRoute = [
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user2Provider.address,
+        parseMas(bSwapAmount.toString()),
+        parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
+      ),
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user2Provider.address,
+        parseMas(bSwapAmount.toString()),
+        parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
+      ),
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user2Provider.address,
+        parseMas(bSwapAmount.toString()),
+        parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
+      ),
+
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user2Provider.address,
+        parseMas(bSwapAmount.toString()),
+        parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
+      ),
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user2Provider.address,
+        parseMas(bSwapAmount.toString()),
+        parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
+      ),
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user2Provider.address,
+        parseMas(bSwapAmount.toString()),
+        parseUnits(minAmountOut.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
+      ),
+    ];
+
+    await expect(
+      swap(swapRouterContract, swapRoute, '0.01'),
+    ).rejects.toThrowError(
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: INVALID_SWAP_PATH_ARRAY_LENGTH at assembly/contracts/swapRouter.ts:89 col: 3',
     );
   });
 });
@@ -2054,7 +2254,7 @@ describe.skip('Minimum liquidity test with different decimals (18 - 6) ', async 
   });
 });
 
-describe.only('Minimum liquidity test with different decimals (9 - 6) ', async () => {
+describe.skip('Minimum liquidity test with different decimals (9 - 6) ', async () => {
   beforeAll(async () => {
     bTokenAddress = wmasAddress; // 9 decimals
     aTokenAddress = 'AS12N76WPYB3QNYKGhV2jZuQs1djdhNJLQgnm7m52pHWecvvj1fCQ'; // 6 decimals
