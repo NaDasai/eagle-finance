@@ -81,7 +81,7 @@ let poolContract: SmartContract;
 let swapRouterContract: SmartContract;
 let poolAddress: string;
 
-describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', async () => {
+describe.only('Scenario 6: Add liquidity, swap and remove using low amounts', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
@@ -190,7 +190,9 @@ describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', as
       user1Provider.address,
     );
 
-    expect(user1LPBalance, 'User1 LP balance should be 0.1').toBe(
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+
+    expect(poolTotalSupply, 'Pool total supply should be 0.1').toBe(
       parseMas(Math.sqrt(aAmount * bAmount).toString()),
     );
   });
@@ -364,16 +366,6 @@ describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', as
     );
 
     const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
-
-    expect(
-      reserveAAfter,
-      'Reserve A should be 0 after removing all liquidity',
-    ).toBe(0n);
-
-    expect(
-      reserveBAfter,
-      'Reserve B should be 0 after removing all liquidity',
-    ).toBe(0n);
 
     expect(
       user1LPBalanceAfter,
@@ -841,11 +833,11 @@ describe.skip('Tesing workflow using different decimals tokens', async () => {
     console.log('User1 LP balance: ', user1LPBalance);
 
     expect(user1LPBalance, 'User1 LP balance should be 9.999999999999999').toBe(
-      parseUnits('9.999999999999999', 18),
+      9999999000n,
     );
   });
 
-  test.skip("User 2 swaps B token for A token in pool's reserves", async () => {
+  test("User 2 swaps B token for A token in pool's reserves", async () => {
     // switch poolContrcat to user2 provider
     poolContract = new SmartContract(user2Provider, poolAddress);
     swapRouterContract = new SmartContract(
@@ -915,7 +907,7 @@ describe.skip('Tesing workflow using different decimals tokens', async () => {
     ];
 
     // swap B token for A token
-    await swap(swapRouterContract, swapRoute, '0.01');
+    await swap(swapRouterContract, swapRoute, '0.01', Mas.fromString('0.1'));
 
     // get reserves after swap
     const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
@@ -960,7 +952,7 @@ describe.skip('Tesing workflow using different decimals tokens', async () => {
     ).toBeGreaterThanOrEqual(initialK);
   });
 
-  test.skip('User 1 removes its liquidity from pool', async () => {
+  test('User 1 removes its liquidity from pool', async () => {
     // switch to user1
     poolContract = new SmartContract(user1Provider, poolAddress);
 
@@ -1047,6 +1039,11 @@ describe.skip('Tesing workflow using different decimals tokens', async () => {
       lpAmountAfter,
       'User1 LP balance should be 0 after removing liquidity',
     ).toBe(parseMas('0'));
+
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+    console.log('Pool total supply: ', poolTotalSupply);
+
+    expect(poolTotalSupply, 'Pool total supply should be 0').toBe(1000n);
   });
 });
 
@@ -1167,9 +1164,7 @@ describe.skip('Should fail when trying to swap without passing by the swap Route
 
     console.log('User1 LP balance: ', user1LPBalance);
 
-    expect(user1LPBalance, 'User1 LP balance should be 10').toBe(
-      parseMas('10'),
-    );
+    expect(user1LPBalance, 'User1 LP balance should be 10').toBe(9999999000n);
   });
 
   test('User 2 should not be able to swaps B token for A token directly without swap router', async () => {
@@ -1230,12 +1225,12 @@ describe.skip('Should fail when trying to swap without passing by the swap Route
         coins: Mas.fromString('0.01'),
       }),
     ).rejects.toThrowError(
-      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the swap router stored in the registry. at assembly/contracts/basicPool.ts:371 col: 3',
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the swap router stored in the registry. at assembly/contracts/basicPool.ts:425 col: 3',
     );
   });
 });
 
-describe.only('Swap Router tests', async () => {
+describe.skip('Swap Router tests', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 

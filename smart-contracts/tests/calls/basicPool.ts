@@ -435,7 +435,7 @@ export async function swap(
   swapContract: SmartContract,
   swapRoute: SwapPath[],
   coinsOnEachSwap: string = '0.01',
-  coins: bigint = Mas.fromString('0.01'),
+  coins: bigint = Mas.fromString('0.1'),
 ) {
   console.log(`swap ${swapRoute.length} times... : ${swapRoute}`);
   const operation = await swapContract.call(
