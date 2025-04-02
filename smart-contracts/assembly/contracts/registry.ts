@@ -52,7 +52,7 @@ export const feeShareProtocolReceiver: StaticArray<u8> = stringToBytes(
 // storage key containing the address of wrapped mas token inside the registry contract
 // we need this key to use on the basic poll contract on swap with Mas to unwrap the mas coin
 export const wmasTokenAddress = stringToBytes('wmasTokenAddress');
-// Storage key containing the flash loan fee value of the pool. value is between 0 and 1
+// Storage key containing the flash loan fee value of the pool.
 export const flashLoanFee = stringToBytes('flashLoanFee');
 // Storage Key containing the address of the swap Router contract to be used on all the pools
 export const swapRouterAddress = stringToBytes('swapRouterAddress');

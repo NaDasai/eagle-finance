@@ -131,12 +131,6 @@ export function getTokenBalance(address: Address): u256 {
 /**
  * Wraps a specified amount of MAS coins into WMAS tokens.
  *
- * This function ensures that the amount of MAS coins transferred is sufficient
- * before proceeding to wrap them into WMAS tokens. It retrieves the registry
- * contract address and the WMAS token address from storage, then uses these
- * addresses to create an instance of the WMAS contract. Finally, it deposits
- * the specified amount of MAS coins into the WMAS contract.
- *
  * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
  * @param wmasAddress - The address of the WMAS token contract.
  * @throws Will throw an error if the transferred MAS coins are insufficient.
@@ -144,11 +138,6 @@ export function getTokenBalance(address: Address): u256 {
 export function wrapMasToWMAS(amount: u256, wmasAddress: Address): void {
   // Get the transferred coins from the operation
   const transferredCoins = Context.transferredCoins();
-
-  // Get the wmas token address
-  // const wmasTokenAddressStored = new IRegistery(
-  //   new Address(registryContractAddressStored),
-  // ).getWmasTokenAddress();
 
   // Get the wmas contract instance
   const wmasToken = new IWMAS(wmasAddress);
@@ -159,7 +148,7 @@ export function wrapMasToWMAS(amount: u256, wmasAddress: Address): void {
 
   const amountToWrap = SafeMath256.add(amount, mintStorageCost);
 
-  // Ensure bAmount is equal to MAS coins transferred
+  // Ensure that transferred coins are greater than or equal to the amount to wrap
   assert(
     u256.fromU64(transferredCoins) >= amountToWrap,
     'INSUFFICIENT MAS COINS TRANSFERRED',

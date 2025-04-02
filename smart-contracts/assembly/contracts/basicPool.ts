@@ -87,6 +87,7 @@ export const bTokenDecimals = stringToBytes('bTokenDecimals');
  * - `bAddress`: Address of token B.
  * - `inputFeeRate`: Input fee rate for the pool.
  * - `feeShareProtocol`: Fee share protocol for the pool.
+ * - `flashLoanFee`: Flash loan fee for the pool.
  * - `registryAddress`: Address of the registry contract.
  * @returns void
  */
@@ -1288,13 +1289,6 @@ function _updateReserveB(amount: u256): void {
 
 /**
  * Wraps a specified amount of MAS coins into WMAS tokens.
- *
- * This function ensures that the amount of MAS coins transferred is sufficient
- * before proceeding to wrap them into WMAS tokens. It retrieves the registry
- * contract address and the WMAS token address from storage, then uses these
- * addresses to create an instance of the WMAS contract. Finally, it deposits
- * the specified amount of MAS coins into the WMAS contract.
- *
  * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
  * @throws Will throw an error if the transferred MAS coins are insufficient.
  */
@@ -1321,7 +1315,7 @@ function _wrapMasToWMAS(amount: u256): void {
 
   const amountToWrap = SafeMath256.add(amount, mintStorageCost);
 
-  // Ensure bAmount is equal to MAS coins transferred
+  // Ensure that transferred coins are greater than or equal to the amount to wrap
   assert(
     u256.fromU64(transferredCoins) >= amountToWrap,
     'INSUFFICIENT MAS COINS TRANSFERRED',
