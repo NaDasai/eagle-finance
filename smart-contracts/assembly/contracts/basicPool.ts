@@ -1711,19 +1711,3 @@ function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
     return u256.Zero;
   }
 }
-
-/**
- * Checks if the caller is the owner of the registry contract.
- * @param registryAddress The address of the registry contract.
- * @returns void
- */
-export function _onlyRegistryOwner(
-  registryAddress: string = bytesToString(Storage.get(registryContractAddress)),
-): void {
-  const registry = new IRegistery(new Address(registryAddress));
-
-  assert(
-    Context.caller().toString() == registry.ownerAddress(),
-    'CALLER_IS_NOT_REGISTRY_OWNER',
-  );
-}
