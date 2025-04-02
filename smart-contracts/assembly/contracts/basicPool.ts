@@ -47,23 +47,23 @@ import {
 } from '../types/basicPool';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 
-// Storage key containning the value of the token A reserve inside the pool
+// Storage key containing the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
-// Storage key containning the value of the token B reserve inside the pool
+// Storage key containing the value of the token B reserve inside the pool
 export const bTokenReserve = stringToBytes('bTokenReserve');
-// Storage key containning address of the token A inside the pool
+// Storage key containing address of the token A inside the pool
 export const aTokenAddress = stringToBytes('tokenA');
-// storage key containning address of the token B inside the pool
+// storage key containing address of the token B inside the pool
 export const bTokenAddress = stringToBytes('tokenB');
-// Storage key containning the accumulated fee protocol of the token A inside the pool
+// Storage key containing the accumulated fee protocol of the token A inside the pool
 export const aProtocolFee = stringToBytes('aProtocolFee');
-// Storage key containning the accumulated fee protocol of the token B inside the pool
+// Storage key containing the accumulated fee protocol of the token B inside the pool
 export const bProtocolFee = stringToBytes('bProtocolFee');
-// Storage key containning the fee rate value of the pool. value is between 0 and 1
+// Storage key containing the fee rate value of the pool. value is between 0 and 1
 export const feeRate = stringToBytes('feeRate');
-// Storage key containning the fee share protocol value of the pool. value is between 0 and 1
+// Storage key containing the fee share protocol value of the pool. value is between 0 and 1
 export const feeShareProtocol = stringToBytes('feeShareProtocol');
-// Storage key containning the address of the registry contract inside the pool
+// Storage key containing the address of the registry contract inside the pool
 export const registryContractAddress = stringToBytes('registry');
 // Create new liquidity manager representing the pool LP token
 const storagePrefixManager = new StoragePrefixManager();
@@ -73,11 +73,11 @@ export const aPriceCumulative = stringToBytes('aPriceCumulative');
 export const bPriceCumulative = stringToBytes('bPriceCumulative');
 // Storage key for last timestamp
 export const lastTimestamp = stringToBytes('lastTimestamp');
-// Storage key containning the flash loan fee value of the pool. value is between 0 and 1
+// Storage key containing the flash loan fee value of the pool. value is between 0 and 1
 export const flashLoanFee = stringToBytes('flashLoanFee');
-// Storage key containning the decimals of the token A inside the pool
+// Storage key containing the decimals of the token A inside the pool
 export const aTokenDecimals = stringToBytes('aTokenDecimals');
-// Storage key containning the decimals of the token B inside the pool
+// Storage key containing the decimals of the token B inside the pool
 export const bTokenDecimals = stringToBytes('bTokenDecimals');
 
 /**
