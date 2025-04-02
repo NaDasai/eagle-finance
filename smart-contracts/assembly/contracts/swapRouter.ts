@@ -83,7 +83,7 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       // Update the amountIn for the next swap if it's not the last swap and the swap isTransferFrom is false which will mean that this is not multiswap by splitting the original amoutn by different pools but it is is a multihop swap
       if (i < swapRouteLength - 1) {
         const nextSwapPath = swapPathArray[i + 1];
-        if (!nextSwapPath.isTranferFrom) {
+        if (!nextSwapPath.isTransferFrom) {
           nextSwapPath.amountIn = amoutOut;
         }
       }
@@ -137,7 +137,7 @@ function _swap(
 
   const tokenIn = new IMRC20(swapPath.tokenInAddress);
 
-  if (swapPath.isTranferFrom) {
+  if (swapPath.isTransferFrom) {
     if (isNativeCoinIn) {
       // Wrap mas before swap and transfer wmas
       const registryContractAddressStored = bytesToString(
