@@ -62,8 +62,8 @@ export async function createNewPoolWithLiquidity(
   console.log('Creating new pool with liquidity...');
 
   const coinsToSendOnAddLiquidity = isBNativeMas
-    ? parseMas(Number(bAmount + 30).toString())
-    : Mas.fromString('30');
+    ? parseMas(Number(bAmount + 12).toString())
+    : Mas.fromString('12');
 
   console.log('coinsToSendOnAddLiquidity', coinsToSendOnAddLiquidity);
   try {

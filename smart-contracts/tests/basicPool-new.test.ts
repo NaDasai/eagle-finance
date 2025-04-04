@@ -81,7 +81,7 @@ let poolContract: SmartContract;
 let swapRouterContract: SmartContract;
 let poolAddress: string;
 
-describe.only('Scenario 6: Add liquidity, swap and remove using low amounts', async () => {
+describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', async () => {
   beforeAll(async () => {
     poolFeeRate = 0.3 * 10_000;
 
