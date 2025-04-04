@@ -18,3 +18,11 @@ export const MINIMUM_COINS_TO_DEPLOY_TOKEN = u64(50_000_000);
 
 // Default route length limit for the swap router
 export const DEFAULT_ROUTE_LENGTH_LIMIT: i32 = 4;
+
+// Define the allowed input fees
+export const ALLOWED_INPUT_FEES: u64[] = [
+  u64(0.01 * f64(ONE_PERCENT)),
+  u64(0.05 * f64(ONE_PERCENT)),
+  u64(0.3 * f64(ONE_PERCENT)),
+  u64(1 * ONE_PERCENT),
+];

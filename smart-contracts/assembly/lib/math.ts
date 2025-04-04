@@ -1,4 +1,4 @@
-import { ONE_PERCENT } from '../utils/constants';
+import { ALLOWED_INPUT_FEES, ONE_PERCENT } from '../utils/constants';
 import { u256 } from 'as-bignum/assembly';
 import { SafeMath256 } from './safeMath';
 /**
@@ -18,16 +18,8 @@ export function isBetweenZeroAndThirtyPercent(value: u64): bool {
 
 // Ensure that the input fee is allowed
 export function assertIsAllowedInputFee(value: u64): void {
-  // Define the allowed input fees
-  const allowedInputFees = [
-    u64(0.01 * f64(ONE_PERCENT)),
-    u64(0.05 * f64(ONE_PERCENT)),
-    u64(0.3 * f64(ONE_PERCENT)),
-    u64(1 * ONE_PERCENT),
-  ];
-
   // Assert that the value is one of the allowed input fees
-  assert(allowedInputFees.includes(value), 'INPUT_FEE_NOT_ALLOWED');
+  assert(ALLOWED_INPUT_FEES.includes(value), 'INPUT_FEE_NOT_ALLOWED');
 }
 
 /**
