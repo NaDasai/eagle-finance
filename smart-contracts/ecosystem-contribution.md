@@ -1,20 +1,20 @@
-# EagleFi: Enhancing u256 Capabilities for the Massa Ecosystem
+# EagleFi: Enhancing u256 capabilities for the Massa Ecosystem
 
 The development of EagleFi, an automated market maker (AMM) DEX on the Massa blockchain, highlighted a need for more robust tooling and examples around `u256` arithmetic, which is fundamental for DeFi applications. While Massa provides the `u256` type via `as-bignum`, practical implementations of safe arithmetic and essential mathematical functions like square root were less prevalent in readily available examples within the ecosystem during our development.
 
-EagleFi addressed this by implementing and refining several `u256`-focused utilities. We believe sharing these solutions can significantly benefit other developers building complex financial applications on Massa. This document outlines key `u256` libraries and patterns derived from the [EagleFi codebase](https://github.com/NaDasai/eagle-finance), which other projects can adopt or learn from.
+EagleFi addressed this by implementing and refining several `u256` focused utilities. We believe sharing these solutions can significantly benefit other developers building complex financial applications on Massa. This document outlines key `u256` libraries and patterns derived from the [EagleFi codebase](https://github.com/NaDasai/eagle-finance), which other projects can adopt or learn from.
 
 ## Table of Contents
 
-1.  [Contribution: SafeMath Library for u256 Arithmetic](#1-contribution-safemath-library-for-u256-arithmetic)
-2.  [Contribution: Integer Square Root (sqrt) for u256](#2-contribution-integer-square-root-sqrt-for-u256)
+1.  [SafeMath Library for u256 Arithmetic](#1-safemath-library-for-u256-arithmetic)
+2.  [Integer Square Root (sqrt) for u256](#2-integer-square-root-sqrt-for-u256)
 3.  [Reference Implementation: Practical SafeMath Usage](#3-reference-implementation-practical-safemath-usage)
 4.  [Reference Implementation: u256 Support in Liquidity Management](#4-reference-implementation-u256-support-in-liquidity-management)
 5.  [Conclusion](#5-conclusion)
 
 ---
 
-## 1. Contribution: SafeMath Library for u256 Arithmetic
+## 1. SafeMath Library for u256 Arithmetic
 
 **Problem:** Financial calculations in DeFi often involve very large numbers (u256). Standard integer arithmetic lacks protection against overflows and underflows, which can lead to critical vulnerabilities and incorrect calculations.
 
@@ -82,7 +82,7 @@ export class SafeMath256 {
 ```
 *   *Find the full library in:* `[https://github.com/NaDasai/eagle-finance/blob/55592c9b82fd08d47c5741aca76e97a5673b3061/smart-contracts/assembly/lib/safeMath.ts#L107]`
 
-## 2. Contribution: Integer Square Root (sqrt) for u256
+## 2. Integer Square Root (sqrt) for u256
 
 **Problem:** Calculating the integer square root is a common requirement in AMM formulas (e.g., for initial liquidity minting based on geometric mean in Uniswap V2 style pools), but it's not a standard operation provided for `u256` types, and implementations were not readily available as standard libraries in the Massa ecosystem.
 
@@ -260,5 +260,5 @@ export function addLiquidity(binaryArgs: StaticArray<u8>): addLiquidityData {
 
 ## 5. Conclusion
 
-EagleFi's development journey necessitated significant work in establishing robust and safe handling of `u256` values, an area with limited examples in the early Massa ecosystem. By contributing the `SafeMath256` library, an efficient `sqrt` implementation for `u256`, and providing reference implementations for their practical usage within core DeFi logic like liquidity management, we hope to lower the barrier for other developers building sophisticated financial applications on Massa. We encourage the community to utilize, adapt, and build upon these `u256`-focused contributions.
+EagleFi's development journey necessitated significant work in establishing robust and safe handling of `u256` values, an area with limited examples in the early Massa ecosystem. By contributing the `SafeMath256` library, an efficient `sqrt` implementation for `u256`, and providing reference implementations for their practical usage within core DeFi logic like liquidity management, we hope to lower the barrier for other developers building sophisticated financial applications on Massa. We encourage the community to utilize, adapt, and build upon these `u256` focused contributions.
 
