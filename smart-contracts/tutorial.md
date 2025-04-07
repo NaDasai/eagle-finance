@@ -26,11 +26,12 @@ Welcome! This tutorial guides you through building smart contracts on the Massa 
 9. [Deploying Contracts from Other Contracts](#9-deploying-contracts-from-other-contracts)
 10. [Working with Complex Data: Serializable Objects](#10-working-with-complex-data-serializable-objects)
 11. [Best Practice: Refunding Storage Costs](#11-best-practice-refunding-storage-costs)
-12. [Security Pattern: Reentrancy Guard](#12-security-pattern-reentrancy-guard)
+12. [Secure Ownership with Two-Step Transfer](#12-secure-ownership-with-two-step-transfer)
+13. [Security Pattern: Reentrancy Guard](#13-security-pattern-reentrancy-guard)
 
 **Conclusion**
 
-13. [Conclusion](#13-conclusion)
+14. [Conclusion](#14-conclusion)
 
 ---
 
@@ -630,7 +631,94 @@ Users interacting with smart contracts often send more MAS coins than strictly n
     }
     ```
 
-## 12. Security Pattern: Reentrancy Guard
+## 12. Secure Ownership with Two-Step Transfer
+
+Standard single-step ownership transfers in smart contracts carry the risk of irrecoverably losing control if the new owner's address is entered incorrectly. EagleFi implements a robust two-step ownership transfer mechanism. This pattern significantly enhances security by requiring confirmation from the proposed new owner before the transfer is finalized.
+
+**How it Works:**
+ 1.  The current owner initiates a transfer, designating a `pendingOwner`.
+ 2.  The designated `pendingOwner` must actively call an `acceptOwnership` function to claim ownership.
+ 
+Here is an example of how this pattern is implemented in EagleFi. you can find the full implementation in the `utils/ownership.ts`:
+
+ ```typescript	
+ // Storage key for the owner
+ const OWNER_KEY = 'OWNER';
+ // Storage key for the pending owner
+ const pendingOwner = 'PENDING_OWNER';
+ 
+ 
+ /**
+  * Sets the owner of the contract.
+  *
+  * @param owner - The address to set as owner.
+  */
+ export function _setOwner(owner: Address): void {
+   Storage.set(OWNER_KEY, owner.toString());
+ }
+ 
+ /**
+  * Returns the owner address of the contract.
+  *
+  * @returns The owner address.
+  */
+ export function _ownerAddress(): Address {
+   return new Address(Storage.get(OWNER_KEY));
+ }
+ 
+ 
+ /**
+  * Transfers the ownership of the contract to a new owner.
+  *
+  * @param binaryArgs - The binary arguments containing the new owner address.
+  */
+ export function transferOwnership(binaryArgs: StaticArray<u8>): void {
+   const args = new Args(binaryArgs);
+   const newOwner = args.nextString().expect('Invalid new owner');
+ 
+   // Ensure that the caller is the owner
+   _onlyOwner();
+ 
+   // Ensure that the new owner address is valid
+   assert(validateAddress(newOwner), 'INVALID_OWNER_ADDRESS');
+ 
+   // Set a new pending owner
+   Storage.set(pendingOwner, newOwner);
+ 
+   // Emit an event
+   generateEvent(ownershipTransferStartedEvent(_ownerAddress(), new Address(newOwner)));
+ }
+ 
+ /**
+  * Accepts the ownership transfer of the contract.
+  */
+ export function acceptOwnership(): void {
+   const caller = Context.caller();
+   const storedPendingOwner = Storage.get(pendingOwner);
+ 
+   // Ensure that the caller is the pending owner
+   assert(caller.toString() === storedPendingOwner, 'CALLER_IS_NOT_PENDING_OWNER');
+ 
+   // Set the new owner
+   Storage.set(OWNER_KEY, caller.toString());
+ 
+   // Delete the pending owner
+   Storage.del(pendingOwner);
+ 
+   // Emit an event
+   generateEvent(ownershipTransferAcceptedEvent(_ownerAddress(), caller));
+ }
+ 
+ // Example Usage in Constructor:
+ export function constructor(binaryArgs: StaticArray<u8>): void {
+   // Set the deployer as the initial owner
+   _setOwner(Context.caller());
+ 
+   // Other initialization code...
+ }
+```
+
+## 13. Security Pattern: Reentrancy Guard
 
 Reentrancy attacks can occur when a contract makes an external call to another (potentially malicious) contract, which then immediately calls back into the original contract before the first call has finished executing. Massa does not inherently prevent this. You can implement a reentrancy guard using a simple locking mechanism (status flag in storage).
 
@@ -743,7 +831,7 @@ Reentrancy attacks can occur when a contract makes an external call to another (
 
 # Conclusion
 
-## 13. Conclusion
+## 14. Conclusion
 
 This tutorial has walked you through key aspects of Massa smart contract development using practical examples from the EagleFi DEX, progressing from beginner to advanced topics. You've seen how to set up a project, handle inputs and state, interact with native MAS and MRC20 tokens, deploy contracts programmatically, use serializable objects, and implement important patterns like gas refunding and reentrancy protection.
 
