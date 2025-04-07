@@ -46,6 +46,7 @@ import {
   GetSwapOutResult,
 } from '../types/basicPool';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
+import { denormalizeFromDecimals, normalizeToDecimals } from '../lib/math';
 
 // Storage key containing the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -467,6 +468,12 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const lpFee = swapOutData.lpFee;
   const protocolFee = swapOutData.protocolFee;
   const amountInAfterFee = swapOutData.amountInAfterFee;
+  const normAmountInAfterFee = swapOutData.normAmountInAfterFee;
+  const normReserveIn = swapOutData.normReserveIn;
+  const normReserveOut = swapOutData.normReserveOut;
+  const normAmountOut = swapOutData.normAmountOut;
+  const inDecimals = swapOutData.inDecimals;
+  const outDecimals = swapOutData.outDecimals;
 
   // Get the balance of the smart contract for the tokenIn
   const contractInBalance = new IMRC20(new Address(tokenInAddress)).balanceOf(
@@ -506,9 +513,12 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
 
   // K value invarient check before updating the reserves
   // newK = (reserveIn + amountInAfterFee + lpFee) * (reserveOut - amountOut)
-  const newK = SafeMath256.mul(newReserveIn, newReserveOut);
+  const newK = SafeMath256.mul(
+    normalizeToDecimals(newReserveIn, inDecimals),
+    normalizeToDecimals(newReserveOut, outDecimals),
+  );
   // oldK = reserveIn * reserveOut
-  const oldK = SafeMath256.mul(reserveIn, reserveOut);
+  const oldK = SafeMath256.mul(normReserveIn, normReserveOut);
 
   // Final K-value invariant check
   assert(newK >= oldK, 'SWAP: INVARIENT_CHECK_FAILED_K');
@@ -667,17 +677,28 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
+  // Get the decimals of the two tokens in the pool
+  const aDecimalsStored = bytesToU32(Storage.get(aTokenDecimals));
+  const bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
+
+  // Normalize reserves for proper proportional math.
+  const normReserveA = normalizeToDecimals(reserveA, aDecimalsStored);
+  const normReserveB = normalizeToDecimals(reserveB, bDecimalsStored);
+
   // amountAOut = (lpAmount * reserveA) / totalSupply
-  const amountAOut = SafeMath256.div(
-    SafeMath256.mul(lpAmount, reserveA),
+  // amountAOut = (lpAmount * reserveA) / totalSupply
+  const normAmountAOut = SafeMath256.div(
+    SafeMath256.mul(lpAmount, normReserveA),
     totalSupply,
   );
+  const amountAOut = denormalizeFromDecimals(normAmountAOut, aDecimalsStored);
 
   // amountBOut = (lpAmount * reserveB) / totalSupply
-  const amountBOut = SafeMath256.div(
-    SafeMath256.mul(lpAmount, reserveB),
+  const normAmountBOut = SafeMath256.div(
+    SafeMath256.mul(lpAmount, normReserveB),
     totalSupply,
   );
+  const amountBOut = denormalizeFromDecimals(normAmountBOut, bDecimalsStored);
 
   // check if the amountAOut and amountBOut are greater than or equal to minAmountA and minAmountB
   assert(
@@ -874,8 +895,15 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   const aReserve = _getLocalReserveA();
   const bReserve = _getLocalReserveB();
 
+  // Get the decimals of the two tokens in the pool
+  let aDecimalsStored = bytesToU32(Storage.get(aTokenDecimals));
+  let bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
+
   // Get the pool K value that will be used later to ensure that the flash loan is valid
-  const poolK = SafeMath256.mul(aReserve, bReserve);
+  const poolK = SafeMath256.mul(
+    normalizeToDecimals(aReserve, aDecimalsStored),
+    normalizeToDecimals(bReserve, bDecimalsStored),
+  );
 
   // Get the pool flash loan fee
   const poolFeeRate = _getFlashLoanFee();
@@ -945,10 +973,9 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
 
   // Get the new pool K value
   const newPoolK = SafeMath256.mul(
-    aContractBalanceAfter,
-    bContractBalanceAfter,
+    normalizeToDecimals(aContractBalanceAfter, aDecimalsStored),
+    normalizeToDecimals(bContractBalanceAfter, bDecimalsStored),
   );
-
   // Ensure that the new pool K value is greater than or equal to the old pool K value
   assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
 
@@ -1490,8 +1517,22 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
 
+  // Normalize amountInAfterFee, reserveIn, and reserveOut to 18 decimals
+  const normAmountInAfterFee = normalizeToDecimals(
+    amountInAfterFee,
+    inDecimals,
+  );
+  const normReserveIn = normalizeToDecimals(reserveIn, inDecimals);
+  const normReserveOut = normalizeToDecimals(reserveOut, outDecimals);
+
   // Calculate the amount of tokens to be swapped
-  const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
+  const normAmountOut = getAmountOut(
+    normAmountInAfterFee,
+    normReserveIn,
+    normReserveOut,
+  );
+
+  const amountOut = denormalizeFromDecimals(normAmountOut, outDecimals);
 
   return new GetSwapOutResult(
     amountOut,
@@ -1502,10 +1543,10 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
     lpFee,
     protocolFee,
     amountInAfterFee,
-    u256.Zero, // normAmountInAfterFee
-    u256.Zero, // normReserveIn
-    u256.Zero, // normReserveOut
-    u256.Zero, // normAmountOut
+    normAmountInAfterFee,
+    normReserveIn,
+    normReserveOut,
+    normAmountOut,
     inDecimals,
     outDecimals,
   );
@@ -1552,10 +1593,21 @@ function _getAddLiquidityData(
   let aDecimalsStored = bytesToU32(Storage.get(aTokenDecimals));
   let bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
 
+  // Normalize the amounts to default decimals (18)
+  const normAmountA = normalizeToDecimals(amountA, aDecimalsStored);
+  const normAmountB = normalizeToDecimals(amountB, bDecimalsStored);
+
+  // Also normalize reserves for proper proportional math.
+  const normReserveA = normalizeToDecimals(reserveA, aDecimalsStored);
+  const normReserveB = normalizeToDecimals(reserveB, bDecimalsStored);
+
+  let normFinalAmountA = normAmountA;
+  let normFinalAmountB = normAmountB;
+
   if (reserveA == u256.Zero && reserveB == u256.Zero) {
     // Use normalized values to calculate liquidity:
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
-    const product = SafeMath256.mul(amountA, amountB);
+    const product = SafeMath256.mul(normAmountA, normAmountB);
     // liquidity = sqrt(product) - MINIMUM_LIQUIDITY
     liquidity = SafeMath256.sub(SafeMath256.sqrt(product), MINIMUM_LIQUIDITY);
     isInitialLiquidity = true;
@@ -1564,22 +1616,25 @@ function _getAddLiquidityData(
     // Calculate the optimal normalized amount of token B based on provided token A.
     // amountBOptimal = (amountA * reserveB) / reserveA
     const amountBOptimal = SafeMath256.div(
-      SafeMath256.mul(amountA, reserveB),
-      reserveA,
+      SafeMath256.mul(normAmountA, normReserveB),
+      normReserveA,
     );
 
-    if (amountBOptimal > amountB) {
+    if (amountBOptimal > normAmountB) {
       // User provided less token B than optimal.
       // Recalculate optimal normalized amount of token A given token B.
       // amountAOptimal = (amountB * reserveA) / reserveB
       const amountAOptimal = SafeMath256.div(
-        SafeMath256.mul(amountB, reserveA),
-        reserveB,
+        SafeMath256.mul(normAmountB, normReserveA),
+        normReserveB,
       );
-      finalAmountA = amountAOptimal;
+      normFinalAmountA = amountAOptimal;
+      // Convert the optimal normalized token A amount back to its raw value.
+      finalAmountA = denormalizeFromDecimals(amountAOptimal, aDecimalsStored);
     } else {
       // User provided more B than needed, adjust B
-      finalAmountB = amountBOptimal;
+      normFinalAmountB = amountBOptimal;
+      finalAmountB = denormalizeFromDecimals(amountBOptimal, bDecimalsStored);
     }
 
     // assert that the finalAmountA and finalAmountB are greater than minAmountA and minAmountB
@@ -1588,13 +1643,13 @@ function _getAddLiquidityData(
 
     // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
     const liqA = SafeMath256.div(
-      SafeMath256.mul(finalAmountA, totalSupply),
-      reserveA,
+      SafeMath256.mul(normFinalAmountA, totalSupply),
+      normReserveA,
     );
 
     const liqB = SafeMath256.div(
-      SafeMath256.mul(finalAmountB, totalSupply),
-      reserveB,
+      SafeMath256.mul(normFinalAmountB, totalSupply),
+      normReserveB,
     );
 
     liquidity = liqA < liqB ? liqA : liqB;
