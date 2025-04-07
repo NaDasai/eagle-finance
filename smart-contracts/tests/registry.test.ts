@@ -221,7 +221,7 @@ describe.skip('Create new pool without liquidity', async () => {
   });
 });
 
-describe.only('Create new pool with liquidity', async () => {
+describe.skip('Create new pool with liquidity', async () => {
   beforeAll(async () => {
     registryContract = await deployRegistryContract(user1Provider, wmasAddress);
   });

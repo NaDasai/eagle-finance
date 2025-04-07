@@ -33,7 +33,7 @@ export async function createNewPool(
       .addString(bTokenAddress)
       .addU64(BigInt(inputFeeRate))
       .serialize(),
-    { coins: Mas.fromString('8.5') },
+    { coins: Mas.fromString('9') },
   );
 
   const status = await operation.waitSpeculativeExecution();

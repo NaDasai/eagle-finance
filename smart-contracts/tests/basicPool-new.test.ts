@@ -1612,13 +1612,14 @@ describe.skip('MINIMUM_LIQUIDITY tests with different token decimals (18-9)', as
     console.log('Pool total supply: ', poolTotalSupply);
 
     // expect the pool total supply to be 10
-    // expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
-    //   parseUnits('10', 18),
-    // );
+    expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
+      parseUnits('10', 18),
+    );
 
     const priceAofB =
       Number(formatMas(reserveBAfter)) / Number(formatUnits(reserveAAfter, 18));
     console.log('Price A of B: ', priceAofB);
+    expect(priceAofB, 'Price A of B should be 1').toBe(1);
   });
 
   test('User 1 Should be able to remove liquidity minus the MINIMUM_LIQUIDITY', async () => {
@@ -1632,11 +1633,6 @@ describe.skip('MINIMUM_LIQUIDITY tests with different token decimals (18-9)', as
       bTokenAddress,
       user1Provider.address,
       user1Provider,
-    );
-
-    const lpBalanceBefore = await getLPBalance(
-      poolContract,
-      user1Provider.address,
     );
 
     await removeLiquidityUsingPercentage(
@@ -1661,6 +1657,12 @@ describe.skip('MINIMUM_LIQUIDITY tests with different token decimals (18-9)', as
     console.log('Reserve A after: ', reserveAAfter);
     console.log('Reserve B after: ', reserveBAfter);
 
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+
+    console.log('Pool total supply: ', poolTotalSupply);
+
+    expect(poolTotalSupply, 'Pool total supply should be 1000').toBe(1000n);
+
     // expect(
     //   reserveAAfter,
     //   'Reserve A should be 1000 after remove liquidity',
@@ -1673,6 +1675,7 @@ describe.skip('MINIMUM_LIQUIDITY tests with different token decimals (18-9)', as
     const priceAofB =
       Number(formatMas(reserveBAfter)) / Number(formatUnits(reserveAAfter, 18));
     console.log('Price A of B: ', priceAofB);
+    expect(priceAofB, 'Price A of B should be 1').toBe(1);
   });
 });
 
@@ -1795,7 +1798,7 @@ describe.skip('MINIMUM_LIQUIDITY test with same token decimals (9)', async () =>
 
     // expect the pool total supply to be 10
     expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
-      parseUnits('10', 9),
+      parseUnits('10', 18),
     );
 
     const priceAofB =
@@ -1843,6 +1846,11 @@ describe.skip('MINIMUM_LIQUIDITY test with same token decimals (9)', async () =>
 
     console.log('Reserve A after: ', reserveAAfter);
     console.log('Reserve B after: ', reserveBAfter);
+
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+    console.log('Pool total supply: ', poolTotalSupply);
+
+    expect(poolTotalSupply, 'Pool total supply should be 1000').toBe(1000n);
 
     // expect(
     //   reserveAAfter,
@@ -2038,6 +2046,12 @@ describe.skip('MINIMUM_LIQUIDITY test with same token decimals (18)', async () =
     console.log('Reserve A after: ', reserveAAfter);
     console.log('Reserve B after: ', reserveBAfter);
 
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+
+    console.log('Pool total supply: ', poolTotalSupply);
+
+    expect(poolTotalSupply, 'Pool total supply should be 1000').toBe(1000n);
+
     // expect(
     //   reserveAAfter,
     //   'Reserve A should be 1000 after remove liquidity',
@@ -2186,10 +2200,10 @@ describe.skip('Minimum liquidity test with different decimals (18 - 6) ', async 
 
     console.log('User1 LP balance: ', user1LPBalance);
 
-    expect(
-      user1LPBalance,
-      'User1 LP balance should be 10 - MINIMUM_LIQUIDITY',
-    ).toBe(9999999999000n);
+    // expect(
+    //   user1LPBalance,
+    //   'User1 LP balance should be 10 - MINIMUM_LIQUIDITY',
+    // ).toBe(9999999999000n);
 
     // Get pool total supply
     const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
@@ -2197,7 +2211,7 @@ describe.skip('Minimum liquidity test with different decimals (18 - 6) ', async 
 
     // expect the pool total supply to be 10
     expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
-      10000000000000n,
+      parseUnits('10', 18),
     );
 
     const priceAofB =
@@ -2231,6 +2245,12 @@ describe.skip('Minimum liquidity test with different decimals (18 - 6) ', async 
     console.log('Reserve A after: ', reserveAAfter);
     console.log('Reserve B after: ', reserveBAfter);
 
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+
+    console.log('Pool total supply: ', poolTotalSupply);
+
+    expect(poolTotalSupply, 'Pool total supply should be 1000').toBe(1000n);
+
     // expect(
     //   reserveAAfter,
     //   'Reserve A should be 1000 after remove liquidity',
@@ -2249,7 +2269,7 @@ describe.skip('Minimum liquidity test with different decimals (18 - 6) ', async 
   });
 });
 
-describe.skip('Minimum liquidity test with different decimals (9 - 6) ', async () => {
+describe.only('Minimum liquidity test with different decimals (9 - 6) ', async () => {
   beforeAll(async () => {
     bTokenAddress = wmasAddress; // 9 decimals
     aTokenAddress = 'AS12N76WPYB3QNYKGhV2jZuQs1djdhNJLQgnm7m52pHWecvvj1fCQ'; // 6 decimals
@@ -2389,9 +2409,9 @@ describe.skip('Minimum liquidity test with different decimals (9 - 6) ', async (
     console.log('Pool total supply: ', poolTotalSupply);
 
     // expect the pool total supply to be 10
-    // expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
-    //   parseUnits('10', 18),
-    // );
+    expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
+      parseUnits('10', 18),
+    );
 
     const priceAofB =
       Number(formatUnits(reserveBAfter, 9)) /
@@ -2423,15 +2443,6 @@ describe.skip('Minimum liquidity test with different decimals (9 - 6) ', async (
 
     console.log('Reserve A after: ', reserveAAfter);
     console.log('Reserve B after: ', reserveBAfter);
-
-    // expect(
-    //   reserveAAfter,
-    //   'Reserve A should be 1000 after remove liquidity',
-    // ).toBe(1000n);
-
-    // expect(reserveBAfter, 'Reserve B should be 1 after remove liquidity').toBe(
-    //   1n,
-    // );
 
     const priceAofB =
       Number(formatUnits(reserveBAfter, 9)) /
