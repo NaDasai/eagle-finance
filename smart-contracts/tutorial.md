@@ -25,7 +25,7 @@ Welcome! This tutorial guides you through building smart contracts on the Massa 
 
 9. [Deploying Contracts from Other Contracts](#9-deploying-contracts-from-other-contracts)
 10. [Working with Complex Data: Serializable Objects](#10-working-with-complex-data-serializable-objects)
-11. [Best Practice: Refunding Excess Gas Fees](#11-best-practice-refunding-excess-gas-fees)
+11. [Best Practice: Refunding Storage Costs](#11-best-practice-refunding-storage-costs)
 12. [Security Pattern: Reentrancy Guard](#12-security-pattern-reentrancy-guard)
 
 **Conclusion**
@@ -561,7 +561,7 @@ Instead of passing numerous individual arguments to functions, Massa allows you 
     }
     ```
 
-## 11. Best Practice: Refunding Excess Gas Fees
+## 11. Best Practice: Refunding Storage Costs
 
 Users interacting with smart contracts often send more MAS coins than strictly necessary to cover potential storage costs incurred during execution. It's essential to implement a mechanism to refund any unused MAS back to the caller.
 
