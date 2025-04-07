@@ -15,18 +15,21 @@ Welcome! This tutorial guides you through building smart contracts on the Massa 
 4.  [Basic State Management (Storage)](#4-basic-state-management-storage)
 
 **Intermediate**
+
 5.  [Utility: Wrapping Native MAS to WMAS](#5-utility-wrapping-native-mas-to-wmas)
 6.  [Working with Native MAS Coins](#6-working-with-native-mas-coins)
 7.  [Creating Your Custom MRC20 Token](#7-creating-your-custom-mrc20-token)
 8.  [Interacting with MRC20 Tokens](#8-interacting-with-mrc20-tokens)
 
 **Advanced**
-9.  [Deploying Contracts from Other Contracts](#9-deploying-contracts-from-other-contracts)
+
+9. [Deploying Contracts from Other Contracts](#9-deploying-contracts-from-other-contracts)
 10. [Working with Complex Data: Serializable Objects](#10-working-with-complex-data-serializable-objects)
 11. [Best Practice: Refunding Excess Gas Fees](#11-best-practice-refunding-excess-gas-fees)
 12. [Security Pattern: Reentrancy Guard](#12-security-pattern-reentrancy-guard)
 
 **Conclusion**
+
 13. [Conclusion](#13-conclusion)
 
 ---
