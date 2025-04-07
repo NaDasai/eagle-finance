@@ -1,28 +1,45 @@
-# Learn Massa Smart Contracts by Example: Lessons from Eagle Finance
+You are right to double-check! It looks like you made the necessary edits correctly. The Table of Contents numbering and the corresponding section header numbering in the file you provided are sequential and align perfectly with the Beginner, Intermediate, and Advanced structure.
 
-Welcome! This tutorial guides you through building smart contracts on the Massa blockchain using practical examples drawn directly from the [Eagle Finance DEX project](https://github.com/NaDasai/eagle-finance). We'll cover essential concepts, from setting up your project to interacting with tokens and implementing security patterns.
+Here is the file content back to you, confirmed as having the correct structure and numbering based on your last version:
+
+--- START OF CORRECTED FILE tutorial.md ---
+
+# Learn Massa Smart Contracts by Example: Lessons from EagleFi
+
+Welcome! This tutorial guides you through building smart contracts on the Massa blockchain using practical examples drawn directly from the [EagleFi DEX project](https://github.com/NaDasai/eagle-finance). We'll cover essential concepts, starting with the basics and progressing to more advanced techniques.
 
 **Target Audience:** Developers looking to learn Massa smart contract development using AssemblyScript. Familiarity with basic programming concepts is assumed.
 
-**Source Code:** All examples are simplified snippets from the full Eagle Finance project, available on [GitHub](https://github.com/NaDasai/eagle-finance).
+**Source Code:** All examples are simplified snippets from the full EagleFi project, available on [GitHub](https://github.com/NaDasai/eagle-finance).
 
 ## Table of Contents
 
+**Beginner**
 1.  [Setting Up Your Massa Project](#1-setting-up-your-massa-project)
 2.  [Handling Function Inputs](#2-handling-function-inputs)
-3.  [Accessing Contract & Transaction Context](#3-accessing-contract--transaction-context)
-4.  [Managing Contract State (Storage)](#4-managing-contract-state-storage)
-5.  [Working with Native MAS Coins](#5-working-with-native-mas-coins)
-6.  [Creating Your Custom MRC20 Token](#6-creating-your-custom-mrc20-token)
-7.  [Deploying Contracts from Other Contracts](#7-deploying-contracts-from-other-contracts)
+3.  [Accessing Basic Contract & Transaction Context](#3-accessing-basic-contract--transaction-context)
+4.  [Basic State Management (Storage)](#4-basic-state-management-storage)
+
+**Intermediate**
+5.  [Utility: Wrapping Native MAS to WMAS](#5-utility-wrapping-native-mas-to-wmas)
+6.  [Working with Native MAS Coins](#6-working-with-native-mas-coins)
+7.  [Creating Your Custom MRC20 Token](#7-creating-your-custom-mrc20-token)
 8.  [Interacting with MRC20 Tokens](#8-interacting-with-mrc20-tokens)
-9.  [Working with Complex Data: Serializable Objects](#9-working-with-complex-data-serializable-objects)
-10. [Best Practice: Refunding Excess Gas Fees](#10-best-practice-refunding-excess-gas-fees)
-11. [Security Pattern: Reentrancy Guard](#11-security-pattern-reentrancy-guard)
-12. [Utility: Wrapping Native MAS to WMAS](#12-utility-wrapping-native-mas-to-wmas)
+
+**Advanced**
+9.  [Deploying Contracts from Other Contracts](#9-deploying-contracts-from-other-contracts)
+10. [Working with Complex Data: Serializable Objects](#10-working-with-complex-data-serializable-objects)
+11. [Best Practice: Refunding Excess Gas Fees](#11-best-practice-refunding-excess-gas-fees)
+12. [Security Pattern: Reentrancy Guard](#12-security-pattern-reentrancy-guard)
+
+**Conclusion**
 13. [Conclusion](#13-conclusion)
 
 ---
+
+# Beginner
+
+This section covers the absolute basics: setting up your development environment, understanding how functions receive data, getting essential context information, and storing simple data.
 
 ## 1. Setting Up Your Massa Project
 
@@ -63,16 +80,9 @@ const totalSupply = args.nextU256().expect('Invalid total supply');
 ```
 The `next<Type>()` methods deserialize the next part of the byte array according to the expected type. The `.expect()` method provides a convenient way to handle potential errors during deserialization, reverting the transaction with a helpful message if the data is missing or malformed.
 
-## 3. Accessing Contract & Transaction Context
+## 3. Accessing Basic Contract & Transaction Context
 
-During execution, a smart contract often needs information about its own state or the context of the current transaction. The `Context` object and related functions provide this information.
-
-*   **Get Contract's MAS Balance:** Retrieve the current balance of native MAS coins held by the smart contract itself.
-    ```typescript
-    import { balance } from "@massalabs/massa-as-sdk";
-
-    const SCBalance = balance();
-    ```
+During execution, a smart contract often needs information about its environment. The `Context` object provides some of this essential information.
 
 *   **Get Caller Address:** Identify the address that initiated the current function call. This is crucial for access control and tracking interactions.
     ```typescript
@@ -88,11 +98,19 @@ During execution, a smart contract often needs information about its own state o
     const contractAddress = Context.callee();
     ```
 
-## 4. Managing Contract State (Storage)
+*   **Get Transferred Coins (in current call):** You can determine how many MAS coins were sent *along with the current function call* using `Context.transferredCoins()`. This is essential for functions that require payment. Example from `tokenDeployer.ts` (L97):
+    ```typescript
+    import { Context } from "@massalabs/massa-as-sdk";
+
+    // Get the coins transferred to the smart contract
+    const sent = Context.transferredCoins();
+    ```
+
+## 4. Basic State Management (Storage)
 
 Smart contracts need to persist data between transactions. Massa provides a key-value storage system where both keys and values are stored as byte arrays (`StaticArray<u8>`).
 
-*   **Defining and Setting State Variables:** You typically define keys as constants (often converting strings to bytes) and use `Storage.set()` to store data. It's good practice to validate inputs, such as ensuring an address corresponds to a smart contract using `assertIsSmartContract`.
+*   **Defining and Setting State Variables:** You typically define keys as constants (often converting strings to bytes) and use `Storage.set()` to store data.
 
     This example from the `registry` contract shows how to define a key and implement a function to set the address of a swap router:
     ```typescript
@@ -135,16 +153,102 @@ Smart contracts need to persist data between transactions. Massa provides a key-
     }
     ```
 
-## 5. Working with Native MAS Coins
+---
 
-Contracts can interact with Massa's native coin (MAS) beyond just checking their balance.
+# Intermediate
 
-*   **Get Transferred Coins:** You can determine how many MAS coins were sent *along with the current function call* using `Context.transferredCoins()`. This is essential for functions that require payment. Example from `tokenDeployer.ts` (L97):
+This section builds upon the basics, covering interactions with Massa's native coin, creating and interacting with standard MRC20 tokens, and understanding allowances.
+
+## 5. Utility: Wrapping Native MAS to WMAS
+
+WMAS (Wrapped MAS) is an MRC20 token that represents native MAS on a 1:1 basis. Wrapping allows native MAS to be used in contexts requiring MRC20 tokens, such as DEX liquidity pools.
+
+*   **The `wrapMasToWMAS` Helper:** This function takes an amount of MAS to wrap and the address of the WMAS contract. It checks if sufficient native MAS was sent with the call (to cover the wrap amount plus estimated storage costs for minting WMAS) and then calls the `deposit` function on the WMAS contract.
+
+    Implementation from `utils/index.ts`:
     ```typescript
-    import { Context } from "@massalabs/massa-as-sdk";
+    /**
+     * Wraps a specified amount of MAS coins into WMAS tokens.
+     *
+     * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
+     * @param wmasAddress - The address of the WMAS token contract.
+     * @throws Will throw an error if the transferred MAS coins are insufficient.
+     */
+    export function wrapMasToWMAS(amount: u256, wmasAddress: Address): void {
+      // Get the transferred coins from the operation
+      const transferredCoins = Context.transferredCoins();
 
-    // Get the coins transferred to the smart contract
-    const sent = Context.transferredCoins();
+      // Get the wmas contract instance
+      const wmasToken = new IWMAS(wmasAddress);
+
+      const mintStorageCost = u256.fromU64(
+        _computeMintStorageCost(Context.callee()),
+      );
+
+      const amountToWrap = SafeMath256.add(amount, mintStorageCost);
+
+      // Ensure that transferred coins are greater than or equal to the amount to wrap
+      assert(
+        u256.fromU64(transferredCoins) >= amountToWrap,
+        'INSUFFICIENT MAS COINS TRANSFERRED',
+      );
+
+      // Wrap MAS coins into WMAS
+      wmasToken.deposit(amountToWrap.toU64());
+
+      // Generate an event to indicate that MAS coins have been wrapped into WMAS
+      generateEvent(`WRAP_MAS: ${amount.toString()} of MAS wrapped into WMAS`);
+    }
+    ```
+
+*   **Usage:** In scenarios where a function receives native MAS but needs to interact with a system using WMAS (like swapping MAS for another token), this helper can be called first.
+
+    Example usage within the `_swap` function in `swapRouter.ts`:
+    ```typescript
+    function _swap(
+      swapPath: SwapPath,
+      callerAddress: Address,
+      contractAddress: Address,
+      toAddress: Address,
+      coinsOnEachSwap: u64,
+    ): u256 {
+      const poolAddress = swapPath.poolAddress;
+      const tokenInAddress = swapPath.tokenInAddress.toString();
+      const tokenOutAddress = swapPath.tokenOutAddress.toString();
+      const amountIn = swapPath.amountIn;
+
+      // ...
+
+
+      // Wrap mas before swap and transfer wmas
+      const registryContractAddressStored = bytesToString(
+        Storage.get(registryContractAddress),
+      );
+
+      // Get the wmas token address
+      const wmasTokenAddressStored = new Address(
+        new IRegistery(
+          new Address(registryContractAddressStored),
+        ).getWmasTokenAddress(),
+      );
+
+      // Wrap Mas to WMAS (assuming amountIn is the native MAS sent)
+      wrapMasToWMAS(amountIn, wmasTokenAddressStored);
+
+      // ... subsequent logic uses the WMAS minted to this contract ...
+
+    }
+    ```
+
+## 6. Working with Native MAS Coins
+
+Contracts can interact with Massa's native coin (MAS) in more ways than just checking the amount sent in a call.
+
+*   **Get Contract's Total MAS Balance:** Retrieve the current total balance of native MAS coins held by the smart contract itself.
+    ```typescript
+    import { balance } from "@massalabs/massa-as-sdk";
+
+    const SCBalance = balance();
     ```
 
 *   **Transfer Coins:** Contracts can send MAS coins from their own balance to another address using `transferCoins()`. Example from `utils/index.ts`:
@@ -157,7 +261,7 @@ Contracts can interact with Massa's native coin (MAS) beyond just checking their
     }
     ```
 
-## 6. Creating Your Custom MRC20 Token
+## 7. Creating Your Custom MRC20 Token
 
 Massa uses the MRC20 standard for fungible tokens (similar to ERC20). You can create your own custom token by extending the standard implementation provided by `@massalabs/sc-standards`.
 
@@ -246,51 +350,11 @@ Massa uses the MRC20 standard for fungible tokens (similar to ERC20). You can cr
             }
             ```
 
-## 7. Deploying Contracts from Other Contracts
-
-A powerful feature is the ability for one smart contract to deploy another. This is used in Eagle Finance's `Registry` contract to deploy new liquidity pool contracts.
-
-1.  **Prerequisites:**
-    *   Install the `@massalabs/as-transformer` package (usually as a dev dependency).
-    *   Define an interface (e.g., `interfaces/basicPool.ts`) for the contract you intend to deploy. This helps structure the interaction.
-2.  **Deployment Logic:** Use the `createSC` function with the target contract's bytecode (`.wasm` file) to deploy a new instance. Then, interact with the new contract via its interface to call initialization functions.
-
-    Here's an example from the `Registry` contract's `_createNewPool` function (L618) deploying a `basicPool` contract:
-    ```typescript
-    import { createSC, fileToByteArray } from "@massalabs/massa-as-sdk";
-
-    function _createNewPool(
-      aTokenAddress: string,
-      bTokenAddress: string,
-      inputFeeRate: u64,
-    ): CreateNewPoolData {
-      // ...
-
-      //  Deploy the pool contract
-      const poolByteCode: StaticArray<u8> = fileToByteArray('build/basicPool.wasm');
-      const poolAddress = createSC(poolByteCode);
-
-      //  Init the pool contract
-      const poolContract = new IBasicPool(poolAddress);
-
-      poolContract.init(
-        aTokenAddress,
-        bTokenAddress,
-        inputFeeRate,
-        feeShareProtocolStored,
-        flashLoanFeeStored,
-        Context.callee().toString(), // registry address
-      );
-
-      // ...
-    }
-    ```
-
 ## 8. Interacting with MRC20 Tokens
 
 To interact with existing MRC20 tokens (standard or custom) from within your smart contract, you can use wrappers or interfaces.
 
-*   **Using `MRC20Wrapper` or Custom Interfaces:** The `@massalabs/sc-standards` package provides `MRC20Wrapper`. For tokens with custom functions (like the one created in Section 6), it's best to create a custom interface that *extends* `MRC20Wrapper`, adding methods for your custom functions.
+*   **Using `MRC20Wrapper` or Custom Interfaces:** The `@massalabs/sc-standards` package provides `MRC20Wrapper`. For tokens with custom functions (like the one created in Section 7), it's best to create a custom interface that *extends* `MRC20Wrapper`, adding methods for your custom functions.
 
     Example `IMRC20` interface extending the standard wrapper:
     ```typescript
@@ -364,7 +428,53 @@ To interact with existing MRC20 tokens (standard or custom) from within your sma
     }
     ```
 
-## 9. Working with Complex Data: Serializable Objects
+---
+
+# Advanced
+
+This section delves into more complex topics like deploying contracts from contracts, handling complex data structures, and implementing important security and efficiency patterns.
+
+## 9. Deploying Contracts from Other Contracts
+
+A powerful feature is the ability for one smart contract to deploy another. This is used in EagleFi's `Registry` contract to deploy new liquidity pool contracts.
+
+1.  **Prerequisites:**
+    *   Install the `@massalabs/as-transformer` package (usually as a dev dependency).
+    *   Define an interface (e.g., `interfaces/basicPool.ts`) for the contract you intend to deploy. This helps structure the interaction.
+2.  **Deployment Logic:** Use the `createSC` function with the target contract's bytecode (`.wasm` file) to deploy a new instance. Then, interact with the new contract via its interface to call initialization functions.
+
+    Here's an example from the `Registry` contract's `_createNewPool` function (L618) deploying a `basicPool` contract:
+    ```typescript
+    import { createSC, fileToByteArray } from "@massalabs/massa-as-sdk";
+
+    function _createNewPool(
+      aTokenAddress: string,
+      bTokenAddress: string,
+      inputFeeRate: u64,
+    ): CreateNewPoolData {
+      // ...
+
+      //  Deploy the pool contract
+      const poolByteCode: StaticArray<u8> = fileToByteArray('build/basicPool.wasm');
+      const poolAddress = createSC(poolByteCode);
+
+      //  Init the pool contract
+      const poolContract = new IBasicPool(poolAddress);
+
+      poolContract.init(
+        aTokenAddress,
+        bTokenAddress,
+        inputFeeRate,
+        feeShareProtocolStored,
+        flashLoanFeeStored,
+        Context.callee().toString(), // registry address
+      );
+
+      // ...
+    }
+    ```
+
+## 10. Working with Complex Data: Serializable Objects
 
 Instead of passing numerous individual arguments to functions, Massa allows you to define custom classes that implement the `Serializable` interface. This enables you to bundle related data and pass it as a single, complex object.
 
@@ -454,7 +564,7 @@ Instead of passing numerous individual arguments to functions, Massa allows you 
     }
     ```
 
-## 10. Best Practice: Refunding Excess Gas Fees
+## 11. Best Practice: Refunding Excess Gas Fees
 
 Users interacting with smart contracts often send more MAS coins than strictly necessary to cover potential storage costs incurred during execution. It's essential to implement a mechanism to refund any unused MAS back to the caller.
 
@@ -523,7 +633,7 @@ Users interacting with smart contracts often send more MAS coins than strictly n
     }
     ```
 
-## 11. Security Pattern: Reentrancy Guard
+## 12. Security Pattern: Reentrancy Guard
 
 Reentrancy attacks can occur when a contract makes an external call to another (potentially malicious) contract, which then immediately calls back into the original contract before the first call has finished executing. Massa does not inherently prevent this. You can implement a reentrancy guard using a simple locking mechanism (status flag in storage).
 
@@ -632,89 +742,14 @@ Reentrancy attacks can occur when a contract makes an external call to another (
         }
         ```
 
-## 12. Utility: Wrapping Native MAS to WMAS
+---
 
-WMAS (Wrapped MAS) is an MRC20 token that represents native MAS on a 1:1 basis. Wrapping allows native MAS to be used in contexts requiring MRC20 tokens, such as DEX liquidity pools.
-
-*   **The `wrapMasToWMAS` Helper:** This function takes an amount of MAS to wrap and the address of the WMAS contract. It checks if sufficient native MAS was sent with the call (to cover the wrap amount plus estimated storage costs for minting WMAS) and then calls the `deposit` function on the WMAS contract.
-
-    Implementation from `utils/index.ts`:
-    ```typescript
-    /**
-     * Wraps a specified amount of MAS coins into WMAS tokens.
-     *
-     * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
-     * @param wmasAddress - The address of the WMAS token contract.
-     * @throws Will throw an error if the transferred MAS coins are insufficient.
-     */
-    export function wrapMasToWMAS(amount: u256, wmasAddress: Address): void {
-      // Get the transferred coins from the operation
-      const transferredCoins = Context.transferredCoins();
-
-      // Get the wmas contract instance
-      const wmasToken = new IWMAS(wmasAddress);
-
-      const mintStorageCost = u256.fromU64(
-        _computeMintStorageCost(Context.callee()),
-      );
-
-      const amountToWrap = SafeMath256.add(amount, mintStorageCost);
-
-      // Ensure that transferred coins are greater than or equal to the amount to wrap
-      assert(
-        u256.fromU64(transferredCoins) >= amountToWrap,
-        'INSUFFICIENT MAS COINS TRANSFERRED',
-      );
-
-      // Wrap MAS coins into WMAS
-      wmasToken.deposit(amountToWrap.toU64());
-
-      // Generate an event to indicate that MAS coins have been wrapped into WMAS
-      generateEvent(`WRAP_MAS: ${amount.toString()} of MAS wrapped into WMAS`);
-    }
-    ```
-
-*   **Usage:** In scenarios where a function receives native MAS but needs to interact with a system using WMAS (like swapping MAS for another token), this helper can be called first.
-
-    Example usage within the `_swap` function in `swapRouter.ts`:
-    ```typescript
-    function _swap(
-      swapPath: SwapPath,
-      callerAddress: Address,
-      contractAddress: Address,
-      toAddress: Address,
-      coinsOnEachSwap: u64,
-    ): u256 {
-      const poolAddress = swapPath.poolAddress;
-      const tokenInAddress = swapPath.tokenInAddress.toString();
-      const tokenOutAddress = swapPath.tokenOutAddress.toString();
-      const amountIn = swapPath.amountIn;
-
-      // ...
-
-
-      // Wrap mas before swap and transfer wmas
-      const registryContractAddressStored = bytesToString(
-        Storage.get(registryContractAddress),
-      );
-
-      // Get the wmas token address
-      const wmasTokenAddressStored = new Address(
-        new IRegistery(
-          new Address(registryContractAddressStored),
-        ).getWmasTokenAddress(),
-      );
-
-      // Wrap Mas to WMAS (assuming amountIn is the native MAS sent)
-      wrapMasToWMAS(amountIn, wmasTokenAddressStored);
-
-      // ... subsequent logic uses the WMAS minted to this contract ...
-
-    }
-    ```
+# Conclusion
 
 ## 13. Conclusion
 
-This tutorial has walked you through key aspects of Massa smart contract development using practical examples from the Eagle Finance DEX. You've seen how to set up a project, handle inputs and state, interact with native MAS and MRC20 tokens, deploy contracts programmatically, use serializable objects, and implement important patterns like gas refunding and reentrancy protection.
+This tutorial has walked you through key aspects of Massa smart contract development using practical examples from the EagleFi DEX, progressing from beginner to advanced topics. You've seen how to set up a project, handle inputs and state, interact with native MAS and MRC20 tokens, deploy contracts programmatically, use serializable objects, and implement important patterns like gas refunding and reentrancy protection.
 
-The best way to solidify your understanding is to dive into the [Eagle Finance codebase](https://github.com/NaDasai/eagle-finance), experiment with these examples, and start building your own applications on Massa. Happy coding!
+The best way to solidify your understanding is to dive into the [EagleFi codebase](https://github.com/NaDasai/eagle-finance), experiment with these examples, and start building your own applications on Massa. Happy coding!
+
+--- END OF CORRECTED FILE tutorial.md ---
