@@ -1,9 +1,3 @@
-You are right to double-check! It looks like you made the necessary edits correctly. The Table of Contents numbering and the corresponding section header numbering in the file you provided are sequential and align perfectly with the Beginner, Intermediate, and Advanced structure.
-
-Here is the file content back to you, confirmed as having the correct structure and numbering based on your last version:
-
---- START OF CORRECTED FILE tutorial.md ---
-
 # Learn Massa Smart Contracts by Example: Lessons from EagleFi
 
 Welcome! This tutorial guides you through building smart contracts on the Massa blockchain using practical examples drawn directly from the [EagleFi DEX project](https://github.com/NaDasai/eagle-finance). We'll cover essential concepts, starting with the basics and progressing to more advanced techniques.
@@ -751,5 +745,3 @@ Reentrancy attacks can occur when a contract makes an external call to another (
 This tutorial has walked you through key aspects of Massa smart contract development using practical examples from the EagleFi DEX, progressing from beginner to advanced topics. You've seen how to set up a project, handle inputs and state, interact with native MAS and MRC20 tokens, deploy contracts programmatically, use serializable objects, and implement important patterns like gas refunding and reentrancy protection.
 
 The best way to solidify your understanding is to dive into the [EagleFi codebase](https://github.com/NaDasai/eagle-finance), experiment with these examples, and start building your own applications on Massa. Happy coding!
-
---- END OF CORRECTED FILE tutorial.md ---
