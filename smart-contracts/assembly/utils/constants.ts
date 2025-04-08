@@ -9,10 +9,6 @@ export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
 // scaling factor representing 1 on a 6 decimals precision. This will be used for the fees calculation.
 export const SCALING_FACTOR = u256.fromU64(1_000_000);
 
-// Minimum liquidity constant used to prevent the first liquidity provider from withdrawing all liquidity
-// This creates a minimum reserve in the pool, improving price stability and preventing division by zero
-export const MINIMUM_LIQUIDITY = u256.fromU64(1_000);
-
 // Minimum coins required to deploy a token smart contract from the token deployer.Its value is determined by estimating the storage costs.
 export const MINIMUM_COINS_TO_DEPLOY_TOKEN = u64(50_000_000);
 
@@ -26,3 +22,7 @@ export const ALLOWED_INPUT_FEES: u64[] = [
   u64(0.3 * f64(ONE_PERCENT)),
   u64(1 * ONE_PERCENT),
 ];
+
+// Minimum percentage of the first depositor's liquidity that should be locked as minimum liquidity
+export const INITIAL_LIQUIDITY_LOCK_PERCENTAGE: u256 =
+  u256.fromU64(5); // 5%

@@ -31,7 +31,6 @@ import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { MINIMUM_LIQUIDITY } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
 import {
@@ -80,6 +79,8 @@ export const flashLoanFee = stringToBytes('flashLoanFee');
 export const aTokenDecimals = stringToBytes('aTokenDecimals');
 // Storage key containing the decimals of the token B inside the pool
 export const bTokenDecimals = stringToBytes('bTokenDecimals');
+// Storage key containing the minimum liquidity value of the pool
+export const minimumLiquidityKey = stringToBytes('MINIMUM_LIQUIDITY');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -171,6 +172,22 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Compare the decimals of the two tokens and ensure that its difference is less than 12
   assert(maxDecimals - minDecimals <= 12, 'DECIMALS_DIFFERENCE_TOO_LARGE');
+
+  // if (maxDecimals - minDecimals > 0) {
+  //   // If tokens decimals are different, set the minimum liquidity to 10^minDecimals
+  //   Storage.set(
+  //     minimumLiquidityKey,
+  //     u256ToBytes(u256.fromU64(10 ** minDecimals)),
+  //   );
+  // } else {
+  //   // If tokens decimals are same, set the minimum liquidity to 10^maxDecimals
+  //   Storage.set(
+  //     minimumLiquidityKey,
+  //     u256ToBytes(u256.fromU64(10 ** maxDecimals)),
+  //   );
+  // }
+  // Set the minimum liquidity to 0
+  Storage.set(minimumLiquidityKey, u256ToBytes(u256.Zero));
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
@@ -673,6 +690,9 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
 
   const totalSupply = liquidityManager.getTotalSupply();
 
+  // get the current caller address
+  const callerAddress = Context.caller();
+
   // Current reserves
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
@@ -685,7 +705,6 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const normReserveA = normalizeToDecimals(reserveA, aDecimalsStored);
   const normReserveB = normalizeToDecimals(reserveB, bDecimalsStored);
 
-  // amountAOut = (lpAmount * reserveA) / totalSupply
   // amountAOut = (lpAmount * reserveA) / totalSupply
   const normAmountAOut = SafeMath256.div(
     SafeMath256.mul(lpAmount, normReserveA),
@@ -711,12 +730,6 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     'REMOVE LIQUIDITY: SLIPPAGE_LIMIT_EXCEEDED_B',
   );
 
-  // Burn lp tokens
-  liquidityManager.burn(Context.caller(), lpAmount);
-
-  // get the current caller address
-  const callerAddress = Context.caller();
-
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transfer(
     callerAddress,
@@ -729,9 +742,43 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
   );
 
-  // Calculate new reserves
-  const newResA = SafeMath256.sub(reserveA, amountAOut);
-  const newResB = SafeMath256.sub(reserveB, amountBOut);
+  // Burn lp tokens
+  liquidityManager.burn(callerAddress, lpAmount);
+
+  // Get the new total supply of the LP token after burning
+  const newTotalSupply = liquidityManager.getTotalSupply();
+
+  // Initialize the new reserves
+  let newResA: u256;
+  let newResB: u256;
+  
+
+  generateEvent(`totalSupply: ${totalSupply}`);
+  generateEvent(`MINIMUM_LIQUIDITY: ${MINIMUM_LIQUIDITY}`);
+
+  if (newTotalSupply == MINIMUM_LIQUIDITY) {
+    // If all liquidity is removed except MINIMUM_LIQUIDITY,
+    // scale the reserves proportionally
+    newResA = SafeMath256.div(
+      SafeMath256.mul(reserveA, MINIMUM_LIQUIDITY),
+      totalSupply,
+    );
+
+    generateEvent(`reserveA: ${reserveA}`);
+    generateEvent(`NewResA: ${newResA}`);
+
+    newResB = SafeMath256.div(
+      SafeMath256.mul(reserveB, MINIMUM_LIQUIDITY),
+      totalSupply,
+    );
+
+    generateEvent(`reserveB: ${reserveB}`);
+    generateEvent(`NewResB: ${newResB}`);
+  } else {
+    // Normal Case: subtract the amount out from the reserves
+    newResA = SafeMath256.sub(reserveA, amountAOut);
+    newResB = SafeMath256.sub(reserveB, amountBOut);
+  }
 
   // Update reserves
   _updateReserveA(newResA);
@@ -1778,4 +1825,8 @@ export function _onlyRegistryOwner(
     Context.caller().toString() == registry.ownerAddress(),
     'CALLER_IS_NOT_REGISTRY_OWNER',
   );
+}
+
+function _getStoredMinimumLiquidity(): u256 {
+  return bytesToU256(Storage.get(minimumLiquidityKey));
 }
