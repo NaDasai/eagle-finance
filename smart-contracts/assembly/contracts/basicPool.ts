@@ -46,7 +46,10 @@ import {
 } from '../types/basicPool';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 import { denormalizeFromDecimals, normalizeToDecimals } from '../lib/math';
-import { INITIAL_LIQUIDITY_LOCK_PERCENTAGE } from '../utils/constants';
+import {
+  INITIAL_LIQUIDITY_LOCK_PERCENTAGE,
+  ONE_PERCENT,
+} from '../utils/constants';
 
 // Storage key containing the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -1614,10 +1617,10 @@ function _getAddLiquidityData(
     const product = SafeMath256.mul(normAmountA, normAmountB);
     // totalLiquidity = sqrt(product)
     const totalLiquidity = SafeMath256.sqrt(product);
-    // liquidity = totalLiquidity - (INITIAL_LIQUIDITY_LOCK_PERCENTAGE * totalLiquidity / 100)
+    // liquidity = totalLiquidity - (INITIAL_LIQUIDITY_LOCK_PERCENTAGE * totalLiquidity / ONE_PERCENT)
     initialLiquidityLock = SafeMath256.div(
       SafeMath256.mul(totalLiquidity, INITIAL_LIQUIDITY_LOCK_PERCENTAGE),
-      u256.fromU64(100),
+      u256.fromU64(ONE_PERCENT * 100),
     );
     liquidity = SafeMath256.sub(totalLiquidity, initialLiquidityLock);
     isInitialLiquidity = true;
