@@ -1619,13 +1619,6 @@ function _getAddLiquidityData(
       SafeMath256.mul(totalLiquidity, INITIAL_LIQUIDITY_LOCK_PERCENTAGE),
       u256.fromU64(100),
     );
-    generateEvent(
-      createEvent('INITIAL_LIQUIDITY_LOCK', [
-        Context.callee().toString(), // Smart contract address
-        Context.caller().toString(), // Caller address
-        initialLiquidityLock.toString(), // Locked LP amount
-      ]),
-    );
     liquidity = SafeMath256.sub(totalLiquidity, initialLiquidityLock);
     isInitialLiquidity = true;
   } else {
