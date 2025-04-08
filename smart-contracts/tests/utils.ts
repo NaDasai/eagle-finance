@@ -38,8 +38,12 @@ export const TOKEN_DEFAULT_DECIMALS = 9;
 
 export const NATIVE_MAS_COIN_ADDRESS = 'NATIVE_COIN';
 
-export function truncateDecimals(value: number, decimals: number = 9): string {
-  return value
-    .toString()
-    .slice(0, value.toString().indexOf('.') + decimals + 1);
+export function truncateDecimals(
+  amount: number,
+  decimals: number = TOKEN_DEFAULT_DECIMALS,
+): string {
+  // Fixes the number to the specified number of decimals + 1 to prevent rounding errors
+  const roundedAmount = amount.toFixed(decimals + 1);
+  // truncate the last decimal to get the desired number of decimals
+  return roundedAmount.slice(0, roundedAmount.length - 1);
 }

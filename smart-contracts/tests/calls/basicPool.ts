@@ -12,7 +12,7 @@ import {
   U256,
   U64,
 } from '@massalabs/massa-web3';
-import { TOKEN_DEFAULT_DECIMALS } from '../utils';
+import { TOKEN_DEFAULT_DECIMALS, truncateDecimals } from '../utils';
 import { Pool } from '../../src/builnet-tests/structs/pool';
 import { SwapPath } from '../classes/swapPath';
 
@@ -31,8 +31,8 @@ export async function addLiquidity(
   const operation = await poolContract.call(
     'addLiquidity',
     new Args()
-      .addU256(parseUnits(aAmount.toString(), aDecimals))
-      .addU256(parseUnits(bAmount.toString(), bDecimals))
+      .addU256(parseUnits(truncateDecimals(aAmount, aDecimals), aDecimals))
+      .addU256(parseUnits(truncateDecimals(bAmount, bDecimals), bDecimals))
       .addU256(parseUnits(minAmountA.toString(), aDecimals))
       .addU256(parseUnits(minAmountB.toString(), bDecimals))
       .serialize(),
@@ -275,7 +275,7 @@ export async function increaseAllownace(
 
   const operation = await tokenContract.increaseAllowance(
     spenderAddress,
-    parseUnits(amount.toString(), tokenDecimals),
+    parseUnits(truncateDecimals(amount, tokenDecimals), tokenDecimals),
     { coins: Mas.fromString('0.1') },
   );
 
