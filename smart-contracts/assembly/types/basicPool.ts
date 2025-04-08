@@ -31,6 +31,7 @@ export class GetLiquidityDataResult {
     public reserveB: u256,
     public aTokenAddressStored: string,
     public bTokenAddressStored: string,
+    public initialLiquidityLock: u256,
     public isInitialLiquidity: boolean = false,
   ) {}
 }

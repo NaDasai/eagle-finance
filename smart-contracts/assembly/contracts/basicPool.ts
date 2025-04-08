@@ -46,6 +46,7 @@ import {
 } from '../types/basicPool';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 import { denormalizeFromDecimals, normalizeToDecimals } from '../lib/math';
+import { INITIAL_LIQUIDITY_LOCK_PERCENTAGE } from '../utils/constants';
 
 // Storage key containing the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -79,8 +80,6 @@ export const flashLoanFee = stringToBytes('flashLoanFee');
 export const aTokenDecimals = stringToBytes('aTokenDecimals');
 // Storage key containing the decimals of the token B inside the pool
 export const bTokenDecimals = stringToBytes('bTokenDecimals');
-// Storage key containing the minimum liquidity value of the pool
-export const minimumLiquidityKey = stringToBytes('MINIMUM_LIQUIDITY');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -172,22 +171,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Compare the decimals of the two tokens and ensure that its difference is less than 12
   assert(maxDecimals - minDecimals <= 12, 'DECIMALS_DIFFERENCE_TOO_LARGE');
-
-  // if (maxDecimals - minDecimals > 0) {
-  //   // If tokens decimals are different, set the minimum liquidity to 10^minDecimals
-  //   Storage.set(
-  //     minimumLiquidityKey,
-  //     u256ToBytes(u256.fromU64(10 ** minDecimals)),
-  //   );
-  // } else {
-  //   // If tokens decimals are same, set the minimum liquidity to 10^maxDecimals
-  //   Storage.set(
-  //     minimumLiquidityKey,
-  //     u256ToBytes(u256.fromU64(10 ** maxDecimals)),
-  //   );
-  // }
-  // Set the minimum liquidity to 0
-  Storage.set(minimumLiquidityKey, u256ToBytes(u256.Zero));
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
@@ -745,40 +728,12 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   // Burn lp tokens
   liquidityManager.burn(callerAddress, lpAmount);
 
-  // Get the new total supply of the LP token after burning
-  const newTotalSupply = liquidityManager.getTotalSupply();
-
   // Initialize the new reserves
   let newResA: u256;
   let newResB: u256;
-  
 
-  generateEvent(`totalSupply: ${totalSupply}`);
-  generateEvent(`MINIMUM_LIQUIDITY: ${MINIMUM_LIQUIDITY}`);
-
-  if (newTotalSupply == MINIMUM_LIQUIDITY) {
-    // If all liquidity is removed except MINIMUM_LIQUIDITY,
-    // scale the reserves proportionally
-    newResA = SafeMath256.div(
-      SafeMath256.mul(reserveA, MINIMUM_LIQUIDITY),
-      totalSupply,
-    );
-
-    generateEvent(`reserveA: ${reserveA}`);
-    generateEvent(`NewResA: ${newResA}`);
-
-    newResB = SafeMath256.div(
-      SafeMath256.mul(reserveB, MINIMUM_LIQUIDITY),
-      totalSupply,
-    );
-
-    generateEvent(`reserveB: ${reserveB}`);
-    generateEvent(`NewResB: ${newResB}`);
-  } else {
-    // Normal Case: subtract the amount out from the reserves
-    newResA = SafeMath256.sub(reserveA, amountAOut);
-    newResB = SafeMath256.sub(reserveB, amountBOut);
-  }
+  newResA = SafeMath256.sub(reserveA, amountAOut);
+  newResB = SafeMath256.sub(reserveB, amountBOut);
 
   // Update reserves
   _updateReserveA(newResA);
@@ -1237,6 +1192,7 @@ function _addLiquidity(
   const aTokenAddressStored = liquidityData.aTokenAddressStored;
   const bTokenAddressStored = liquidityData.bTokenAddressStored;
   const isInitialLiquidity = liquidityData.isInitialLiquidity;
+  const initialLiquidityLock = liquidityData.initialLiquidityLock;
 
   assert(liquidity > u256.Zero, 'INSUFFICIENT LIQUIDITY MINTED');
 
@@ -1267,10 +1223,10 @@ function _addLiquidity(
     }
   }
 
-  // Permanently lock the first MINIMUM_LIQUIDITY tokens
+  // Permanently lock the first initial liquidity lock
   if (isInitialLiquidity) {
-    // Mint MINIMUM_LIQUIDITY tokens to empty address
-    liquidityManager.mint(new Address(''), MINIMUM_LIQUIDITY);
+    // Mint The initial liquidity lock LP tokens to empty address
+    liquidityManager.mint(new Address(''), initialLiquidityLock);
   }
 
   // Mint LP tokens to user
@@ -1636,6 +1592,7 @@ function _getAddLiquidityData(
   let finalAmountB = amountB;
   let liquidity: u256;
   let isInitialLiquidity = false;
+  let initialLiquidityLock: u256 = u256.Zero;
 
   let aDecimalsStored = bytesToU32(Storage.get(aTokenDecimals));
   let bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
@@ -1655,8 +1612,21 @@ function _getAddLiquidityData(
     // Use normalized values to calculate liquidity:
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = SafeMath256.mul(normAmountA, normAmountB);
-    // liquidity = sqrt(product) - MINIMUM_LIQUIDITY
-    liquidity = SafeMath256.sub(SafeMath256.sqrt(product), MINIMUM_LIQUIDITY);
+    // totalLiquidity = sqrt(product)
+    const totalLiquidity = SafeMath256.sqrt(product);
+    // liquidity = totalLiquidity - (INITIAL_LIQUIDITY_LOCK_PERCENTAGE * totalLiquidity / 100)
+    initialLiquidityLock = SafeMath256.div(
+      SafeMath256.mul(totalLiquidity, INITIAL_LIQUIDITY_LOCK_PERCENTAGE),
+      u256.fromU64(100),
+    );
+    generateEvent(
+      createEvent('INITIAL_LIQUIDITY_LOCK', [
+        Context.callee().toString(), // Smart contract address
+        Context.caller().toString(), // Caller address
+        initialLiquidityLock.toString(), // Locked LP amount
+      ]),
+    );
+    liquidity = SafeMath256.sub(totalLiquidity, initialLiquidityLock);
     isInitialLiquidity = true;
   } else {
     // Adding liquidity proportional to the current pool
@@ -1710,6 +1680,7 @@ function _getAddLiquidityData(
     reserveB,
     aTokenAddressStored,
     bTokenAddressStored,
+    initialLiquidityLock,
     isInitialLiquidity,
   );
 }
@@ -1825,8 +1796,4 @@ export function _onlyRegistryOwner(
     Context.caller().toString() == registry.ownerAddress(),
     'CALLER_IS_NOT_REGISTRY_OWNER',
   );
-}
-
-function _getStoredMinimumLiquidity(): u256 {
-  return bytesToU256(Storage.get(minimumLiquidityKey));
 }

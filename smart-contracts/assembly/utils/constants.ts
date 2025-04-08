@@ -25,4 +25,4 @@ export const ALLOWED_INPUT_FEES: u64[] = [
 
 // Minimum percentage of the first depositor's liquidity that should be locked as minimum liquidity
 export const INITIAL_LIQUIDITY_LOCK_PERCENTAGE: u256 =
-  u256.fromU64(5); // 5%
+  u256.fromU64(1); // 1%
