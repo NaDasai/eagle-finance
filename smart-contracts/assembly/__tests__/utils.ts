@@ -12,6 +12,6 @@ export function parseUnits(value: string, decimals: u32): u256 {
   );
 }
 
-export function parseMas(value: u64): u256 {
-  return u256.fromU64(value * 10 ** TOKENS_DEFAULT_DECIMALS);
+export function parseMas(value: f64): u256 {
+  return u256.fromF64(value * f64(10 ** TOKENS_DEFAULT_DECIMALS));
 }

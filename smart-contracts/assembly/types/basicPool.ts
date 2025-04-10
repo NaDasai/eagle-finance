@@ -12,10 +12,6 @@ export class GetSwapOutResult {
     public lpFee: u256,
     public protocolFee: u256,
     public amountInAfterFee: u256,
-    public normAmountInAfterFee: u256,
-    public normReserveIn: u256,
-    public normReserveOut: u256,
-    public normAmountOut: u256,
     public inDecimals: u32,
     public outDecimals: u32,
   ) {}

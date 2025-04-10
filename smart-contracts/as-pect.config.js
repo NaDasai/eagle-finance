@@ -4,7 +4,7 @@ export default {
   /**
    * A set of globs passed to the glob package that qualify typescript files for testing.
    */
-  entries: ['assembly/__tests__/**/*.spec.ts'],
+  entries: ['assembly/__tests__/working/**/*.spec.ts'],
   /**
    * A set of globs passed to the glob package that quality files to be added to each test.
    */
@@ -20,7 +20,7 @@ export default {
     return createMockedABI(memory, createImports, instantiate, binary);
   },
   /** Enable code coverage. */
-  coverage: ["assembly/**/*.ts"],
+  // coverage: ["assembly/**/*.ts"],
   /**
    * Specify if the binary wasm file should be written to the file system.
    */

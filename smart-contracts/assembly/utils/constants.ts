@@ -28,3 +28,6 @@ export const ALLOWED_INPUT_FEES: u64[] = [
 export const INITIAL_LIQUIDITY_LOCK_PERCENTAGE: u256 = u256.fromF64(
   f64(0.01) * f64(ONE_PERCENT),
 ); // 0.01%
+
+
+export const MINIMUM_LIQUIDITY: u256 = u256.fromU64(1_000);
