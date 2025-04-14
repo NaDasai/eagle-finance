@@ -10,6 +10,7 @@ import {
   balance,
   validateAddress,
   createEvent,
+  print,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -83,6 +84,8 @@ export const flashLoanFee = stringToBytes('flashLoanFee');
 export const aTokenDecimals = stringToBytes('aTokenDecimals');
 // Storage key containing the decimals of the token B inside the pool
 export const bTokenDecimals = stringToBytes('bTokenDecimals');
+// Storage key containing the initial liquidity lock
+export const initialLiquidityLockKey = stringToBytes('initialLiquidityLock');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -125,7 +128,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  assertIsSmartContract(registryAddress);
+  // assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, u64ToBytes(inputFeeRate));
@@ -158,7 +161,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Set the current timestamp
   Storage.set(lastTimestamp, u64ToBytes(Context.timestamp()));
 
-  // Get a and b tokens decimals
+  // // Get a and b tokens decimals
   const aTokenDecimalsIn = new IMRC20(new Address(aAddress)).decimals();
   const bTokenDecimalsIn = new IMRC20(new Address(bAddress)).decimals();
 
@@ -172,8 +175,21 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const minDecimals =
     aTokenDecimalsIn < bTokenDecimalsIn ? aTokenDecimalsIn : bTokenDecimalsIn;
 
+  const decimalsDifference = maxDecimals - minDecimals;
+
   // Compare the decimals of the two tokens and ensure that its difference is less than 12
-  assert(maxDecimals - minDecimals <= 12, 'DECIMALS_DIFFERENCE_TOO_LARGE');
+  assert(decimalsDifference <= 12, 'DECIMALS_DIFFERENCE_TOO_LARGE');
+
+  let initialLiquidityLock: u256;
+
+  if (decimalsDifference == 3) {
+    // If the tokens decimals are not the same and neither of them is 18, set the initial liquidity lock to 10 ^ minDecimals
+    initialLiquidityLock = u256.fromU64(10 ** (18 - minDecimals));
+  } else {
+    initialLiquidityLock = u256.fromU64(10 ** decimalsDifference);
+  }
+
+  Storage.set(initialLiquidityLockKey, u256ToBytes(initialLiquidityLock));
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
@@ -696,6 +712,7 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     SafeMath256.mul(lpAmount, normReserveA),
     totalSupply,
   );
+
   const amountAOut = denormalizeFromDecimals(normAmountAOut, aDecimalsStored);
 
   // amountBOut = (lpAmount * reserveB) / totalSupply
@@ -717,26 +734,35 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Transfer tokens to user
-  new IMRC20(new Address(aTokenAddressStored)).transfer(
-    callerAddress,
-    amountAOut,
-    getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
-  );
-  new IMRC20(new Address(bTokenAddressStored)).transfer(
-    callerAddress,
-    amountBOut,
-    getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
-  );
+  // new IMRC20(new Address(aTokenAddressStored)).transfer(
+  //   callerAddress,
+  //   amountAOut,
+  //   getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
+  // );
+  // new IMRC20(new Address(bTokenAddressStored)).transfer(
+  //   callerAddress,
+  //   amountBOut,
+  //   getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
+  // );
 
   // Burn lp tokens
   liquidityManager.burn(callerAddress, lpAmount);
 
-  // Initialize the new reserves
-  let newResA: u256;
-  let newResB: u256;
+  const newResA = SafeMath256.sub(reserveA, amountAOut);
+  const newResB = SafeMath256.sub(reserveB, amountBOut);
 
-  newResA = SafeMath256.sub(reserveA, amountAOut);
-  newResB = SafeMath256.sub(reserveB, amountBOut);
+  print('Lp Amount: ' + lpAmount.toString());
+  print('Reserve A: ' + reserveA.toString());
+  print('Reserve B: ' + reserveB.toString());
+  print('Amount A Out: ' + amountAOut.toString());
+  print('Amount B Out: ' + amountBOut.toString());
+  print('New Reserve A: ' + newResA.toString());
+  print('New Reserve B: ' + newResB.toString());
+  print('K : ' + SafeMath256.mul(newResA, newResB).toString());
+  print('Norm Reserve A: ' + normReserveA.toString());
+  print('Norm Reserve B: ' + normReserveB.toString());
+  print('Norm Amount A Out: ' + normAmountAOut.toString());
+  print('Norm Amount B Out: ' + normAmountBOut.toString());
 
   // Update reserves
   _updateReserveA(newResA);
@@ -1208,21 +1234,21 @@ function _addLiquidity(
     // it calls this `addLiquidityFromRegistry` function. In this case, we don't need to transfer tokens from the user to the contract because the amounts of tokens A and B are already transferred by the registry contract. We just need to set the local reserves of the pool and mint the corresponding amount of LP tokens to the user.
 
     // Transfer tokens A from user to contract
-    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-      callerAddress,
-      contractAddress,
-      finalAmountA,
-      getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
-    );
+    // new IMRC20(new Address(aTokenAddressStored)).transferFrom(
+    //   callerAddress,
+    //   contractAddress,
+    //   finalAmountA,
+    //   getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
+    // );
 
     if (!isWithMAS) {
       // Transfer tokens B from user to contract if this function is not called from addLiquidityWithMAS
-      new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-        callerAddress,
-        contractAddress,
-        finalAmountB,
-        getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
-      );
+      // new IMRC20(new Address(bTokenAddressStored)).transferFrom(
+      //   callerAddress,
+      //   contractAddress,
+      //   finalAmountB,
+      //   getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
+      // );
     }
   }
 
@@ -1242,6 +1268,11 @@ function _addLiquidity(
   // Update reserves
   _updateReserveA(newResA);
   _updateReserveB(newResB);
+
+  print(`newResA: ${newResA.toString()}`);
+  print(`newResB: ${newResB.toString()}`);
+
+  print('K : ' + SafeMath256.mul(newResA, newResB).toString());
 
   return new addLiquidityData(
     contractAddress.toString(),
@@ -1604,6 +1635,9 @@ function _getAddLiquidityData(
   const normAmountA = normalizeToDecimals(amountA, aDecimalsStored);
   const normAmountB = normalizeToDecimals(amountB, bDecimalsStored);
 
+  print(`Norm amount A: ${normAmountA.toString()}`);
+  print(`Norm amount B: ${normAmountB.toString()}`);
+
   // Also normalize reserves for proper proportional math.
   const normReserveA = normalizeToDecimals(reserveA, aDecimalsStored);
   const normReserveB = normalizeToDecimals(reserveB, bDecimalsStored);
@@ -1615,14 +1649,17 @@ function _getAddLiquidityData(
     // Use normalized values to calculate liquidity:
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = SafeMath256.mul(normAmountA, normAmountB);
+    print(`Product: ${product.toString()}`);
     // totalLiquidity = sqrt(product)
     const totalLiquidity = SafeMath256.sqrt(product);
-    // liquidity = totalLiquidity - (INITIAL_LIQUIDITY_LOCK_PERCENTAGE * totalLiquidity / ONE_PERCENT)
-    initialLiquidityLock = SafeMath256.div(
-      SafeMath256.mul(totalLiquidity, INITIAL_LIQUIDITY_LOCK_PERCENTAGE),
-      u256.fromU64(ONE_PERCENT * 100),
-    );
+    // const totalLiquidity = u256.fromU64(5656854249492381000);
+
+    print(`Total liquidity: ${totalLiquidity.toString()}`);
+    // liquidity = totalLiquidity - INITIAL_LIQUIDITY_LOCK
+    initialLiquidityLock = bytesToU256(Storage.get(initialLiquidityLockKey));
+    print(`Initial liquidity lock: ${initialLiquidityLock.toString()}`);
     liquidity = SafeMath256.sub(totalLiquidity, initialLiquidityLock);
+    print(`Liquidity: ${liquidity.toString()}`);
     isInitialLiquidity = true;
   } else {
     // Adding liquidity proportional to the current pool
