@@ -50,6 +50,7 @@ import { denormalizeFromDecimals, normalizeToDecimals } from '../lib/math';
 import {
   INITIAL_LIQUIDITY_LOCK_PERCENTAGE,
   ONE_PERCENT,
+  safetyFactor,
 } from '../utils/constants';
 
 // Storage key containing the value of the token A reserve inside the pool
@@ -1705,12 +1706,31 @@ function _getAddLiquidityData(
     print(`Product: ${product.toString()}`);
     // totalLiquidity = sqrt(product)
     const totalLiquidity = SafeMath256.sqrt(product);
-    // const totalLiquidity = u256.fromU64(5656854249492381000);
 
     print(`Total liquidity: ${totalLiquidity.toString()}`);
-    // liquidity = totalLiquidity - INITIAL_LIQUIDITY_LOCK
-    initialLiquidityLock = bytesToU256(Storage.get(initialLiquidityLockKey));
+
+    // Calculate the total liquidity with safety factor (totalLiquidity * safetyFactor)
+    const totalLpSafety = SafeMath256.mul(totalLiquidity, safetyFactor);
+
+    // Get the division of totalLpSafety by amountA and amountB ( totalLpSafety / amountA and totalLpSafety / amountB )
+    const LpDivA = SafeMath256.div(totalLpSafety, amountA);
+    const LpDivB = SafeMath256.div(totalLpSafety, amountB);
+
+    print(`Lp div A: ${LpDivA.toString()}`);
+    print(`Lp div B: ${LpDivB.toString()}`);
+
+    // Get the maximum value between LpDivA and LpDivB
+    const maxLpDiv = LpDivA > LpDivB ? LpDivA : LpDivB;
+    print(`Max LP div: ${maxLpDiv.toString()}`);
+
+    // Calculate the initial liquidity lock which is the maximum value between LpDivA and LpDivB
+    initialLiquidityLock = maxLpDiv;
     print(`Initial liquidity lock: ${initialLiquidityLock.toString()}`);
+
+    // Ensure that the totalLiquidity is greater than the initial liquidity lock
+    assert(totalLiquidity > initialLiquidityLock, 'TOO_SMALL_LIQUIDITY');
+
+    // liquidity = totalLiquidity - INITIAL_LIQUIDITY_LOCK
     liquidity = SafeMath256.sub(totalLiquidity, initialLiquidityLock);
     print(`Liquidity: ${liquidity.toString()}`);
     isInitialLiquidity = true;
