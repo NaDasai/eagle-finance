@@ -47,11 +47,7 @@ import {
 } from '../types/basicPool';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 import { denormalizeFromDecimals, normalizeToDecimals } from '../lib/math';
-import {
-  INITIAL_LIQUIDITY_LOCK_PERCENTAGE,
-  ONE_PERCENT,
-  safetyFactor,
-} from '../utils/constants';
+import { safetyFactor } from '../utils/constants';
 
 // Storage key containing the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
@@ -85,8 +81,6 @@ export const flashLoanFee = stringToBytes('flashLoanFee');
 export const aTokenDecimals = stringToBytes('aTokenDecimals');
 // Storage key containing the decimals of the token B inside the pool
 export const bTokenDecimals = stringToBytes('bTokenDecimals');
-// Storage key containing the initial liquidity lock
-export const initialLiquidityLockKey = stringToBytes('initialLiquidityLock');
 
 // Variable representing the number of decimals used for normalization and denormalization in that pool. by default it is 18, but it will be changed at the constructor with the max decimals between the two tokens
 let normalizationDecimals = 18;
@@ -132,7 +126,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // We already checking if address A, address B, fee rate, and fee share protocol are valid in the registry
 
   // ensure that the registryAddress is a valid smart contract address
-  // assertIsSmartContract(registryAddress);
+  assertIsSmartContract(registryAddress);
 
   // Store fee rate
   Storage.set(feeRate, u64ToBytes(inputFeeRate));
@@ -183,11 +177,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Compare the decimals of the two tokens and ensure that its difference is less than 12
   assert(decimalsDifference <= 12, 'DECIMALS_DIFFERENCE_TOO_LARGE');
-
-  const initialLiquidityLock = u256.fromU64(10 ** decimalsDifference);
-
-  // Store the initial liquidity lock
-  Storage.set(initialLiquidityLockKey, u256ToBytes(initialLiquidityLock));
 
   // Set the normalization decimals to the max decimals
   normalizationDecimals = maxDecimals;
@@ -751,16 +740,16 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   );
 
   // Transfer tokens to user
-  // new IMRC20(new Address(aTokenAddressStored)).transfer(
-  //   callerAddress,
-  //   amountAOut,
-  //   getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
-  // );
-  // new IMRC20(new Address(bTokenAddressStored)).transfer(
-  //   callerAddress,
-  //   amountBOut,
-  //   getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
-  // );
+  new IMRC20(new Address(aTokenAddressStored)).transfer(
+    callerAddress,
+    amountAOut,
+    getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
+  );
+  new IMRC20(new Address(bTokenAddressStored)).transfer(
+    callerAddress,
+    amountBOut,
+    getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
+  );
 
   // Burn lp tokens
   liquidityManager.burn(callerAddress, lpAmount);
@@ -1259,21 +1248,21 @@ function _addLiquidity(
     // it calls this `addLiquidityFromRegistry` function. In this case, we don't need to transfer tokens from the user to the contract because the amounts of tokens A and B are already transferred by the registry contract. We just need to set the local reserves of the pool and mint the corresponding amount of LP tokens to the user.
 
     // Transfer tokens A from user to contract
-    // new IMRC20(new Address(aTokenAddressStored)).transferFrom(
-    //   callerAddress,
-    //   contractAddress,
-    //   finalAmountA,
-    //   getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
-    // );
+    new IMRC20(new Address(aTokenAddressStored)).transferFrom(
+      callerAddress,
+      contractAddress,
+      finalAmountA,
+      getBalanceEntryCost(aTokenAddressStored, callerAddress.toString()),
+    );
 
     if (!isWithMAS) {
       // Transfer tokens B from user to contract if this function is not called from addLiquidityWithMAS
-      // new IMRC20(new Address(bTokenAddressStored)).transferFrom(
-      //   callerAddress,
-      //   contractAddress,
-      //   finalAmountB,
-      //   getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
-      // );
+      new IMRC20(new Address(bTokenAddressStored)).transferFrom(
+        callerAddress,
+        contractAddress,
+        finalAmountB,
+        getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
+      );
     }
   }
 
