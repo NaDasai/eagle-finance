@@ -87,6 +87,9 @@ export const bTokenDecimals = stringToBytes('bTokenDecimals');
 // Storage key containing the initial liquidity lock
 export const initialLiquidityLockKey = stringToBytes('initialLiquidityLock');
 
+// Variable representing the number of decimals used for normalization and denormalization in that pool. by default it is 18, but it will be changed at the constructor with the max decimals between the two tokens
+let normalizationDecimals = 18;
+
 /**
  * This function is meant to be called only one time: when the contract is deployed.
  * @param binaryArgs - Arguments serialized with Args
@@ -161,7 +164,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Set the current timestamp
   Storage.set(lastTimestamp, u64ToBytes(Context.timestamp()));
 
-  // // Get a and b tokens decimals
+  // Get a and b tokens decimals
   const aTokenDecimalsIn = new IMRC20(new Address(aAddress)).decimals();
   const bTokenDecimalsIn = new IMRC20(new Address(bAddress)).decimals();
 
@@ -182,14 +185,13 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   let initialLiquidityLock: u256;
 
-  if (decimalsDifference == 3) {
-    // If the tokens decimals are not the same and neither of them is 18, set the initial liquidity lock to 10 ^ minDecimals
-    initialLiquidityLock = u256.fromU64(10 ** (18 - minDecimals));
-  } else {
-    initialLiquidityLock = u256.fromU64(10 ** decimalsDifference);
-  }
+  initialLiquidityLock = u256.fromU64(10 ** decimalsDifference);
 
+  // Store the initial liquidity lock
   Storage.set(initialLiquidityLockKey, u256ToBytes(initialLiquidityLock));
+
+  // Set the normalization decimals to the max decimals
+  normalizationDecimals = maxDecimals;
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
@@ -533,8 +535,8 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   // K value invarient check before updating the reserves
   // newK = (reserveIn + amountInAfterFee + lpFee) * (reserveOut - amountOut)
   const newK = SafeMath256.mul(
-    normalizeToDecimals(newReserveIn, inDecimals),
-    normalizeToDecimals(newReserveOut, outDecimals),
+    normalizeToDecimals(newReserveIn, inDecimals, normalizationDecimals),
+    normalizeToDecimals(newReserveOut, outDecimals, normalizationDecimals),
   );
   // oldK = reserveIn * reserveOut
   const oldK = SafeMath256.mul(normReserveIn, normReserveOut);
@@ -704,8 +706,16 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
 
   // Normalize reserves for proper proportional math.
-  const normReserveA = normalizeToDecimals(reserveA, aDecimalsStored);
-  const normReserveB = normalizeToDecimals(reserveB, bDecimalsStored);
+  const normReserveA = normalizeToDecimals(
+    reserveA,
+    aDecimalsStored,
+    normalizationDecimals,
+  );
+  const normReserveB = normalizeToDecimals(
+    reserveB,
+    bDecimalsStored,
+    normalizationDecimals,
+  );
 
   // amountAOut = (lpAmount * reserveA) / totalSupply
   const normAmountAOut = SafeMath256.div(
@@ -713,14 +723,22 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     totalSupply,
   );
 
-  const amountAOut = denormalizeFromDecimals(normAmountAOut, aDecimalsStored);
+  const amountAOut = denormalizeFromDecimals(
+    normAmountAOut,
+    aDecimalsStored,
+    normalizationDecimals,
+  );
 
   // amountBOut = (lpAmount * reserveB) / totalSupply
   const normAmountBOut = SafeMath256.div(
     SafeMath256.mul(lpAmount, normReserveB),
     totalSupply,
   );
-  const amountBOut = denormalizeFromDecimals(normAmountBOut, bDecimalsStored);
+  const amountBOut = denormalizeFromDecimals(
+    normAmountBOut,
+    bDecimalsStored,
+    normalizationDecimals,
+  );
 
   // check if the amountAOut and amountBOut are greater than or equal to minAmountA and minAmountB
   assert(
@@ -932,8 +950,8 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
 
   // Get the pool K value that will be used later to ensure that the flash loan is valid
   const poolK = SafeMath256.mul(
-    normalizeToDecimals(aReserve, aDecimalsStored),
-    normalizeToDecimals(bReserve, bDecimalsStored),
+    normalizeToDecimals(aReserve, aDecimalsStored, normalizationDecimals),
+    normalizeToDecimals(bReserve, bDecimalsStored, normalizationDecimals),
   );
 
   // Get the pool flash loan fee
@@ -1004,8 +1022,16 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
 
   // Get the new pool K value
   const newPoolK = SafeMath256.mul(
-    normalizeToDecimals(aContractBalanceAfter, aDecimalsStored),
-    normalizeToDecimals(bContractBalanceAfter, bDecimalsStored),
+    normalizeToDecimals(
+      aContractBalanceAfter,
+      aDecimalsStored,
+      normalizationDecimals,
+    ),
+    normalizeToDecimals(
+      bContractBalanceAfter,
+      bDecimalsStored,
+      normalizationDecimals,
+    ),
   );
   // Ensure that the new pool K value is greater than or equal to the old pool K value
   assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
@@ -1558,9 +1584,18 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
   const normAmountInAfterFee = normalizeToDecimals(
     amountInAfterFee,
     inDecimals,
+    normalizationDecimals,
   );
-  const normReserveIn = normalizeToDecimals(reserveIn, inDecimals);
-  const normReserveOut = normalizeToDecimals(reserveOut, outDecimals);
+  const normReserveIn = normalizeToDecimals(
+    reserveIn,
+    inDecimals,
+    normalizationDecimals,
+  );
+  const normReserveOut = normalizeToDecimals(
+    reserveOut,
+    outDecimals,
+    normalizationDecimals,
+  );
 
   // Calculate the amount of tokens to be swapped
   const normAmountOut = getAmountOut(
@@ -1569,7 +1604,11 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
     normReserveOut,
   );
 
-  const amountOut = denormalizeFromDecimals(normAmountOut, outDecimals);
+  const amountOut = denormalizeFromDecimals(
+    normAmountOut,
+    outDecimals,
+    normalizationDecimals,
+  );
 
   return new GetSwapOutResult(
     amountOut,
@@ -1632,15 +1671,31 @@ function _getAddLiquidityData(
   let bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
 
   // Normalize the amounts to default decimals (18)
-  const normAmountA = normalizeToDecimals(amountA, aDecimalsStored);
-  const normAmountB = normalizeToDecimals(amountB, bDecimalsStored);
+  const normAmountA = normalizeToDecimals(
+    amountA,
+    aDecimalsStored,
+    normalizationDecimals,
+  );
+  const normAmountB = normalizeToDecimals(
+    amountB,
+    bDecimalsStored,
+    normalizationDecimals,
+  );
 
   print(`Norm amount A: ${normAmountA.toString()}`);
   print(`Norm amount B: ${normAmountB.toString()}`);
 
   // Also normalize reserves for proper proportional math.
-  const normReserveA = normalizeToDecimals(reserveA, aDecimalsStored);
-  const normReserveB = normalizeToDecimals(reserveB, bDecimalsStored);
+  const normReserveA = normalizeToDecimals(
+    reserveA,
+    aDecimalsStored,
+    normalizationDecimals,
+  );
+  const normReserveB = normalizeToDecimals(
+    reserveB,
+    bDecimalsStored,
+    normalizationDecimals,
+  );
 
   let normFinalAmountA = normAmountA;
   let normFinalAmountB = normAmountB;
@@ -1680,11 +1735,19 @@ function _getAddLiquidityData(
       );
       normFinalAmountA = amountAOptimal;
       // Convert the optimal normalized token A amount back to its raw value.
-      finalAmountA = denormalizeFromDecimals(amountAOptimal, aDecimalsStored);
+      finalAmountA = denormalizeFromDecimals(
+        amountAOptimal,
+        aDecimalsStored,
+        normalizationDecimals,
+      );
     } else {
       // User provided more B than needed, adjust B
       normFinalAmountB = amountBOptimal;
-      finalAmountB = denormalizeFromDecimals(amountBOptimal, bDecimalsStored);
+      finalAmountB = denormalizeFromDecimals(
+        amountBOptimal,
+        bDecimalsStored,
+        normalizationDecimals,
+      );
     }
 
     // assert that the finalAmountA and finalAmountB are greater than minAmountA and minAmountB
