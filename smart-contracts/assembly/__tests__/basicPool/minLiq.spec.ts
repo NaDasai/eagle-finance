@@ -69,189 +69,275 @@ beforeEach(() => {
   );
 });
 
-// describe('Min Liquidity dec 18 -6 ', () => {
-//   const aDecimals = 18;
-//   const bDecimals = 6;
+describe('Min Liquidity dec 18 -6 ', () => {
+  const aDecimals = 18;
+  const bDecimals = 6;
 
-//   beforeEach(() => {
-//     initializeNewPool(aDecimals, bDecimals);
-//   });
+  beforeEach(() => {
+    initializeNewPool(aDecimals, bDecimals);
+  });
 
-//   // test('Amounts 10 - 10', () => {
-//   //   const aAmount = parseUnits(10, aDecimals);
-//   //   const bAmount = parseUnits(10, bDecimals);
-//   //   print('aAmount: ' + aAmount.toString());
-//   //   print('bAmount: ' + bAmount.toString());
-//   //   print('aDecimals: ' + aDecimals.toString());
-//   //   print('bDecimals: ' + bDecimals.toString());
+  test('Amounts 10 - 10', () => {
+    const aAmount = parseUnits(10, aDecimals);
+    const bAmount = parseUnits(10, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
 
-//   //   const addLiqArgs = new Args()
-//   //     .add(aAmount)
-//   //     .add(bAmount)
-//   //     .add(u256.Zero)
-//   //     .add(u256.Zero)
-//   //     .serialize();
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//   //   addLiquidity(addLiqArgs);
+    addLiquidity(addLiqArgs);
 
-//   //   const user1LPBalance = bytesToU256(
-//   //     getLPBalance(new Args().add(user1Address).serialize()),
-//   //   );
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//   //   print('user1LPBalance: ' + user1LPBalance.toString());
+    print('user1LPBalance: ' + user1LPBalance.toString());
 
-//   //   const lpAmount = user1LPBalance;
+    const lpAmount = user1LPBalance;
 
-//   //   const removeLiqArgs = new Args()
-//   //     .add(lpAmount)
-//   //     .add(u256.Zero)
-//   //     .add(u256.Zero)
-//   //     .serialize();
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//   //   removeLiquidity(removeLiqArgs);
+    removeLiquidity(removeLiqArgs);
 
-//   //   const user1LPBalanceAfter = bytesToU256(
-//   //     getLPBalance(new Args().add(user1Address).serialize()),
-//   //   );
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//   //   print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
-//   // });
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
 
-//   test('Amounts 8 - 4', () => {
-//     const aAmount = parseUnits(8, aDecimals);
-//     const bAmount = parseUnits(4, bDecimals);
-//     print('aAmount: ' + aAmount.toString());
-//     print('bAmount: ' + bAmount.toString());
-//     print('aDecimals: ' + aDecimals.toString());
-//     print('bDecimals: ' + bDecimals.toString());
+  test('Amounts 8 - 4', () => {
+    const aAmount = parseUnits(8, aDecimals);
+    const bAmount = parseUnits(4, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
 
-//     const addLiqArgs = new Args()
-//       .add(aAmount)
-//       .add(bAmount)
-//       .add(u256.Zero)
-//       .add(u256.Zero)
-//       .serialize();
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//     addLiquidity(addLiqArgs);
+    addLiquidity(addLiqArgs);
 
-//     const user1LPBalance = bytesToU256(
-//       getLPBalance(new Args().add(user1Address).serialize()),
-//     );
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//     print('user1LPBalance: ' + user1LPBalance.toString());
+    print('user1LPBalance: ' + user1LPBalance.toString());
 
-//     const lpAmount = user1LPBalance;
+    const lpAmount = user1LPBalance;
 
-//     const removeLiqArgs = new Args()
-//       .add(lpAmount)
-//       .add(u256.Zero)
-//       .add(u256.Zero)
-//       .serialize();
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//     removeLiquidity(removeLiqArgs);
+    removeLiquidity(removeLiqArgs);
 
-//     const user1LPBalanceAfter = bytesToU256(
-//       getLPBalance(new Args().add(user1Address).serialize()),
-//     );
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//     print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
-//   });
-// });
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
 
-// describe('Min Liquidity dec 18 - 18 ', () => {
-//   const aDecimals = 18;
-//   const bDecimals = 18;
+  test('Amounts 4 - 8', () => {
+    const aAmount = parseUnits(4, aDecimals);
+    const bAmount = parseUnits(8, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
 
-//   beforeEach(() => {
-//     initializeNewPool(aDecimals, bDecimals);
-//   });
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//   // test('Amounts 10 - 10', () => {
-//   //   const aAmount = parseUnits(10, aDecimals);
-//   //   const bAmount = parseUnits(10, bDecimals);
-//   //   print('aAmount: ' + aAmount.toString());
-//   //   print('bAmount: ' + bAmount.toString());
-//   //   print('aDecimals: ' + aDecimals.toString());
-//   //   print('bDecimals: ' + bDecimals.toString());
+    addLiquidity(addLiqArgs);
 
-//   //   const addLiqArgs = new Args()
-//   //     .add(aAmount)
-//   //     .add(bAmount)
-//   //     .add(u256.Zero)
-//   //     .add(u256.Zero)
-//   //     .serialize();
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//   //   addLiquidity(addLiqArgs);
+    print('user1LPBalance: ' + user1LPBalance.toString());
 
-//   //   const user1LPBalance = bytesToU256(
-//   //     getLPBalance(new Args().add(user1Address).serialize()),
-//   //   );
+    const lpAmount = user1LPBalance;
 
-//   //   print('user1LPBalance: ' + user1LPBalance.toString());
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//   //   const lpAmount = user1LPBalance;
+    removeLiquidity(removeLiqArgs);
 
-//   //   const removeLiqArgs = new Args()
-//   //     .add(lpAmount)
-//   //     .add(u256.Zero)
-//   //     .add(u256.Zero)
-//   //     .serialize();
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//   //   removeLiquidity(removeLiqArgs);
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
+});
 
-//   //   const user1LPBalanceAfter = bytesToU256(
-//   //     getLPBalance(new Args().add(user1Address).serialize()),
-//   //   );
+describe('Min Liquidity dec 18 - 18 ', () => {
+  const aDecimals = 18;
+  const bDecimals = 18;
 
-//   //   print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
-//   // });
+  beforeEach(() => {
+    print(
+      '*******************************************************************************',
+    );
+    initializeNewPool(aDecimals, bDecimals);
+  });
 
-//   test('Amounts 8 - 4', () => {
-//     const aAmount = parseUnits(8, aDecimals);
-//     const bAmount = parseUnits(4, bDecimals);
-//     print('aAmount: ' + aAmount.toString());
-//     print('bAmount: ' + bAmount.toString());
-//     print('aDecimals: ' + aDecimals.toString());
-//     print('bDecimals: ' + bDecimals.toString());
+  test('Amounts 10 - 10', () => {
+    const aAmount = parseUnits(10, aDecimals);
+    const bAmount = parseUnits(10, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
 
-//     const addLiqArgs = new Args()
-//       .add(aAmount)
-//       .add(bAmount)
-//       .add(u256.Zero)
-//       .add(u256.Zero)
-//       .serialize();
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//     addLiquidity(addLiqArgs);
+    addLiquidity(addLiqArgs);
 
-//     const user1LPBalance = bytesToU256(
-//       getLPBalance(new Args().add(user1Address).serialize()),
-//     );
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//     print('user1LPBalance: ' + user1LPBalance.toString());
+    print('user1LPBalance: ' + user1LPBalance.toString());
 
-//     const lpAmount = user1LPBalance;
+    const lpAmount = user1LPBalance;
 
-//     const removeLiqArgs = new Args()
-//       .add(lpAmount)
-//       .add(u256.Zero)
-//       .add(u256.Zero)
-//       .serialize();
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//     removeLiquidity(removeLiqArgs);
+    removeLiquidity(removeLiqArgs);
 
-//     const user1LPBalanceAfter = bytesToU256(
-//       getLPBalance(new Args().add(user1Address).serialize()),
-//     );
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//     print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
-//   });
-// });
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
+
+  test('Amounts 8 - 4', () => {
+    const aAmount = parseUnits(8, aDecimals);
+    const bAmount = parseUnits(4, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
+
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    addLiquidity(addLiqArgs);
+
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalance: ' + user1LPBalance.toString());
+
+    const lpAmount = user1LPBalance;
+
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    removeLiquidity(removeLiqArgs);
+
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
+
+  test('Amounts 4 - 8', () => {
+    const aAmount = parseUnits(4, aDecimals);
+    const bAmount = parseUnits(8, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
+
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    addLiquidity(addLiqArgs);
+
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalance: ' + user1LPBalance.toString());
+
+    const lpAmount = user1LPBalance;
+
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    removeLiquidity(removeLiqArgs);
+
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
+});
 
 describe('Min Liquidity dec 18 - 9 ', () => {
   const aDecimals = 18;
   const bDecimals = 9;
 
   beforeEach(() => {
+    print(
+      '*******************************************************************************',
+    );
     initializeNewPool(aDecimals, bDecimals);
   });
 
@@ -336,211 +422,368 @@ describe('Min Liquidity dec 18 - 9 ', () => {
   // });
 
   test('Amounts 0.000000000000000001 - 0.000000001', () => {
-      const aAmount = parseUnits(0.000000000000000001 , aDecimals);
-      const bAmount = parseUnits(0.000000001, bDecimals);
-      print('aAmount: ' + aAmount.toString());
-      print('bAmount: ' + bAmount.toString());
-      print('aDecimals: ' + aDecimals.toString());
-      print('bDecimals: ' + bDecimals.toString());
-      const addLiqArgs = new Args()
-        .add(aAmount)
-        .add(bAmount)
-        .add(u256.Zero)
-        .add(u256.Zero)
-        .serialize();
-      addLiquidity(addLiqArgs);
-      const user1LPBalance = bytesToU256(
-        getLPBalance(new Args().add(user1Address).serialize()),
-      );
-      print('user1LPBalance: ' + user1LPBalance.toString());
-      const lpAmount = user1LPBalance;
-      const removeLiqArgs = new Args()
-        .add(lpAmount)
-        .add(u256.Zero)
-        .add(u256.Zero)
-        .serialize();
-      removeLiquidity(removeLiqArgs);
-      const user1LPBalanceAfter = bytesToU256(
-        getLPBalance(new Args().add(user1Address).serialize()),
-      );
-      print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+    const aAmount = parseUnits(0.000000000000001, aDecimals);
+    const bAmount = parseUnits(0.0000001, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+    addLiquidity(addLiqArgs);
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+    print('user1LPBalance: ' + user1LPBalance.toString());
+    const lpAmount = user1LPBalance;
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+    removeLiquidity(removeLiqArgs);
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
+
+  // test('Amounts 4 - 4', () => {
+  //   const aAmount = parseUnits(4, aDecimals);
+  //   const bAmount = parseUnits(4, bDecimals);
+  //   print('aAmount: ' + aAmount.toString());
+  //   print('bAmount: ' + bAmount.toString());
+  //   print('aDecimals: ' + aDecimals.toString());
+  //   print('bDecimals: ' + bDecimals.toString());
+
+  //   const addLiqArgs = new Args()
+  //     .add(aAmount)
+  //     .add(bAmount)
+  //     .add(u256.Zero)
+  //     .add(u256.Zero)
+  //     .serialize();
+
+  //   addLiquidity(addLiqArgs);
+
+  //   const user1LPBalance = bytesToU256(
+  //     getLPBalance(new Args().add(user1Address).serialize()),
+  //   );
+
+  //   print('user1LPBalance: ' + user1LPBalance.toString());
+
+  //   const lpAmount = user1LPBalance;
+
+  //   const removeLiqArgs = new Args()
+  //     .add(lpAmount)
+  //     .add(u256.Zero)
+  //     .add(u256.Zero)
+  //     .serialize();
+
+  //   removeLiquidity(removeLiqArgs);
+
+  //   const user1LPBalanceAfter = bytesToU256(
+  //     getLPBalance(new Args().add(user1Address).serialize()),
+  //   );
+  // });
+
+  // test('Amounts 4 - 8', () => {
+  //   const aAmount = parseUnits(4, aDecimals);
+  //   const bAmount = parseUnits(8, bDecimals);
+  //   print('aAmount: ' + aAmount.toString());
+  //   print('bAmount: ' + bAmount.toString());
+  //   print('aDecimals: ' + aDecimals.toString());
+  //   print('bDecimals: ' + bDecimals.toString());
+
+  //   const addLiqArgs = new Args()
+  //     .add(aAmount)
+  //     .add(bAmount)
+  //     .add(u256.Zero)
+  //     .add(u256.Zero)
+  //     .serialize();
+
+  //   addLiquidity(addLiqArgs);
+
+  //   const user1LPBalance = bytesToU256(
+  //     getLPBalance(new Args().add(user1Address).serialize()),
+  //   );
+
+  //   print('user1LPBalance: ' + user1LPBalance.toString());
+
+  //   const lpAmount = user1LPBalance;
+
+  //   const removeLiqArgs = new Args()
+  //     .add(lpAmount)
+  //     .add(u256.Zero)
+  //     .add(u256.Zero)
+  //     .serialize();
+
+  //   removeLiquidity(removeLiqArgs);
+
+  //   const user1LPBalanceAfter = bytesToU256(
+  //     getLPBalance(new Args().add(user1Address).serialize()),
+  //   );
+
+  //   print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  // });
+});
+
+describe('Min Liquidity dec 9 - 9 ', () => {
+  const aDecimals = 9;
+  const bDecimals = 9;
+
+  beforeEach(() => {
+    print(
+      '*******************************************************************************',
+    );
+    initializeNewPool(aDecimals, bDecimals);
+  });
+
+  test('Amounts 10 - 10', () => {
+    const aAmount = parseUnits(10, aDecimals);
+    const bAmount = parseUnits(10, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
+
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    addLiquidity(addLiqArgs);
+
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalance: ' + user1LPBalance.toString());
+
+    const lpAmount = user1LPBalance;
+
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    removeLiquidity(removeLiqArgs);
+
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
+
+  test('Amounts 8 - 4', () => {
+    const aAmount = parseUnits(8, aDecimals);
+    const bAmount = parseUnits(4, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
+
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    addLiquidity(addLiqArgs);
+
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalance: ' + user1LPBalance.toString());
+
+    const lpAmount = user1LPBalance;
+
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    removeLiquidity(removeLiqArgs);
+
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
+
+  test('Amounts 4 - 8', () => {
+    const aAmount = parseUnits(4, aDecimals);
+    const bAmount = parseUnits(8, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
+
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    addLiquidity(addLiqArgs);
+
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalance: ' + user1LPBalance.toString());
+
+    const lpAmount = user1LPBalance;
+
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    removeLiquidity(removeLiqArgs);
+
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
   });
 });
 
-// describe('Min Liquidity dec 9 - 9 ', () => {
-//   const aDecimals = 9;
-//   const bDecimals = 9;
+describe('Min Liquidity dec 9 - 6 ', () => {
+  const aDecimals = 9;
+  const bDecimals = 6;
 
-//   beforeEach(() => {
-//     initializeNewPool(aDecimals, bDecimals);
-//   });
+  beforeEach(() => {
+    initializeNewPool(aDecimals, bDecimals);
+  });
 
-//   // test('Amounts 10 - 10', () => {
-//   //   const aAmount = parseUnits(10, aDecimals);
-//   //   const bAmount = parseUnits(10, bDecimals);
-//   //   print('aAmount: ' + aAmount.toString());
-//   //   print('bAmount: ' + bAmount.toString());
-//   //   print('aDecimals: ' + aDecimals.toString());
-//   //   print('bDecimals: ' + bDecimals.toString());
+  test('Amounts 10 - 10', () => {
+    const aAmount = parseUnits(10, aDecimals);
+    const bAmount = parseUnits(10, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
 
-//   //   const addLiqArgs = new Args()
-//   //     .add(aAmount)
-//   //     .add(bAmount)
-//   //     .add(u256.Zero)
-//   //     .add(u256.Zero)
-//   //     .serialize();
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//   //   addLiquidity(addLiqArgs);
+    addLiquidity(addLiqArgs);
 
-//   //   const user1LPBalance = bytesToU256(
-//   //     getLPBalance(new Args().add(user1Address).serialize()),
-//   //   );
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//   //   print('user1LPBalance: ' + user1LPBalance.toString());
+    print('user1LPBalance: ' + user1LPBalance.toString());
 
-//   //   const lpAmount = user1LPBalance;
+    const lpAmount = user1LPBalance;
 
-//   //   const removeLiqArgs = new Args()
-//   //     .add(lpAmount)
-//   //     .add(u256.Zero)
-//   //     .add(u256.Zero)
-//   //     .serialize();
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//   //   removeLiquidity(removeLiqArgs);
+    removeLiquidity(removeLiqArgs);
 
-//   //   const user1LPBalanceAfter = bytesToU256(
-//   //     getLPBalance(new Args().add(user1Address).serialize()),
-//   //   );
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//   //   print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
-//   // });
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
 
-//   test('Amounts 8 - 4', () => {
-//     const aAmount = parseUnits(8, aDecimals);
-//     const bAmount = parseUnits(4, bDecimals);
-//     print('aAmount: ' + aAmount.toString());
-//     print('bAmount: ' + bAmount.toString());
-//     print('aDecimals: ' + aDecimals.toString());
-//     print('bDecimals: ' + bDecimals.toString());
+  test('Amounts 8 - 4', () => {
+    const aAmount = parseUnits(8, aDecimals);
+    const bAmount = parseUnits(4, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
 
-//     const addLiqArgs = new Args()
-//       .add(aAmount)
-//       .add(bAmount)
-//       .add(u256.Zero)
-//       .add(u256.Zero)
-//       .serialize();
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//     addLiquidity(addLiqArgs);
+    addLiquidity(addLiqArgs);
 
-//     const user1LPBalance = bytesToU256(
-//       getLPBalance(new Args().add(user1Address).serialize()),
-//     );
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//     print('user1LPBalance: ' + user1LPBalance.toString());
+    print('user1LPBalance: ' + user1LPBalance.toString());
 
-//     const lpAmount = user1LPBalance;
+    const lpAmount = user1LPBalance;
 
-//     const removeLiqArgs = new Args()
-//       .add(lpAmount)
-//       .add(u256.Zero)
-//       .add(u256.Zero)
-//       .serialize();
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//     removeLiquidity(removeLiqArgs);
+    removeLiquidity(removeLiqArgs);
 
-//     const user1LPBalanceAfter = bytesToU256(
-//       getLPBalance(new Args().add(user1Address).serialize()),
-//     );
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+  });
 
-//     print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
-//   });
-// });
+  test('Amounts 4 - 8', () => {
+    const aAmount = parseUnits(4, aDecimals);
+    const bAmount = parseUnits(8, bDecimals);
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
 
-// describe('Min Liquidity dec 9 - 6 ', () => {
-//   const aDecimals = 9;
-//   const bDecimals = 6;
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//   beforeEach(() => {
-//     initializeNewPool(aDecimals, bDecimals);
-//   });
+    addLiquidity(addLiqArgs);
 
-//   // test('Amounts 10 - 10', () => {
-//   //   const aAmount = parseUnits(10, aDecimals);
-//   //   const bAmount = parseUnits(10, bDecimals);
-//   //   print('aAmount: ' + aAmount.toString());
-//   //   print('bAmount: ' + bAmount.toString());
-//   //   print('aDecimals: ' + aDecimals.toString());
-//   //   print('bDecimals: ' + bDecimals.toString());
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
 
-//   //   const addLiqArgs = new Args()
-//   //     .add(aAmount)
-//   //     .add(bAmount)
-//   //     .add(u256.Zero)
-//   //     .add(u256.Zero)
-//   //     .serialize();
+    print('user1LPBalance: ' + user1LPBalance.toString());
 
-//   //   addLiquidity(addLiqArgs);
+    const lpAmount = user1LPBalance;
 
-//   //   const user1LPBalance = bytesToU256(
-//   //     getLPBalance(new Args().add(user1Address).serialize()),
-//   //   );
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
 
-//   //   print('user1LPBalance: ' + user1LPBalance.toString());
+    removeLiquidity(removeLiqArgs);
 
-//   //   const lpAmount = user1LPBalance;
-
-//   //   const removeLiqArgs = new Args()
-//   //     .add(lpAmount)
-//   //     .add(u256.Zero)
-//   //     .add(u256.Zero)
-//   //     .serialize();
-
-//   //   removeLiquidity(removeLiqArgs);
-
-//   //   const user1LPBalanceAfter = bytesToU256(
-//   //     getLPBalance(new Args().add(user1Address).serialize()),
-//   //   );
-
-//   //   print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
-//   // });
-
-//   test('Amounts 8 - 4', () => {
-//     const aAmount = parseUnits(8, aDecimals);
-//     const bAmount = parseUnits(4, bDecimals);
-//     print('aAmount: ' + aAmount.toString());
-//     print('bAmount: ' + bAmount.toString());
-//     print('aDecimals: ' + aDecimals.toString());
-//     print('bDecimals: ' + bDecimals.toString());
-
-//     const addLiqArgs = new Args()
-//       .add(aAmount)
-//       .add(bAmount)
-//       .add(u256.Zero)
-//       .add(u256.Zero)
-//       .serialize();
-
-//     addLiquidity(addLiqArgs);
-
-//     const user1LPBalance = bytesToU256(
-//       getLPBalance(new Args().add(user1Address).serialize()),
-//     );
-
-//     print('user1LPBalance: ' + user1LPBalance.toString());
-
-//     const lpAmount = user1LPBalance;
-
-//     const removeLiqArgs = new Args()
-//       .add(lpAmount)
-//       .add(u256.Zero)
-//       .add(u256.Zero)
-//       .serialize();
-
-//     removeLiquidity(removeLiqArgs);
-
-//     const user1LPBalanceAfter = bytesToU256(
-//       getLPBalance(new Args().add(user1Address).serialize()),
-//     );
-
-//     print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
-//   });
-// });
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+  });
+});

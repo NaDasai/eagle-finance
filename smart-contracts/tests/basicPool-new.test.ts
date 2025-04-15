@@ -2191,7 +2191,7 @@ describe.skip('Minimum liquidity test with different decimals (18 - 6) ', async 
   });
 });
 
-describe.skip('Minimum liquidity test with different decimals (9 - 6) ', async () => {
+describe.only('Minimum liquidity test with different decimals (9 - 6) ', async () => {
   beforeAll(async () => {
     bTokenAddress = wmasAddress; // 9 decimals
     aTokenAddress = 'AS12N76WPYB3QNYKGhV2jZuQs1djdhNJLQgnm7m52pHWecvvj1fCQ'; // 6 decimals
@@ -2290,9 +2290,6 @@ describe.skip('Minimum liquidity test with different decimals (9 - 6) ', async (
     expect(reserveBAfter, 'Reserve B should be 10 after adding liquidity').toBe(
       parseUnits('10', 9),
     );
-
-    // res A :  10 * 10 ** 6
-    // res B :  10 * 10 ** 9
 
     const user1ATokenBalanceAfter = await getTokenBalance(
       aTokenAddress,
@@ -2719,12 +2716,4 @@ describe.skip('Minimum liquidity test with different decimals (18 - 9) and very 
     console.log('Price A of B: ', priceAofB);
     // expect(priceAofB, 'Price A of B should be 1000000000').toBe(1000000000);
   });
-});
-
-// 1000000000
-// 1000000000
-
-describe.only('Tests ', async () => {
-  console.log(formatUnits(1000000000n, 18));
-  console.log(formatUnits(1n, 6));
 });
