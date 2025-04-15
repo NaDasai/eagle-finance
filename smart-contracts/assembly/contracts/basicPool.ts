@@ -183,9 +183,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Compare the decimals of the two tokens and ensure that its difference is less than 12
   assert(decimalsDifference <= 12, 'DECIMALS_DIFFERENCE_TOO_LARGE');
 
-  let initialLiquidityLock: u256;
-
-  initialLiquidityLock = u256.fromU64(10 ** decimalsDifference);
+  const initialLiquidityLock = u256.fromU64(10 ** decimalsDifference);
 
   // Store the initial liquidity lock
   Storage.set(initialLiquidityLockKey, u256ToBytes(initialLiquidityLock));
