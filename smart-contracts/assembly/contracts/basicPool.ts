@@ -10,7 +10,6 @@ import {
   balance,
   validateAddress,
   createEvent,
-  print,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -757,19 +756,6 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
   const newResA = SafeMath256.sub(reserveA, amountAOut);
   const newResB = SafeMath256.sub(reserveB, amountBOut);
 
-  print('Lp Amount: ' + lpAmount.toString());
-  print('Reserve A: ' + reserveA.toString());
-  print('Reserve B: ' + reserveB.toString());
-  print('Amount A Out: ' + amountAOut.toString());
-  print('Amount B Out: ' + amountBOut.toString());
-  print('New Reserve A: ' + newResA.toString());
-  print('New Reserve B: ' + newResB.toString());
-  print('K : ' + SafeMath256.mul(newResA, newResB).toString());
-  print('Norm Reserve A: ' + normReserveA.toString());
-  print('Norm Reserve B: ' + normReserveB.toString());
-  print('Norm Amount A Out: ' + normAmountAOut.toString());
-  print('Norm Amount B Out: ' + normAmountBOut.toString());
-
   // Update reserves
   _updateReserveA(newResA);
   _updateReserveB(newResB);
@@ -1283,11 +1269,6 @@ function _addLiquidity(
   _updateReserveA(newResA);
   _updateReserveB(newResB);
 
-  print(`newResA: ${newResA.toString()}`);
-  print(`newResB: ${newResB.toString()}`);
-
-  print('K : ' + SafeMath256.mul(newResA, newResB).toString());
-
   return new addLiquidityData(
     contractAddress.toString(),
     callerAddress.toString(),
@@ -1670,9 +1651,6 @@ function _getAddLiquidityData(
     normalizationDecimals,
   );
 
-  print(`Norm amount A: ${normAmountA.toString()}`);
-  print(`Norm amount B: ${normAmountB.toString()}`);
-
   // Also normalize reserves for proper proportional math.
   const normReserveA = normalizeToDecimals(
     reserveA,
@@ -1692,11 +1670,8 @@ function _getAddLiquidityData(
     // Use normalized values to calculate liquidity:
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
     const product = SafeMath256.mul(normAmountA, normAmountB);
-    print(`Product: ${product.toString()}`);
     // totalLiquidity = sqrt(product)
     const totalLiquidity = SafeMath256.sqrt(product);
-
-    print(`Total liquidity: ${totalLiquidity.toString()}`);
 
     // Calculate the total liquidity with safety factor (totalLiquidity * safetyFactor)
     const totalLpSafety = SafeMath256.mul(totalLiquidity, safetyFactor);
@@ -1705,23 +1680,18 @@ function _getAddLiquidityData(
     const LpDivA = SafeMath256.div(totalLpSafety, amountA);
     const LpDivB = SafeMath256.div(totalLpSafety, amountB);
 
-    print(`Lp div A: ${LpDivA.toString()}`);
-    print(`Lp div B: ${LpDivB.toString()}`);
-
     // Get the maximum value between LpDivA and LpDivB
     const maxLpDiv = LpDivA > LpDivB ? LpDivA : LpDivB;
-    print(`Max LP div: ${maxLpDiv.toString()}`);
 
     // Calculate the initial liquidity lock which is the maximum value between LpDivA and LpDivB
     initialLiquidityLock = maxLpDiv;
-    print(`Initial liquidity lock: ${initialLiquidityLock.toString()}`);
 
     // Ensure that the totalLiquidity is greater than the initial liquidity lock
     assert(totalLiquidity > initialLiquidityLock, 'TOO_SMALL_LIQUIDITY');
 
     // liquidity = totalLiquidity - INITIAL_LIQUIDITY_LOCK
     liquidity = SafeMath256.sub(totalLiquidity, initialLiquidityLock);
-    print(`Liquidity: ${liquidity.toString()}`);
+
     isInitialLiquidity = true;
   } else {
     // Adding liquidity proportional to the current pool
