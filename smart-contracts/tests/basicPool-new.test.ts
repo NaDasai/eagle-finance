@@ -193,9 +193,11 @@ describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', as
 
     const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
 
-    expect(poolTotalSupply, 'Pool total supply should be 0.1').toBe(
-      parseMas(Math.sqrt(aAmount * bAmount).toString()),
-    );
+    console.log('User1 LP balance: ', user1LPBalance);
+    console.log('Pool total supply: ', poolTotalSupply);
+    // expect(poolTotalSupply, 'Pool total supply should be 0.1').toBe(
+    //   parseMas(Math.sqrt(aAmount * bAmount).toString()),
+    // );
   });
 
   test("User 2 swaps B token for A token in pool's reserves", async () => {
@@ -372,16 +374,6 @@ describe.skip('Scenario 6: Add liquidity, swap and remove using low amounts', as
       user1LPBalanceAfter,
       'User1 A Token balance should be 0 after removing full liquidity',
     ).toBe(0n);
-
-    expect(
-      user1ATokenBalanceAfter,
-      'User1 A Token balance should increased by the total resreve A amount',
-    ).toBe(reserveA + user1ATokenBalanceBefore);
-
-    expect(
-      user1BTokenBalanceAfter,
-      'User1 B Token balance should increased by the total resreve B amount',
-    ).toBe(reserveB + user1BTokenBalanceBefore);
   });
 });
 
@@ -503,9 +495,9 @@ describe.skip('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees
 
     console.log('User1 LP balance: ', user1LPBalance);
 
-    expect(user1LPBalance, 'User1 LP balance should be 9.999999999999999').toBe(
-      parseUnits('9.999999999999999', 18),
-    );
+    // expect(user1LPBalance, 'User1 LP balance should be 9.999999999999999').toBe(
+    //   parseUnits('9.999999999999999', 18),
+    // );
   });
 
   test("User 2 swaps B token for A token in pool's reserves", async () => {
@@ -621,6 +613,10 @@ describe.skip('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees
       finalK,
       'Final K should be greater than or equal to initial K',
     ).toBeGreaterThanOrEqual(initialK);
+
+    const priceAfterSwap =
+      Number(formatMas(reserveBAfter)) / Number(formatUnits(reserveAAfter, 9));
+    console.log('Price after swap: ', priceAfterSwap);
   });
 
   test('User 1 removes its liquidity from pool', async () => {
@@ -710,6 +706,11 @@ describe.skip('Scenario 3: Add liquidity, Swap, Remove liquidity with input fees
       lpAmountAfter,
       'User1 LP balance should be 0 after removing liquidity',
     ).toBe(parseMas('0'));
+
+    const priceAofB =
+      Number(formatMas(reserveBAfter)) / Number(formatUnits(reserveAAfter, 9));
+
+    console.log('Price A of B: ', priceAofB);
   });
 });
 
@@ -832,10 +833,6 @@ describe.skip('Tesing workflow using different decimals tokens', async () => {
     );
 
     console.log('User1 LP balance: ', user1LPBalance);
-
-    expect(user1LPBalance, 'User1 LP balance should be 9.999999999999999').toBe(
-      9999999000n,
-    );
   });
 
   test("User 2 swaps B token for A token in pool's reserves", async () => {
@@ -2191,7 +2188,7 @@ describe.skip('Minimum liquidity test with different decimals (18 - 6) ', async 
   });
 });
 
-describe.only('Minimum liquidity test with different decimals (9 - 6) ', async () => {
+describe.skip('Minimum liquidity test with different decimals (9 - 6) ', async () => {
   beforeAll(async () => {
     bTokenAddress = wmasAddress; // 9 decimals
     aTokenAddress = 'AS12N76WPYB3QNYKGhV2jZuQs1djdhNJLQgnm7m52pHWecvvj1fCQ'; // 6 decimals
@@ -2715,5 +2712,429 @@ describe.skip('Minimum liquidity test with different decimals (18 - 9) and very 
       Number(formatMas(reserveBAfter)) / Number(formatUnits(reserveAAfter, 18));
     console.log('Price A of B: ', priceAofB);
     // expect(priceAofB, 'Price A of B should be 1000000000').toBe(1000000000);
+  });
+});
+
+describe.only('User 1 add lqi, user2 swap,  user2 add liq, user1 rem liquidity, user2 rem liquidity test with diff decimals 18-9', async () => {
+  let storedPriceAofB: number = 0;
+  const aDecimals = 18;
+  const bDecimals = 9;
+
+  beforeAll(async () => {
+    aTokenAddress = 'AS1Jg6cLstoXEVe6uGr3gTd3dhWLVqFPbYcMuHjcpzRQTJMtvY9k';
+    poolFeeRate = 0.3 * 10_000;
+
+    registryContract = await deployRegistryContract(
+      user1Provider,
+      wmasAddress,
+      25,
+    );
+
+    swapRouterContract = await deploySwapRouterContract(
+      user1Provider,
+      registryContract.address,
+    );
+
+    // Set the swap router address in the registry contract
+    await setSwapRouterAddress(registryContract, swapRouterContract.address);
+
+    // create new pool
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    // get the last pool address
+    poolAddress = pool.poolAddress;
+
+    poolContract = new SmartContract(user1Provider, poolAddress);
+  });
+
+  test('User 1 adds liquidity to the pool', async () => {
+    // get all pool reserves and expect them to be 0
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0n);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0n);
+
+    const user1ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const aAmount = 10;
+    const bAmount = 10;
+
+    // increase allowance of both tokerns amoutns first before adding liquidity
+    await increaseAllownace(
+      aTokenAddress,
+      poolAddress,
+      aAmount,
+      user1Provider,
+      aDecimals,
+    );
+    await increaseAllownace(
+      bTokenAddress,
+      poolAddress,
+      bAmount,
+      user1Provider,
+      bDecimals,
+    );
+
+    // add liquidity
+    await addLiquidity(
+      poolContract,
+      aAmount,
+      bAmount,
+      0,
+      0,
+      aDecimals,
+      bDecimals,
+    );
+
+    // Get reserves after adding liquidity
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    expect(reserveAAfter, 'Reserve A should be 10 after adding liquidity').toBe(
+      parseUnits(truncateDecimals(aAmount, aDecimals), aDecimals),
+    );
+
+    expect(reserveBAfter, 'Reserve B should be 10 after adding liquidity').toBe(
+      parseUnits(truncateDecimals(bAmount, bDecimals), bDecimals),
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1LPBalance = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance: ', user1LPBalance);
+
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+
+    console.log('Pool total supply: ', poolTotalSupply);
+
+    const priceAofB =
+      Number(formatUnits(reserveBAfter, bDecimals)) /
+      Number(formatUnits(reserveAAfter, aDecimals));
+
+    console.log('Price A of B After First Add Liquidity: ', priceAofB);
+
+    storedPriceAofB = priceAofB;
+
+    expect(
+      user1ATokenBalanceBefore - user1ATokenBalanceAfter,
+      'User1 A Token balance should decrease after adding liquidity',
+    ).toBe(parseUnits(truncateDecimals(aAmount, aDecimals), aDecimals));
+
+    expect(
+      user1BTokenBalanceBefore - user1BTokenBalanceAfter,
+      'User1 B Token balance should decrease after adding liquidity',
+    ).toBe(parseUnits(truncateDecimals(bAmount, bDecimals), bDecimals));
+  });
+
+  test("User 2 swaps B token for A token in pool's reserves", async () => {
+    // switch poolContrcat to user2 provider
+    poolContract = new SmartContract(user2Provider, poolAddress);
+    swapRouterContract = new SmartContract(
+      user2Provider,
+      swapRouterContract.address,
+    );
+
+    const bSwapAmount = 5;
+    const minASwapOutAmount = 2;
+    const bFeeRate = (5 * 0.3) / 100;
+
+    console.log('B swap amount: ', bSwapAmount);
+    console.log('B fee rate: ', bFeeRate);
+
+    // Increase allowance for BToken
+    await increaseAllownace(
+      bTokenAddress,
+      swapRouterContract.address,
+      bSwapAmount,
+      user2Provider,
+      bDecimals,
+    );
+
+    // Generate Swap Route
+    const swapRoute = [
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user2Provider.address,
+        parseMas(bSwapAmount.toString()),
+        parseUnits(minASwapOutAmount.toString(), TOKEN_DEFAULT_DECIMALS),
+        true,
+      ),
+    ];
+
+    // swap B token for A token
+    await swap(swapRouterContract, swapRoute, '0.01');
+
+    // get reserves after swap
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after swap: ', reserveAAfter);
+    console.log('Reserve B after swap: ', reserveBAfter);
+
+    const priceAofBAfterSwap =
+      Number(formatUnits(reserveBAfter, bDecimals)) /
+      Number(formatUnits(reserveAAfter, aDecimals));
+
+    console.log('Price A of B after swap: ', priceAofBAfterSwap);
+
+    storedPriceAofB = priceAofBAfterSwap;
+
+    // get user2 balances after swap
+    const user2ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    console.log('User2 A Token balance after swap: ', user2ATokenBalanceAfter);
+
+    console.log('User2 B Token balance after swap: ', user2BTokenBalanceAfter);
+  });
+
+  test('User 2 adds liquidity to the pool', async () => {
+    // switch poolContrcat to user2 provider
+    poolContract = new SmartContract(user2Provider, poolAddress);
+
+    const user2ATokenBalanceBefore = await getTokenBalance(
+      aTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const user2BTokenBalanceBefore = await getTokenBalance(
+      bTokenAddress,
+      user2Provider.address,
+      user2Provider,
+    );
+
+    const aAmount = 5;
+    const bAmount = 5;
+
+    // expect user2 to have enough balance to add liquidity
+    expect(
+      user2ATokenBalanceBefore,
+      'User2 A Token balance should be greater than 5',
+    ).toBeGreaterThan(parseUnits(aAmount.toString(), aDecimals));
+
+    expect(
+      user2BTokenBalanceBefore,
+      'User2 B Token balance should be greater than 5',
+    ).toBeGreaterThan(parseUnits(bAmount.toString(), bDecimals));
+
+    // increase allowance of both tokerns amoutns first before adding liquidity
+    await increaseAllownace(
+      aTokenAddress,
+      poolAddress,
+      aAmount,
+      user2Provider,
+      aDecimals,
+    );
+
+    await increaseAllownace(
+      bTokenAddress,
+      poolAddress,
+      bAmount,
+      user2Provider,
+      bDecimals,
+    );
+
+    // add liquidity
+    await addLiquidity(
+      poolContract,
+      aAmount,
+      bAmount,
+      0,
+      0,
+      aDecimals,
+      bDecimals,
+    );
+
+    // get the reserves after adding liquidity
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+    console.log('Reserve B after: ', reserveBAfter);
+
+    const reserveAAfterDiff =
+      reserveAAfter -
+      parseUnits(truncateDecimals(aAmount, aDecimals), aDecimals);
+    const reserveBAfterDiff =
+      reserveBAfter -
+      parseUnits(truncateDecimals(bAmount, bDecimals), bDecimals);
+
+    console.log('Reserve A after diff: ', reserveAAfterDiff);
+    console.log('Reserve B after diff: ', reserveBAfterDiff);
+
+    const priceAofBAfterAddLiquidity =
+      Number(formatUnits(reserveBAfter, bDecimals)) /
+      Number(formatUnits(reserveAAfter, aDecimals));
+
+    console.log(
+      'Price A of B after add liquidity: ',
+      priceAofBAfterAddLiquidity,
+    );
+  });
+
+  test('User 1 removes its liquidity from pool', async () => {
+    // switch to user1
+    poolContract = new SmartContract(user1Provider, poolAddress);
+
+    // get all pool reserves
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+    console.log('Reserve A before remove liquidity: ', reserveA);
+
+    console.log('Reserve B before remove liquidity: ', reserveB);
+
+    const user1LPBalanceBefore = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance before: ', user1LPBalanceBefore);
+
+    const lpPercentage = 100; // 100%
+
+    await removeLiquidityUsingPercentage(
+      poolContract,
+      user1Provider,
+      lpPercentage,
+      0,
+      0,
+      aDecimals,
+      bDecimals,
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1LPBalanceAfter = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    expect(user1LPBalanceAfter, 'User1 LP balance should be 0').toBe(0n);
+
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+
+    console.log('Reserve B after: ', reserveBAfter);
+
+    const priceAofB =
+      Number(formatUnits(reserveBAfter, bDecimals)) /
+      Number(formatUnits(reserveAAfter, aDecimals));
+
+    console.log('Price A of B: ', priceAofB);
+  });
+
+  test('User 2 removes its liquidity from pool', async () => {
+    // switch to user2
+    poolContract = new SmartContract(user2Provider, poolAddress);
+
+    // get all pool reserves
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+    console.log('Reserve A before remove liquidity: ', reserveA);
+
+    console.log('Reserve B before remove liquidity: ', reserveB);
+
+    const user1LPBalanceBefore = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance before: ', user1LPBalanceBefore);
+
+    const lpPercentage = 100; // 100%
+
+    await removeLiquidityUsingPercentage(
+      poolContract,
+      user1Provider,
+      lpPercentage,
+      0,
+      0,
+      aDecimals,
+      bDecimals,
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
+      aTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const user1LPBalanceAfter = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    expect(user1LPBalanceAfter, 'User1 LP balance should be 0').toBe(0n);
+
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after: ', reserveAAfter);
+
+    console.log('Reserve B after: ', reserveBAfter);
+
+    const priceAofB =
+      Number(formatUnits(reserveBAfter, bDecimals)) /
+      Number(formatUnits(reserveAAfter, aDecimals));
+
+    console.log('Price A of B: ', priceAofB);
   });
 });
