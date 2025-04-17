@@ -49,7 +49,8 @@
         "@massalabs/massa-web3": "^5.1.1",
         "@massalabs/prettier-config-as": "^0.0.2",
         "@massalabs/sc-standards": "^1.2.3-dev.20241209143606",
-        "@types/node": "^18.11.10",
+        "@types/node": "^20",
+        "@types/yargs": "^17.0.33",
         "as-bignum": "github:massalabs/as-bignum#0105eb596b2fa707c00712e811a2efdfcb8a9848",
         "assemblyscript": "^0.27.29",
         "assemblyscript-prettier": "^1.0.7",
@@ -63,6 +64,12 @@
     "overrides": {
         "visitor-as": {
             "assemblyscript": "$assemblyscript"
+        },
+        "@massalabs/as-types": {
+            "as-bignum": "$as-bignum"
+        },
+        "@massalabs/sc-standards": {
+            "as-bignum": "$as-bignum"
         }
     },
     "type": "module",
