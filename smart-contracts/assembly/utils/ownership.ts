@@ -1,4 +1,10 @@
-import { Address, Context, generateEvent, Storage, validateAddress } from '@massalabs/massa-as-sdk';
+import {
+  Address,
+  Context,
+  generateEvent,
+  Storage,
+  validateAddress,
+} from '@massalabs/massa-as-sdk';
 import { Args, stringToBytes } from '@massalabs/as-types';
 import {
   OWNER_KEY,
@@ -41,8 +47,10 @@ export function transferOwnership(binaryArgs: StaticArray<u8>): void {
   // Set a new pending owner
   Storage.set(pendingOwner, newOwner);
 
-  // Emit an event 
-  generateEvent(ownershipTransferStartedEvent(_ownerAddress(), new Address(newOwner)));
+  // Emit an event
+  generateEvent(
+    ownershipTransferStartedEvent(_ownerAddress(), new Address(newOwner)),
+  );
 }
 
 /**
@@ -54,9 +62,13 @@ export function transferOwnership(binaryArgs: StaticArray<u8>): void {
 export function acceptOwnership(): void {
   const caller = Context.caller();
   const storedPendingOwner = Storage.get(pendingOwner);
+  const prevOwner = _ownerAddress();
 
   // Ensure that the caller is the pending owner
-  assert(caller.toString() === storedPendingOwner, 'CALLER_IS_NOT_PENDING_OWNER');
+  assert(
+    caller.toString() === storedPendingOwner,
+    'CALLER_IS_NOT_PENDING_OWNER',
+  );
 
   // Set the new owner
   Storage.set(OWNER_KEY, caller.toString());
@@ -64,10 +76,9 @@ export function acceptOwnership(): void {
   // Delete the pending owner
   Storage.del(pendingOwner);
 
-  // Emit an event 
-  generateEvent(ownershipTransferAcceptedEvent(_ownerAddress(), caller));
+  // Emit an event
+  generateEvent(ownershipTransferAcceptedEvent(prevOwner, caller));
 }
-
 
 /**
  * Returns the pending owner address of the contract.
@@ -84,12 +95,17 @@ export function pendingOwnerAddress(): StaticArray<u8> {
   return stringToBytes(Storage.get(pendingOwner));
 }
 
-
-function ownershipTransferStartedEvent(prevOwner: Address, newOwner: Address): string {
+function ownershipTransferStartedEvent(
+  prevOwner: Address,
+  newOwner: Address,
+): string {
   return `OWNERSHIP_TRANSFERRED_EVENT_STARTED:${prevOwner.toString()}:${newOwner.toString()}`;
 }
 
-function ownershipTransferAcceptedEvent(prevOwner: Address, newOwner: Address): string {
+function ownershipTransferAcceptedEvent(
+  prevOwner: Address,
+  newOwner: Address,
+): string {
   return `OWNERSHIP_TRANSFERRED_EVENT_ACCEPTED:${prevOwner.toString()}:${newOwner.toString()}`;
 }
 
