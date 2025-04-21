@@ -269,7 +269,7 @@ export async function setSwapRouterAddress(
     console.log('Swap router set successfully');
   } else {
     console.log('Status:', status);
-    console.log('Error events:', operation.getSpeculativeEvents());
+    console.log('Error events:', await operation.getSpeculativeEvents());
     throw new Error('Failed to set swap router address');
   }
 }

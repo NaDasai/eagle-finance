@@ -787,3 +787,51 @@ describe('Min Liquidity dec 9 - 6 ', () => {
     );
   });
 });
+
+describe('Min Liquidity dec 18 - 9 ', () => {
+  const aDecimals = 18;
+  const bDecimals = 9;
+
+  beforeEach(() => {
+    initializeNewPool(aDecimals, bDecimals);
+  });
+
+  test('Amounts 4000 - 1', () => {
+    const aAmount = parseUnits(4000, aDecimals);
+    const bAmount = parseUnits(1, bDecimals);
+
+    print('aAmount: ' + aAmount.toString());
+    print('bAmount: ' + bAmount.toString());
+    print('aDecimals: ' + aDecimals.toString());
+    print('bDecimals: ' + bDecimals.toString());
+
+    const addLiqArgs = new Args()
+      .add(aAmount)
+      .add(bAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    addLiquidity(addLiqArgs);
+
+    const user1LPBalance = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    const lpAmount = user1LPBalance;
+
+    const removeLiqArgs = new Args()
+      .add(lpAmount)
+      .add(u256.Zero)
+      .add(u256.Zero)
+      .serialize();
+
+    removeLiquidity(removeLiqArgs);
+
+    const user1LPBalanceAfter = bytesToU256(
+      getLPBalance(new Args().add(user1Address).serialize()),
+    );
+
+    print('user1LPBalanceAfter: ' + user1LPBalanceAfter.toString());
+  });
+});

@@ -45,6 +45,7 @@ export async function addLiquidity(
     console.log('Liquidity added');
   } else {
     console.log('Status:', status);
+    console.log('Error events:', await operation.getSpeculativeEvents());
     throw new Error('Failed to add liquidity');
   }
 }
@@ -84,6 +85,7 @@ export async function addLiquidityWithMAS(
     console.log('Liquidity added with MAS');
   } else {
     console.log('Status:', status);
+    console.log('Error events:', await operation.getSpeculativeEvents());
     throw new Error('Failed to add liquidity');
   }
 
@@ -179,6 +181,7 @@ export async function removeLiquidityUsingPercentage(
     console.log('Liquidity removed');
   } else {
     console.log('Status:', status);
+    console.log('Error events:', await operation.getSpeculativeEvents());
     throw new Error('Failed to remove liquidity');
   }
 }
