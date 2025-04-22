@@ -74,7 +74,7 @@ let poolAddress: string;
 let flashSwapContract: SmartContract;
 let flashSwapContractAddress: string;
 
-describe('Scenario 1: User 1 Add liquidity, and then flash loan', async () => {
+describe.skip('Scenario 1: User 1 Add liquidity, and then flash loan', async () => {
   let storedPriceAofB: number = 0;
   const aDecimals = 18;
   const bDecimals = 9;

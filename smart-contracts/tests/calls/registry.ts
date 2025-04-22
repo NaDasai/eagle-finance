@@ -99,7 +99,7 @@ export async function createNewPoolWithLiquidity(
 export async function deployRegistryContract(
   user1Provider: Provider,
   wmasAddress: string,
-  fee: number = 0,
+  fee: number = 25,
   flashLoanFee: number = 0.1,
 ) {
   const registryByteCode = getScByteCode('build', 'registry.wasm');
@@ -166,6 +166,35 @@ export async function getWmasTokenAddress(registryContract: SmartContract) {
   );
 
   return wmasTokenAddress;
+}
+
+export async function getFlashLoanFeeReceiver(registryContract: SmartContract) {
+  const flashLoanFeeReceiver = bytesToStr(
+    (await registryContract.read('getFlashLoanFeeReceiver')).value,
+  );
+
+  return flashLoanFeeReceiver;
+}
+
+export async function setFlashLoanFeeReceiver(
+  registryContract: SmartContract,
+  flashLoanFeeReceiver: string,
+) {
+  const operation = await registryContract.call(
+    'setFlashLoanFeeReceiver',
+    new Args().addString(flashLoanFeeReceiver).serialize(),
+    { coins: Mas.fromString('0.1') },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Flash loan fee receiver set successfully');
+  } else {
+    console.log('Status:', status);
+    console.error('Error events:', await operation.getSpeculativeEvents());
+    throw new Error('Failed to set flash loan fee receiver');
+  }
 }
 
 export async function setFeeShareProtocolReceiver(

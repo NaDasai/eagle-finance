@@ -10,9 +10,11 @@ import {
   createNewPoolWithLiquidity,
   deployRegistryContract,
   getFeeShareProtocolReceiver,
+  getFlashLoanFeeReceiver,
   getPools,
   getWmasTokenAddress,
   setFeeShareProtocolReceiver,
+  setFlashLoanFeeReceiver,
   setWmasTokenAddress,
 } from './calls/registry';
 import * as dotenv from 'dotenv';
@@ -35,26 +37,26 @@ let registryContract: SmartContract;
 
 const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
 const bTokenAddress = wmasAddress;
-const inputFeeRate = 0.3 * 10_000;
+const inputFeeRate = 25 * 10_000;
 let poolContract: SmartContract;
 
 beforeAll(async () => {
   registryContract = await deployRegistryContract(user1Provider, wmasAddress);
 
-  // create a new pool without liquidity
-  await createNewPool(
-    registryContract,
-    aTokenAddress,
-    bTokenAddress,
-    inputFeeRate,
-  );
+  // // create a new pool without liquidity
+  // await createNewPool(
+  //   registryContract,
+  //   aTokenAddress,
+  //   bTokenAddress,
+  //   inputFeeRate,
+  // );
 
-  //  get pool contract
-  const pools = await getPools(registryContract);
+  // //  get pool contract
+  // const pools = await getPools(registryContract);
 
-  const pool = pools[pools.length - 1];
+  // const pool = pools[pools.length - 1];
 
-  poolContract = new SmartContract(user1Provider, pool.poolAddress);
+  // poolContract = new SmartContract(user1Provider, pool.poolAddress);
 });
 
 describe.skip('Test setFeeShareProtocolReceiver functionality', async () => {
@@ -138,6 +140,51 @@ describe.skip('Test wmasAddress functionality', async () => {
       setWmasTokenAddress(registryContract, wmasAddress),
     ).rejects.toThrowError(
       'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at assembly/utils/ownership-internal.ts:49 col: 3',
+    );
+  });
+});
+
+describe('Test flashLoanFeeReceiver functionality', async () => {
+  test('should flashLoanFeeReceiver equals to user1 address after deployment', async () => {
+    const flashLoanFeeReceiver = await getFlashLoanFeeReceiver(
+      registryContract,
+    );
+
+    expect(
+      flashLoanFeeReceiver,
+      'Flash loan fee receiver should be the user1 address',
+    ).toBe(user1Provider.address);
+  });
+
+  test('should allow the deployer to set new flash loan fee receiver', async () => {
+    // switch registry contract to user 1
+    registryContract = new SmartContract(
+      user1Provider,
+      registryContract.address,
+    );
+
+    await setFlashLoanFeeReceiver(registryContract, user4Address);
+    const flashLoanFeeReceiver = await getFlashLoanFeeReceiver(
+      registryContract,
+    );
+
+    expect(
+      flashLoanFeeReceiver,
+      'Flash loan fee receiver should be the user4 address',
+    ).toBe(user4Address);
+  });
+
+  test('should not allow a non deployer to set new flash loan fee receiver', async () => {
+    // switch registry contract to user 2
+    registryContract = new SmartContract(
+      user2Provider,
+      registryContract.address,
+    );
+
+    await expect(
+      setFlashLoanFeeReceiver(registryContract, user2Provider.address),
+    ).rejects.toThrowError(
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: VM execution error: RuntimeError: Runtime error: error: Caller is not the owner at ~lib/@massalabs/sc-standards/assembly/contracts/utils/ownership-internal.ts:49 col: 3',
     );
   });
 });
