@@ -239,4 +239,23 @@ export class IRegistery {
       .add(inputFeeRate);
     return byteToBool(call(this._origin, 'isPoolExists', args, 0));
   }
+
+  /**
+   * Calls the `setFlashLoanFeeReceiver` function of the registry contract.
+   * @param {string} receiver - The address of the flash loan fee receiver.
+   */
+  setFlashLoanFeeReceiver(receiver: string, coins: u64 = 0): void {
+    const args = new Args().add(receiver);
+    call(this._origin, 'setFlashLoanFeeReceiver', args, coins);
+  }
+
+  /**
+   * Calls the `getFlashLoanFeeReceiver` function of the registry contract.
+   * @returns {string} The address of the flash loan fee receiver.
+   */
+  getFlashLoanFeeReceiver(): string {
+    return bytesToString(
+      call(this._origin, 'getFlashLoanFeeReceiver', new Args(), 0),
+    );
+  }
 }

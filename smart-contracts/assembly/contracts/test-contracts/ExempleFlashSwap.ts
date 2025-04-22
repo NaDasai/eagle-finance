@@ -117,7 +117,7 @@ export function eagleCall(binaryArgs: StaticArray<u8>): void {
   if (amountA > u256.Zero) {
     const aAmountWithProfit = SafeMath256.add(
       amountA,
-      u256.fromU64(1000000000),
+      u256.fromU64(1000000000000000000), // 1 of 18 decimals
     );
 
     const aAmountFee = getFeeFromAmount(amountA, poolFeeRate);

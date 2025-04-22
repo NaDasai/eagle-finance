@@ -100,7 +100,7 @@ export async function deployRegistryContract(
   user1Provider: Provider,
   wmasAddress: string,
   fee: number = 0,
-  flashLoanFee: number = 0,
+  flashLoanFee: number = 0.1,
 ) {
   const registryByteCode = getScByteCode('build', 'registry.wasm');
 

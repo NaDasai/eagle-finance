@@ -21,7 +21,7 @@ const byteCode = getScByteCode('build', 'registry.wasm');
 const constructorArgs = new Args()
   .addU64(BigInt(25 * 10000)) // 25% fee share protocol
   .addString(wmasAddress) // WMAS address
-  .addU64(BigInt(0.3 * 10_000)) // Flash loan fees
+  .addU64(BigInt(0.1 * 10_000)) // Flash loan fees
   .serialize();
 
 const contract = await SmartContract.deploy(
