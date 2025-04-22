@@ -56,6 +56,8 @@ export const wmasTokenAddress = stringToBytes('wmasTokenAddress');
 export const flashLoanFee = stringToBytes('flashLoanFee');
 // Storage Key containing the address of the swap Router contract to be used on all the pools
 export const swapRouterAddress = stringToBytes('swapRouterAddress');
+// Storage key containing the address of the flash loan fee receiver (which can be different from the protocol fee receiver)
+export const flashLoanFeeReceiver = stringToBytes('flashLoanFeeReceiver');
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -104,7 +106,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // store flashLoanFee
   Storage.set(flashLoanFee, u64ToBytes(flashLoanFeeInput));
 
-  // Get the caller of the constructo
+  // Get the caller of the constructor
   const callerAddress = Context.caller().toString();
 
   // Set the fee share protocol receiver to the caller of the constructor
@@ -115,6 +117,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   // Set an empty addres for the swap router address
   Storage.set(swapRouterAddress, stringToBytes(''));
+
+  // Set the default flash loan fee receiver to the caller of the constructor
+  Storage.set(flashLoanFeeReceiver, stringToBytes(callerAddress));
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
@@ -606,6 +611,61 @@ export function isPoolExists(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const poolExists = pools.contains(poolKey);
 
   return boolToByte(poolExists);
+}
+
+/**
+ * Set the flash loan fee receiver
+ * @param binaryArgs  The flash loan fee receiver
+ *  - receiver - The address of the flash loan fee receiver
+ * @returns  void
+ */
+export function setFlashLoanFeeReceiver(binaryArgs: StaticArray<u8>): void {
+  // start reentrancy guard
+  ReentrancyGuard.nonReentrant();
+
+  // Only owner of registery can set the flash loan fee receiver
+  onlyOwner();
+
+  const args = new Args(binaryArgs);
+
+  const receiver = args.nextString().expect('Invalid flash loan fee receiver');
+
+  // Get the current balance of the smart contract
+  const SCBalance = balance();
+
+  // Get the coins transferred to the smart contract
+  const sent = Context.transferredCoins();
+
+  // Ensure that the receiver address is valid
+  assert(validateAddress(receiver), 'INVALID_ADDRESS');
+
+  Storage.set(flashLoanFeeReceiver, stringToBytes(receiver));
+
+  // Get the caller address
+  const callerAddress = Context.caller();
+
+  // Transfer the remaining coins back to the caller
+  transferRemaining(SCBalance, balance(), sent, callerAddress);
+
+  // Emit an event
+  generateEvent(
+    createEvent('UPDATE_FLASH_LOAN_FEE_RECEIVER', [
+      Context.callee().toString(), // Smart contract address
+      callerAddress.toString(), // Caller address
+      receiver, // New flash loan fee receiver address
+    ]),
+  );
+
+  // End reentrancy guard
+  ReentrancyGuard.endNonReentrant();
+}
+
+/**
+ * Get the flash loan fee receiver
+ * @returns  The flash loan fee receiver address
+ */
+export function getFlashLoanFeeReceiver(): StaticArray<u8> {
+  return Storage.get(flashLoanFeeReceiver);
 }
 
 /**

@@ -1010,9 +1010,27 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   // Ensure that the new pool K value is greater than or equal to the old pool K value
   assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
 
-  // Add fees to protocol fee accumulated instead of adding them to the reserves
-  _addTokenAccumulatedProtocolFee(aTokenAddressStored, aFee);
-  _addTokenAccumulatedProtocolFee(bTokenAddressStored, bFee);
+  // Get flash loan fee receiver
+  const flashLoanFeeReceiver = _getFlashLoanFeeReceiver();
+
+  // Sent fees to flash loan fee receiver
+  aToken.transfer(
+    flashLoanFeeReceiver,
+    aFee,
+    getBalanceEntryCost(
+      aTokenAddressStored,
+      _getFlashLoanFeeReceiver().toString(),
+    ),
+  );
+  
+  bToken.transfer(
+    flashLoanFeeReceiver,
+    bFee,
+    getBalanceEntryCost(
+      bTokenAddressStored,
+      _getFlashLoanFeeReceiver().toString(),
+    ),
+  );
 
   // Update the cumulative prices
   _updateCumulativePrices();
@@ -1853,6 +1871,19 @@ function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
   } else {
     return u256.Zero;
   }
+}
+
+/**
+ * Retrieves the flash loan fee receiver from the registry contract.
+ * @param registryAddress The address of the registry contract.
+ * @returns The flash loan fee receiver address.
+ */
+function _getFlashLoanFeeReceiver(
+  registryAddress: string = bytesToString(Storage.get(registryContractAddress)),
+): Address {
+  return new Address(
+    new IRegistery(new Address(registryAddress)).getFlashLoanFeeReceiver(),
+  );
 }
 
 /**
