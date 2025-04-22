@@ -160,3 +160,13 @@ export function wrapMasToWMAS(amount: u256, wmasAddress: Address): void {
   // Generate an event to indicate that MAS coins have been wrapped into WMAS
   generateEvent(`WRAP_MAS: ${amount.toString()} of MAS wrapped into WMAS`);
 }
+
+/**
+ * Ensures that the deadline has not expired.
+ * @param deadline - The deadline timestamp.
+ */
+export function _ensureDeadlineNotExpired(deadline: u64): void {
+  const currentTimestamp = Context.timestamp();
+  // Ensure that the deadline is greater than or equal to the current timestamp
+  assert(deadline >= currentTimestamp, 'DEADLINE_EXPIRED');
+}

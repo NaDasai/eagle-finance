@@ -23,7 +23,11 @@ import { IMRC20 } from '../interfaces/IMRC20';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
 import { IRegistery } from '../interfaces/IRegistry';
 import { u256 } from 'as-bignum/assembly';
-import { transferRemaining, wrapMasToWMAS } from '../utils';
+import {
+  _ensureDeadlineNotExpired,
+  transferRemaining,
+  wrapMasToWMAS,
+} from '../utils';
 import { ReentrancyGuard } from '../lib/ReentrancyGuard';
 
 // Storage key containing the address of the registry contract inside the swap router contract
@@ -80,6 +84,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   // Read coins to use on each swap
   const coinsOnEachSwap = args.nextU64().expect('Invalid coins');
 
+  const deadline = args.nextU64().expect('Invalid deadline');
+
   // Get the route limit stored
   const routeLimitStored = bytesToI32(Storage.get(routeLimitKey));
 
@@ -132,6 +138,9 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // End the reentrancy guard
   ReentrancyGuard.endNonReentrant();
+
+  // Ensure that the deadline has not expired
+  _ensureDeadlineNotExpired(deadline);
 }
 
 /**
