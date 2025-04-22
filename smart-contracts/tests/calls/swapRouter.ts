@@ -37,9 +37,20 @@ export async function swap(
   coinsToUseOnEachSwap: number,
 ) {
   console.log('Swapping...');
+
+  const currentTimestamp = Date.now();
+
+  const period = 30 * 60 * 1000;
+
+  const deadline = currentTimestamp + period;
+
+  console.log('Current timestamp:', currentTimestamp);
+  console.log('Deadline:', deadline);
+
   const swapArgs = new Args()
     .addSerializableObjectArray(swapRoute)
     .addU64(parseMas(coinsToUseOnEachSwap.toString()))
+    .addU64(BigInt(deadline))
     .serialize();
 
   const operation = await swapRouterContract.call('swap', swapArgs, {

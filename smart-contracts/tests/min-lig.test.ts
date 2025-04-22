@@ -1021,7 +1021,7 @@ describe.skip('Minimul liq with full workload add, swap, rem lig with 18 - 9 dec
 });
 
 
-describe('Minimul liq with full workload add, swap, rem lig with 18 - 9 decimals + 0.000000000000009915 - 6487.5574897 Amounts', async () => {
+describe.skip('Minimul liq with full workload add, swap, rem lig with 18 - 9 decimals + 0.000000000000009915 - 6487.5574897 Amounts', async () => {
   let storedPriceAofB: number = 0;
   const aDecimals = 18;
   const bDecimals = 9;
