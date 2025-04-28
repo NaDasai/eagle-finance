@@ -228,7 +228,7 @@ describe.skip('Create new pool with liquidity', async () => {
 
   test('should create a new pool with liquidity using B as wmas', async () => {
     const aTokenAddress =
-      'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
+      'AS1maKRNJXeRGeFNXS7yA63raLbic4kMEnkHfVvePWe65eHXn5nS';
     const bTokenAddress = wmasAddress;
     const inputFeeRate = 0.3 * 10_000;
 
@@ -295,7 +295,7 @@ describe.skip('Create new pool with liquidity', async () => {
     );
   });
 
-  test("should create a new pool with liquidity using B as wmas even if I'm passing it as A token", async () => {
+  test.skip("should create a new pool with liquidity using B as wmas even if I'm passing it as A token", async () => {
     const aTokenAddress = wmasAddress;
     const bTokenAddress =
       'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
@@ -367,7 +367,7 @@ describe.skip('Create new pool with liquidity', async () => {
     );
   });
 
-  test('should create a new pool with liquidity using B as a native coin', async () => {
+  test.skip('should create a new pool with liquidity using B as a native coin', async () => {
     const aTokenAddress =
       'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
     const bTokenAddress = NATIVE_MAS_COIN_ADDRESS;
@@ -432,8 +432,8 @@ describe.skip('Create new pool with liquidity', async () => {
     );
   });
 
-  //    test case that should throw an error.This is why it is commented
-  test('Should throw error if native token is A token', async () => {
+  // test case that should throw an error.This is why it is commented
+  test.skip('Should throw error if native token is A token', async () => {
     const aTokenAddress = NATIVE_MAS_COIN_ADDRESS;
     const bTokenAddress =
       'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';

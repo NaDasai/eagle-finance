@@ -10,7 +10,7 @@ export class SwapPath implements Serializable {
     public receiverAddress: Address = new Address(),
     public amountIn: u256 = u256.Zero,
     public minAmountOut: u256 = u256.Zero,
-    public isTranferFrom: bool = false,
+    public isTransferFrom: bool = false,
   ) {}
 
   serialize(): StaticArray<u8> {
@@ -21,7 +21,7 @@ export class SwapPath implements Serializable {
       .add(this.receiverAddress)
       .add(this.amountIn)
       .add(this.minAmountOut)
-      .add(this.isTranferFrom)
+      .add(this.isTransferFrom)
       .serialize();
   }
 
@@ -40,7 +40,7 @@ export class SwapPath implements Serializable {
     );
     this.amountIn = args.nextU256().expect('Invalid amount in');
     this.minAmountOut = args.nextU256().expect('Invalid min amount out');
-    this.isTranferFrom = args.nextBool().expect('Invalid isTranferFrom');
+    this.isTransferFrom = args.nextBool().expect('Invalid isTransferFrom');
 
     return new Result(args.offset);
   }
@@ -53,7 +53,7 @@ export class SwapPath implements Serializable {
       `Receiver Address: ${this.receiverAddress.toString()}\n` +
       `Amount In: ${this.amountIn.toString()}\n` +
       `Min Amount Out: ${this.minAmountOut.toString()} \n` +
-      `Is Transfer From: ${this.isTranferFrom}`
+      `Is Transfer From: ${this.isTransferFrom}`
     );
   }
 }

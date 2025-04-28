@@ -3,63 +3,37 @@ import { IBasicPool } from '../interfaces/IBasicPool';
 
 // Define the GetSwapOutResult type
 export class GetSwapOutResult {
-  amountOut: u256;
-  tokenOutAddress: string;
-  reserveIn: u256;
-  reserveOut: u256;
-  totalFee: u256;
-  lpFee: u256;
-  protocolFee: u256;
-  amountInAfterFee: u256;
-
   constructor(
-    amountOut: u256,
-    tokenOutAddress: string,
-    reserveIn: u256,
-    reserveOut: u256,
-    totalFee: u256,
-    lpFee: u256,
-    protocolFee: u256,
-    amountInAfterFee: u256,
-  ) {
-    this.amountOut = amountOut;
-    this.tokenOutAddress = tokenOutAddress;
-    this.reserveIn = reserveIn;
-    this.reserveOut = reserveOut;
-    this.totalFee = totalFee;
-    this.lpFee = lpFee;
-    this.protocolFee = protocolFee;
-    this.amountInAfterFee = amountInAfterFee;
-  }
+    public amountOut: u256,
+    public tokenOutAddress: string,
+    public reserveIn: u256,
+    public reserveOut: u256,
+    public totalFee: u256,
+    public lpFee: u256,
+    public protocolFee: u256,
+    public amountInAfterFee: u256,
+    public normAmountInAfterFee: u256,
+    public normReserveIn: u256,
+    public normReserveOut: u256,
+    public normAmountOut: u256,
+    public inDecimals: u32,
+    public outDecimals: u32,
+  ) {}
 }
 
 // Define the GetLiquidityDataResult type
 export class GetLiquidityDataResult {
-  liquidity: u256;
-  finalAmountA: u256;
-  finalAmountB: u256;
-  reserveA: u256;
-  reserveB: u256;
-  aTokenAddressStored: string;
-  bTokenAddressStored: string;
-
   constructor(
-    liquidity: u256,
-    finalAmountA: u256,
-    finalAmountB: u256,
-    reserveA: u256,
-    reserveB: u256,
-    aTokenAddressStored: string,
-    bTokenAddressStored: string,
-  ) {
-    this.liquidity = liquidity;
-    this.finalAmountA = finalAmountA;
-    this.finalAmountB = finalAmountB;
-    this.reserveA = reserveA;
-    this.reserveB = reserveB;
-    this.aTokenAddressStored = aTokenAddressStored;
-    this.bTokenAddressStored = bTokenAddressStored;
-  }
+    public liquidity: u256,
+    public finalAmountA: u256,
+    public finalAmountB: u256,
+    public reserveA: u256,
+    public reserveB: u256,
+    public aTokenAddressStored: string,
+    public bTokenAddressStored: string,
+    public initialLiquidityLock: u256,
+    public isInitialLiquidity: boolean = false,
+  ) {}
 }
 
 export class addLiquidityData {

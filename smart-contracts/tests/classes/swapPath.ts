@@ -8,7 +8,7 @@ export class SwapPath implements Serializable<SwapPath> {
     public receiverAddress: string = '',
     public amountIn: bigint = 0n,
     public minAmountOut: bigint = 0n,
-    public isTranferFrom: boolean = false,
+    public isTransferFrom: boolean = true,
   ) {}
 
   serialize(): Uint8Array {
@@ -19,7 +19,7 @@ export class SwapPath implements Serializable<SwapPath> {
       .addString(this.receiverAddress)
       .addU256(this.amountIn)
       .addU256(this.minAmountOut)
-      .addBool(this.isTranferFrom)
+      .addBool(this.isTransferFrom)
       .serialize();
 
     return new Uint8Array(args);
@@ -34,7 +34,7 @@ export class SwapPath implements Serializable<SwapPath> {
     this.receiverAddress = args.nextString();
     this.amountIn = args.nextU256();
     this.minAmountOut = args.nextU256();
-    this.isTranferFrom = args.nextBool();
+    this.isTransferFrom = args.nextBool();
 
     return { instance: this, offset: args.getOffset() };
   }

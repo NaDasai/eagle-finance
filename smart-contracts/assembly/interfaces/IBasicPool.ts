@@ -28,6 +28,7 @@ export class IBasicPool {
    * @param {string} bTokenAddress - Address of Token B.
    * @param {u64} feeRate - Fee rate for the pool.
    * @param {u64} feeShareProtocol - Protocol fee share.
+   * @param {u64} flashLoanFee - Flash loan fee for the pool.
    * @param {string} registryAddress - Address of the registry contract.
    */
   init(
@@ -117,7 +118,7 @@ export class IBasicPool {
       .add(originalCaller)
       .add(isTokenOutNative);
     const result = call(this._origin, 'swap', args, coins);
-    
+
     return bytesToU256(result);
   }
 

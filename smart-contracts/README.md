@@ -212,7 +212,6 @@ This library provides essential math functions for calculating swaps, fees, and 
 
 *   **`getFeeFromAmount(inputAmount: u256, feeRate: u64): u256`**: Calculates the fee amount based on the input amount and fee rate.
 *   **`getAmountOut(inputAmount: u256, inputReserve: u256, outputReserve: u256): u256`**: Calculates the output amount based on the input amount and reserves.
-*   **`getAmountIn(amountOut: u256, reserveIn: u256, reserveOut: u256): u256`**: Calculates the input amount based on the output amount and reserves.
 *   **`getAmountWithoutFee(totalAmount: u256, feeRate: u64): u256`**: Calculates the amount without fee based on the total amount and fee rate.
 
 ### Liquidity Manager (`lib/liquidityManager.ts`)

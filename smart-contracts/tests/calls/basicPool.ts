@@ -12,7 +12,7 @@ import {
   U256,
   U64,
 } from '@massalabs/massa-web3';
-import { TOKEN_DEFAULT_DECIMALS } from '../utils';
+import { TOKEN_DEFAULT_DECIMALS, truncateDecimals } from '../utils';
 import { Pool } from '../../src/builnet-tests/structs/pool';
 import { SwapPath } from '../classes/swapPath';
 
@@ -31,8 +31,8 @@ export async function addLiquidity(
   const operation = await poolContract.call(
     'addLiquidity',
     new Args()
-      .addU256(parseUnits(aAmount.toString(), aDecimals))
-      .addU256(parseUnits(bAmount.toString(), bDecimals))
+      .addU256(parseUnits(truncateDecimals(aAmount, aDecimals), aDecimals))
+      .addU256(parseUnits(truncateDecimals(bAmount, bDecimals), bDecimals))
       .addU256(parseUnits(minAmountA.toString(), aDecimals))
       .addU256(parseUnits(minAmountB.toString(), bDecimals))
       .serialize(),
@@ -45,6 +45,7 @@ export async function addLiquidity(
     console.log('Liquidity added');
   } else {
     console.log('Status:', status);
+    console.log('Error events:', await operation.getSpeculativeEvents());
     throw new Error('Failed to add liquidity');
   }
 }
@@ -84,6 +85,7 @@ export async function addLiquidityWithMAS(
     console.log('Liquidity added with MAS');
   } else {
     console.log('Status:', status);
+    console.log('Error events:', await operation.getSpeculativeEvents());
     throw new Error('Failed to add liquidity');
   }
 
@@ -179,6 +181,7 @@ export async function removeLiquidityUsingPercentage(
     console.log('Liquidity removed');
   } else {
     console.log('Status:', status);
+    console.log('Error events:', await operation.getSpeculativeEvents());
     throw new Error('Failed to remove liquidity');
   }
 }
@@ -252,6 +255,16 @@ export async function getLPBalance(
   return lpBalance;
 }
 
+export async function getPoolLPTotalSupply(
+  poolContract: SmartContract,
+): Promise<bigint> {
+  const result = await poolContract.read('getLPTotalSupply');
+
+  const lpBalance = new Args(result.value).nextU256();
+
+  return lpBalance;
+}
+
 export async function increaseAllownace(
   tokenAddress: string,
   spenderAddress: string,
@@ -265,7 +278,7 @@ export async function increaseAllownace(
 
   const operation = await tokenContract.increaseAllowance(
     spenderAddress,
-    parseUnits(amount.toString(), tokenDecimals),
+    parseUnits(truncateDecimals(amount, tokenDecimals), tokenDecimals),
     { coins: Mas.fromString('0.1') },
   );
 
@@ -425,7 +438,7 @@ export async function swap(
   swapContract: SmartContract,
   swapRoute: SwapPath[],
   coinsOnEachSwap: string = '0.01',
-  coins: bigint = Mas.fromString('0.01'),
+  coins: bigint = Mas.fromString('0.1'),
 ) {
   console.log(`swap ${swapRoute.length} times... : ${swapRoute}`);
   const operation = await swapContract.call(

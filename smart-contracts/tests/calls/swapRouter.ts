@@ -37,9 +37,20 @@ export async function swap(
   coinsToUseOnEachSwap: number,
 ) {
   console.log('Swapping...');
+
+  const currentTimestamp = Date.now();
+
+  const period = 30 * 60 * 1000;
+
+  const deadline = currentTimestamp + period;
+
+  console.log('Current timestamp:', currentTimestamp);
+  console.log('Deadline:', deadline);
+
   const swapArgs = new Args()
     .addSerializableObjectArray(swapRoute)
     .addU64(parseMas(coinsToUseOnEachSwap.toString()))
+    .addU64(BigInt(deadline))
     .serialize();
 
   const operation = await swapRouterContract.call('swap', swapArgs, {
@@ -61,4 +72,31 @@ export async function swap(
     console.log('Swap Events:', events);
     throw new Error('Swap failed');
   }
+}
+
+export async function setRouteLimit(
+  swapRouterContract: SmartContract,
+  routeLimit: number,
+) {
+  console.log('Setting route limit...');
+  const operation = await swapRouterContract.call(
+    'setRouteLimit',
+    new Args().addI32(BigInt(routeLimit)).serialize(),
+    { coins: Mas.fromString('0.01') },
+  );
+
+  const status = await operation.waitSpeculativeExecution();
+
+  if (status === OperationStatus.SpeculativeSuccess) {
+    console.log('Route limit set successfully');
+  } else {
+    console.log('Route limit set failed');
+    throw new Error('Route limit set failed');
+  }
+}
+
+export async function getRouteLimit(swapRouterContract: SmartContract) {
+  const routeLimit = await swapRouterContract.read('getRouteLimit');
+
+  return new Args(routeLimit.value).nextI32();
 }

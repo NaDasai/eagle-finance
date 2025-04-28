@@ -15,23 +15,22 @@ import {
   Args,
   bytesToString,
   bytesToU256,
+  bytesToU32,
   bytesToU64,
   stringToBytes,
   u256ToBytes,
+  u32ToBytes,
   u64ToBytes,
 } from '@massalabs/as-types';
 import { u256 } from 'as-bignum/assembly';
 import { IMRC20 } from '../interfaces/IMRC20';
-import { _onlyOwner, _setOwner } from '../utils/ownership-internal';
 import { getAmountOut, getFeeFromAmount } from '../lib/basicPoolMath';
 import { IRegistery } from '../interfaces/IRegistry';
-import { _ownerAddress } from '../utils/ownership';
 import { SafeMath256 } from '../lib/safeMath';
 import {
   LiquidityManager,
   StoragePrefixManager,
 } from '../lib/liquidityManager';
-import { NATIVE_MAS_COIN_ADDRESS } from '../utils/constants';
 import { IWMAS } from '@massalabs/sc-standards/assembly/contracts/MRC20/IWMAS';
 import { IEagleCallee } from '../interfaces/IEagleCallee';
 import {
@@ -46,24 +45,26 @@ import {
   GetSwapOutResult,
 } from '../types/basicPool';
 import { getBalanceEntryCost } from '@massalabs/sc-standards/assembly/contracts/MRC20/MRC20-external';
+import { denormalizeFromDecimals, normalizeToDecimals } from '../lib/math';
+import { safetyFactor } from '../utils/constants';
 
-// Storage key containning the value of the token A reserve inside the pool
+// Storage key containing the value of the token A reserve inside the pool
 export const aTokenReserve = stringToBytes('aTokenReserve');
-// Storage key containning the value of the token B reserve inside the pool
+// Storage key containing the value of the token B reserve inside the pool
 export const bTokenReserve = stringToBytes('bTokenReserve');
-// Storage key containning address of the token A inside the pool
+// Storage key containing address of the token A inside the pool
 export const aTokenAddress = stringToBytes('tokenA');
-// storage key containning address of the token B inside the pool
+// storage key containing address of the token B inside the pool
 export const bTokenAddress = stringToBytes('tokenB');
-// Storage key containning the accumulated fee protocol of the token A inside the pool
+// Storage key containing the accumulated fee protocol of the token A inside the pool
 export const aProtocolFee = stringToBytes('aProtocolFee');
-// Storage key containning the accumulated fee protocol of the token B inside the pool
+// Storage key containing the accumulated fee protocol of the token B inside the pool
 export const bProtocolFee = stringToBytes('bProtocolFee');
-// Storage key containning the fee rate value of the pool. value is between 0 and 1
+// Storage key containing the fee rate value of the pool. value is between 0 and 1
 export const feeRate = stringToBytes('feeRate');
-// Storage key containning the fee share protocol value of the pool. value is between 0 and 1
+// Storage key containing the fee share protocol value of the pool. value is between 0 and 1
 export const feeShareProtocol = stringToBytes('feeShareProtocol');
-// Storage key containning the address of the registry contract inside the pool
+// Storage key containing the address of the registry contract inside the pool
 export const registryContractAddress = stringToBytes('registry');
 // Create new liquidity manager representing the pool LP token
 const storagePrefixManager = new StoragePrefixManager();
@@ -73,8 +74,15 @@ export const aPriceCumulative = stringToBytes('aPriceCumulative');
 export const bPriceCumulative = stringToBytes('bPriceCumulative');
 // Storage key for last timestamp
 export const lastTimestamp = stringToBytes('lastTimestamp');
-// Storage key containning the flash loan fee value of the pool. value is between 0 and 1
+// Storage key containing the flash loan fee value of the pool. value is between 0 and 1
 export const flashLoanFee = stringToBytes('flashLoanFee');
+// Storage key containing the decimals of the token A inside the pool
+export const aTokenDecimals = stringToBytes('aTokenDecimals');
+// Storage key containing the decimals of the token B inside the pool
+export const bTokenDecimals = stringToBytes('bTokenDecimals');
+
+// Variable representing the number of decimals used for normalization and denormalization in that pool. by default it is 18, but it will be changed at the constructor with the max decimals between the two tokens
+let normalizationDecimals = 18;
 
 /**
  * This function is meant to be called only one time: when the contract is deployed.
@@ -83,6 +91,7 @@ export const flashLoanFee = stringToBytes('flashLoanFee');
  * - `bAddress`: Address of token B.
  * - `inputFeeRate`: Input fee rate for the pool.
  * - `feeShareProtocol`: Fee share protocol for the pool.
+ * - `flashLoanFee`: Flash loan fee for the pool.
  * - `registryAddress`: Address of the registry contract.
  * @returns void
  */
@@ -142,18 +151,34 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   // Store the registry address
   Storage.set(registryContractAddress, stringToBytes(registryAddress));
 
-  // Get the registry contract instance
-  const registry = new IRegistery(new Address(registryAddress));
-
-  // Set the owner of the pool contract to the same registry owner address
-  _setOwner(registry.ownerAddress());
-
   // Set the default prices to zero
   Storage.set(aPriceCumulative, u256ToBytes(u256.Zero));
   Storage.set(bPriceCumulative, u256ToBytes(u256.Zero));
 
   // Set the current timestamp
   Storage.set(lastTimestamp, u64ToBytes(Context.timestamp()));
+
+  // Get a and b tokens decimals
+  const aTokenDecimalsIn = new IMRC20(new Address(aAddress)).decimals();
+  const bTokenDecimalsIn = new IMRC20(new Address(bAddress)).decimals();
+
+  // Store the tokens a and b decimals
+  Storage.set(aTokenDecimals, u32ToBytes(aTokenDecimalsIn));
+  Storage.set(bTokenDecimals, u32ToBytes(bTokenDecimalsIn));
+
+  // extract the max decimals and min decimals between the two tokens
+  const maxDecimals =
+    aTokenDecimalsIn > bTokenDecimalsIn ? aTokenDecimalsIn : bTokenDecimalsIn;
+  const minDecimals =
+    aTokenDecimalsIn < bTokenDecimalsIn ? aTokenDecimalsIn : bTokenDecimalsIn;
+
+  const decimalsDifference = maxDecimals - minDecimals;
+
+  // Compare the decimals of the two tokens and ensure that its difference is less than 12
+  assert(decimalsDifference <= 12, 'DECIMALS_DIFFERENCE_TOO_LARGE');
+
+  // Set the normalization decimals to the max decimals
+  normalizationDecimals = maxDecimals;
 
   // Initialize the reentrancy guard
   ReentrancyGuard.__ReentrancyGuard_init();
@@ -451,6 +476,12 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const lpFee = swapOutData.lpFee;
   const protocolFee = swapOutData.protocolFee;
   const amountInAfterFee = swapOutData.amountInAfterFee;
+  const normAmountInAfterFee = swapOutData.normAmountInAfterFee;
+  const normReserveIn = swapOutData.normReserveIn;
+  const normReserveOut = swapOutData.normReserveOut;
+  const normAmountOut = swapOutData.normAmountOut;
+  const inDecimals = swapOutData.inDecimals;
+  const outDecimals = swapOutData.outDecimals;
 
   // Get the balance of the smart contract for the tokenIn
   const contractInBalance = new IMRC20(new Address(tokenInAddress)).balanceOf(
@@ -464,13 +495,7 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   );
 
   // Ensure that the amountOut is greater than or equal to minAmountOut
-  assert(
-    amountOut >= minAmountOut,
-    'SWAP: SLIPPAGE LIMIT EXCEEDED =====> ' +
-      amountOut.toString() +
-      ' < ' +
-      minAmountOut.toString(),
-  );
+  assert(amountOut >= minAmountOut, 'SWAP: SLIPPAGE_LIMIT_EXCEEDED');
 
   if (!isTokenOutNative) {
     // Transfer the amountOut to the toAddres
@@ -493,6 +518,18 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   );
 
   const newReserveOut = SafeMath256.sub(reserveOut, amountOut);
+
+  // K value invarient check before updating the reserves
+  // newK = (reserveIn + amountInAfterFee + lpFee) * (reserveOut - amountOut)
+  const newK = SafeMath256.mul(
+    normalizeToDecimals(newReserveIn, inDecimals, normalizationDecimals),
+    normalizeToDecimals(newReserveOut, outDecimals, normalizationDecimals),
+  );
+  // oldK = reserveIn * reserveOut
+  const oldK = SafeMath256.mul(normReserveIn, normReserveOut);
+
+  // Final K-value invariant check
+  assert(newK >= oldK, 'SWAP: INVARIENT_CHECK_FAILED_K');
 
   // Update the pool reserves
   _updateReserve(tokenInAddress, newReserveIn);
@@ -644,20 +681,50 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
 
   const totalSupply = liquidityManager.getTotalSupply();
 
+  // get the current caller address
+  const callerAddress = Context.caller();
+
   // Current reserves
   const reserveA = _getLocalReserveA();
   const reserveB = _getLocalReserveB();
 
+  // Get the decimals of the two tokens in the pool
+  const aDecimalsStored = bytesToU32(Storage.get(aTokenDecimals));
+  const bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
+
+  // Normalize reserves for proper proportional math.
+  const normReserveA = normalizeToDecimals(
+    reserveA,
+    aDecimalsStored,
+    normalizationDecimals,
+  );
+  const normReserveB = normalizeToDecimals(
+    reserveB,
+    bDecimalsStored,
+    normalizationDecimals,
+  );
+
   // amountAOut = (lpAmount * reserveA) / totalSupply
-  const amountAOut = SafeMath256.div(
-    SafeMath256.mul(lpAmount, reserveA),
+  const normAmountAOut = SafeMath256.div(
+    SafeMath256.mul(lpAmount, normReserveA),
     totalSupply,
   );
 
+  const amountAOut = denormalizeFromDecimals(
+    normAmountAOut,
+    aDecimalsStored,
+    normalizationDecimals,
+  );
+
   // amountBOut = (lpAmount * reserveB) / totalSupply
-  const amountBOut = SafeMath256.div(
-    SafeMath256.mul(lpAmount, reserveB),
+  const normAmountBOut = SafeMath256.div(
+    SafeMath256.mul(lpAmount, normReserveB),
     totalSupply,
+  );
+  const amountBOut = denormalizeFromDecimals(
+    normAmountBOut,
+    bDecimalsStored,
+    normalizationDecimals,
   );
 
   // check if the amountAOut and amountBOut are greater than or equal to minAmountA and minAmountB
@@ -671,12 +738,6 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     'REMOVE LIQUIDITY: SLIPPAGE_LIMIT_EXCEEDED_B',
   );
 
-  // Burn lp tokens
-  liquidityManager.burn(Context.caller(), lpAmount);
-
-  // get the current caller address
-  const callerAddress = Context.caller();
-
   // Transfer tokens to user
   new IMRC20(new Address(aTokenAddressStored)).transfer(
     callerAddress,
@@ -689,7 +750,9 @@ export function removeLiquidity(binaryArgs: StaticArray<u8>): void {
     getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
   );
 
-  // Calculate new reserves
+  // Burn lp tokens
+  liquidityManager.burn(callerAddress, lpAmount);
+
   const newResA = SafeMath256.sub(reserveA, amountAOut);
   const newResB = SafeMath256.sub(reserveB, amountBOut);
 
@@ -730,7 +793,7 @@ export function syncReserves(): void {
   const sent = Context.transferredCoins();
 
   // only owner of registery contract can call this function
-  _onlyOwner();
+  _onlyRegistryOwner();
 
   // get the balance of this contract for token A
   const balanceA = getTokenBalance(
@@ -745,6 +808,9 @@ export function syncReserves(): void {
   // update reserves
   _updateReserveA(balanceA);
   _updateReserveB(balanceB);
+
+  // Update cumulative prices
+  _updateCumulativePrices();
 
   // Transfer remaining coins to the caller
   transferRemaining(SCBalance, balance(), sent, Context.caller());
@@ -852,8 +918,15 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
   const aReserve = _getLocalReserveA();
   const bReserve = _getLocalReserveB();
 
+  // Get the decimals of the two tokens in the pool
+  let aDecimalsStored = bytesToU32(Storage.get(aTokenDecimals));
+  let bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
+
   // Get the pool K value that will be used later to ensure that the flash loan is valid
-  const poolK = SafeMath256.mul(aReserve, bReserve);
+  const poolK = SafeMath256.mul(
+    normalizeToDecimals(aReserve, aDecimalsStored, normalizationDecimals),
+    normalizeToDecimals(bReserve, bDecimalsStored, normalizationDecimals),
+  );
 
   // Get the pool flash loan fee
   const poolFeeRate = _getFlashLoanFee();
@@ -923,16 +996,41 @@ export function flashLoan(binaryArgs: StaticArray<u8>): void {
 
   // Get the new pool K value
   const newPoolK = SafeMath256.mul(
-    aContractBalanceAfter,
-    bContractBalanceAfter,
+    normalizeToDecimals(
+      aContractBalanceAfter,
+      aDecimalsStored,
+      normalizationDecimals,
+    ),
+    normalizeToDecimals(
+      bContractBalanceAfter,
+      bDecimalsStored,
+      normalizationDecimals,
+    ),
   );
-
   // Ensure that the new pool K value is greater than or equal to the old pool K value
   assert(newPoolK >= poolK, 'FLASH_ERROR: INVALID_POOL_K_VALUE');
 
-  // Add fees to protocol fee accumulated instead of adding them to the reserves
-  _addTokenAccumulatedProtocolFee(aTokenAddressStored, aFee);
-  _addTokenAccumulatedProtocolFee(bTokenAddressStored, bFee);
+  // Get flash loan fee receiver
+  const flashLoanFeeReceiver = _getFlashLoanFeeReceiver();
+
+  // Sent fees to flash loan fee receiver
+  aToken.transfer(
+    flashLoanFeeReceiver,
+    aFee,
+    getBalanceEntryCost(
+      aTokenAddressStored,
+      _getFlashLoanFeeReceiver().toString(),
+    ),
+  );
+  
+  bToken.transfer(
+    flashLoanFeeReceiver,
+    bFee,
+    getBalanceEntryCost(
+      bTokenAddressStored,
+      _getFlashLoanFeeReceiver().toString(),
+    ),
+  );
 
   // Update the cumulative prices
   _updateCumulativePrices();
@@ -1140,6 +1238,8 @@ function _addLiquidity(
   const reserveB = liquidityData.reserveB;
   const aTokenAddressStored = liquidityData.aTokenAddressStored;
   const bTokenAddressStored = liquidityData.bTokenAddressStored;
+  const isInitialLiquidity = liquidityData.isInitialLiquidity;
+  const initialLiquidityLock = liquidityData.initialLiquidityLock;
 
   assert(liquidity > u256.Zero, 'INSUFFICIENT LIQUIDITY MINTED');
 
@@ -1168,6 +1268,12 @@ function _addLiquidity(
         getBalanceEntryCost(bTokenAddressStored, callerAddress.toString()),
       );
     }
+  }
+
+  // Permanently lock the first initial liquidity lock
+  if (isInitialLiquidity) {
+    // Mint The initial liquidity lock LP tokens to empty address
+    liquidityManager.mint(new Address(''), initialLiquidityLock);
   }
 
   // Mint LP tokens to user
@@ -1263,13 +1369,6 @@ function _updateReserveB(amount: u256): void {
 
 /**
  * Wraps a specified amount of MAS coins into WMAS tokens.
- *
- * This function ensures that the amount of MAS coins transferred is sufficient
- * before proceeding to wrap them into WMAS tokens. It retrieves the registry
- * contract address and the WMAS token address from storage, then uses these
- * addresses to create an instance of the WMAS contract. Finally, it deposits
- * the specified amount of MAS coins into the WMAS contract.
- *
  * @param amount - The amount of MAS coins to be wrapped into WMAS tokens.
  * @throws Will throw an error if the transferred MAS coins are insufficient.
  */
@@ -1296,7 +1395,7 @@ function _wrapMasToWMAS(amount: u256): void {
 
   const amountToWrap = SafeMath256.add(amount, mintStorageCost);
 
-  // Ensure bAmount is equal to MAS coins transferred
+  // Ensure that transferred coins are greater than or equal to the amount to wrap
   assert(
     u256.fromU64(transferredCoins) >= amountToWrap,
     'INSUFFICIENT MAS COINS TRANSFERRED',
@@ -1445,18 +1544,58 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
   // amountInAfterFee = amountIn - totalFee
   const amountInAfterFee = SafeMath256.sub(amountIn, totalFee);
 
-  // Get the address of the other token in the pool
-  const tokenOutAddress =
-    tokenInAddress == aTokenAddressStored
-      ? bTokenAddressStored
-      : aTokenAddressStored;
+  // Get the decimals of the two tokens in the pool
+  const aDecimalsStored = bytesToU32(Storage.get(aTokenDecimals));
+  const bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
+
+  // Get the address of the other token in the pool and decimals of in and out
+  let tokenOutAddress: string;
+  let inDecimals: u32;
+  let outDecimals: u32;
+
+  if (tokenInAddress == aTokenAddressStored) {
+    tokenOutAddress = bTokenAddressStored;
+    inDecimals = aDecimalsStored;
+    outDecimals = bDecimalsStored;
+  } else {
+    tokenOutAddress = aTokenAddressStored;
+    inDecimals = bDecimalsStored;
+    outDecimals = aDecimalsStored;
+  }
 
   // Get the reserves of the two tokens in the pool
   const reserveIn = _getReserve(tokenInAddress);
   const reserveOut = _getReserve(tokenOutAddress);
 
+  // Normalize amountInAfterFee, reserveIn, and reserveOut to 18 decimals
+  const normAmountInAfterFee = normalizeToDecimals(
+    amountInAfterFee,
+    inDecimals,
+    normalizationDecimals,
+  );
+  const normReserveIn = normalizeToDecimals(
+    reserveIn,
+    inDecimals,
+    normalizationDecimals,
+  );
+  const normReserveOut = normalizeToDecimals(
+    reserveOut,
+    outDecimals,
+    normalizationDecimals,
+  );
+
   // Calculate the amount of tokens to be swapped
-  const amountOut = getAmountOut(amountInAfterFee, reserveIn, reserveOut);
+  const normAmountOut = getAmountOut(
+    normAmountInAfterFee,
+    normReserveIn,
+    normReserveOut,
+  );
+
+  const amountOut = denormalizeFromDecimals(
+    normAmountOut,
+    outDecimals,
+    normalizationDecimals,
+  );
 
   return new GetSwapOutResult(
     amountOut,
@@ -1467,6 +1606,12 @@ function _getSwapOut(amountIn: u256, tokenInAddress: string): GetSwapOutResult {
     lpFee,
     protocolFee,
     amountInAfterFee,
+    normAmountInAfterFee,
+    normReserveIn,
+    normReserveOut,
+    normAmountOut,
+    inDecimals,
+    outDecimals,
   );
 }
 
@@ -1506,29 +1651,98 @@ function _getAddLiquidityData(
   let finalAmountA = amountA;
   let finalAmountB = amountB;
   let liquidity: u256;
+  let isInitialLiquidity = false;
+  let initialLiquidityLock: u256 = u256.Zero;
+
+  let aDecimalsStored = bytesToU32(Storage.get(aTokenDecimals));
+  let bDecimalsStored = bytesToU32(Storage.get(bTokenDecimals));
+
+  // Normalize the amounts to default decimals (18)
+  const normAmountA = normalizeToDecimals(
+    amountA,
+    aDecimalsStored,
+    normalizationDecimals,
+  );
+  const normAmountB = normalizeToDecimals(
+    amountB,
+    bDecimalsStored,
+    normalizationDecimals,
+  );
+
+  // Also normalize reserves for proper proportional math.
+  const normReserveA = normalizeToDecimals(
+    reserveA,
+    aDecimalsStored,
+    normalizationDecimals,
+  );
+  const normReserveB = normalizeToDecimals(
+    reserveB,
+    bDecimalsStored,
+    normalizationDecimals,
+  );
+
+  let normFinalAmountA = normAmountA;
+  let normFinalAmountB = normAmountB;
 
   if (reserveA == u256.Zero && reserveB == u256.Zero) {
+    // Use normalized values to calculate liquidity:
     // Initial liquidity: liquidity = sqrt(amountA * amountB)
-    const product = SafeMath256.mul(amountA, amountB);
-    // liquidity = sqrt(product)
-    liquidity = SafeMath256.sqrt(product);
+    const product = SafeMath256.mul(normAmountA, normAmountB);
+    // totalLiquidity = sqrt(product)
+    const totalLiquidity = SafeMath256.sqrt(product);
+
+    // Calculate the total liquidity with safety factor (totalLiquidity * safetyFactor)
+    const totalLpSafety = SafeMath256.mul(totalLiquidity, safetyFactor);
+
+    // Get the division of totalLpSafety by amountA and amountB ( totalLpSafety / amountA and totalLpSafety / amountB )
+    const LpDivA = SafeMath256.div(totalLpSafety, amountA);
+    const LpDivB = SafeMath256.div(totalLpSafety, amountB);
+
+    // Get the maximum value between LpDivA and LpDivB
+    const maxLpDiv = LpDivA > LpDivB ? LpDivA : LpDivB;
+
+    // Calculate the initial liquidity lock which is the maximum value between LpDivA and LpDivB
+    initialLiquidityLock = maxLpDiv;
+
+    // Ensure that the totalLiquidity is greater than the initial liquidity lock
+    assert(totalLiquidity > initialLiquidityLock, 'TOO_SMALL_LIQUIDITY');
+
+    // liquidity = totalLiquidity - INITIAL_LIQUIDITY_LOCK
+    liquidity = SafeMath256.sub(totalLiquidity, initialLiquidityLock);
+
+    isInitialLiquidity = true;
   } else {
-    // Add liquidity proportionally
-    // Optimal amountB given amountA:
+    // Adding liquidity proportional to the current pool
+    // Calculate the optimal normalized amount of token B based on provided token A.
+    // amountBOptimal = (amountA * reserveB) / reserveA
     const amountBOptimal = SafeMath256.div(
-      SafeMath256.mul(amountA, reserveB),
-      reserveA,
+      SafeMath256.mul(normAmountA, normReserveB),
+      normReserveA,
     );
-    if (amountBOptimal > amountB) {
-      // User provided less B than optimal, adjust A
+
+    if (amountBOptimal > normAmountB) {
+      // User provided less token B than optimal.
+      // Recalculate optimal normalized amount of token A given token B.
+      // amountAOptimal = (amountB * reserveA) / reserveB
       const amountAOptimal = SafeMath256.div(
-        SafeMath256.mul(amountB, reserveA),
-        reserveB,
+        SafeMath256.mul(normAmountB, normReserveA),
+        normReserveB,
       );
-      finalAmountA = amountAOptimal;
+      normFinalAmountA = amountAOptimal;
+      // Convert the optimal normalized token A amount back to its raw value.
+      finalAmountA = denormalizeFromDecimals(
+        amountAOptimal,
+        aDecimalsStored,
+        normalizationDecimals,
+      );
     } else {
       // User provided more B than needed, adjust B
-      finalAmountB = amountBOptimal;
+      normFinalAmountB = amountBOptimal;
+      finalAmountB = denormalizeFromDecimals(
+        amountBOptimal,
+        bDecimalsStored,
+        normalizationDecimals,
+      );
     }
 
     // assert that the finalAmountA and finalAmountB are greater than minAmountA and minAmountB
@@ -1537,13 +1751,13 @@ function _getAddLiquidityData(
 
     // liquidity = min((finalAmountA * totalSupply / reserveA), (finalAmountB * totalSupply / reserveB))
     const liqA = SafeMath256.div(
-      SafeMath256.mul(finalAmountA, totalSupply),
-      reserveA,
+      SafeMath256.mul(normFinalAmountA, totalSupply),
+      normReserveA,
     );
 
     const liqB = SafeMath256.div(
-      SafeMath256.mul(finalAmountB, totalSupply),
-      reserveB,
+      SafeMath256.mul(normFinalAmountB, totalSupply),
+      normReserveB,
     );
 
     liquidity = liqA < liqB ? liqA : liqB;
@@ -1557,6 +1771,8 @@ function _getAddLiquidityData(
     reserveB,
     aTokenAddressStored,
     bTokenAddressStored,
+    initialLiquidityLock,
+    isInitialLiquidity,
   );
 }
 
@@ -1657,5 +1873,31 @@ function _getTokenAccumulatedProtocolFee(tokenAddress: string): u256 {
   }
 }
 
-// Export ownership functions
-export * from '../utils/ownership';
+/**
+ * Retrieves the flash loan fee receiver from the registry contract.
+ * @param registryAddress The address of the registry contract.
+ * @returns The flash loan fee receiver address.
+ */
+function _getFlashLoanFeeReceiver(
+  registryAddress: string = bytesToString(Storage.get(registryContractAddress)),
+): Address {
+  return new Address(
+    new IRegistery(new Address(registryAddress)).getFlashLoanFeeReceiver(),
+  );
+}
+
+/**
+ * Checks if the caller is the owner of the registry contract.
+ * @param registryAddress The address of the registry contract.
+ * @returns void
+ */
+export function _onlyRegistryOwner(
+  registryAddress: string = bytesToString(Storage.get(registryContractAddress)),
+): void {
+  const registry = new IRegistery(new Address(registryAddress));
+
+  assert(
+    Context.caller().toString() == registry.ownerAddress(),
+    'CALLER_IS_NOT_REGISTRY_OWNER',
+  );
+}
