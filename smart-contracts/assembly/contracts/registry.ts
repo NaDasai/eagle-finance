@@ -9,6 +9,7 @@ import {
   assertIsSmartContract,
   balance,
   createEvent,
+  transferCoins,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -340,13 +341,20 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
       'INSUFFICIENT COINS TO SEND',
     );
   } else {
+    let transferFromCoins = getBalanceEntryCost(
+      bTokenAddress,
+      poolContract._origin.toString(),
+    );
+
     // Transfer amount B to the pool contract if bTokenAddress is not native mas
     new IMRC20(new Address(bTokenAddress)).transferFrom(
       callerAddress,
       poolContract._origin,
       bAmount,
-      getBalanceEntryCost(bTokenAddress, poolContract._origin.toString()),
+      transferFromCoins,
     );
+
+    coinsToSendOnAddLiquidity -= transferFromCoins;
   }
 
   // Call the addLiquidityFromRegistry function inside the pool contract
