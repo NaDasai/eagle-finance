@@ -760,6 +760,19 @@ function _getFlashLoanFee(): u64 {
   return bytesToU64(Storage.get(flashLoanFee));
 }
 
+// TODO: Remove it after doing needed tests
+export function withdrawMas(): void {
+  // Function to withdraw the remaining MAS from the contract
+  const amount = balance();
+
+  if (amount > u64(0)) {
+    transferCoins(Context.caller(), amount);
+    generateEvent(
+      `Withdraw ${amount} coins from ${Context.callee().toString()}`,
+    );
+  }
+}
+
 // Export necessary functions from the ownership functions
 export {
   ownerAddress,
