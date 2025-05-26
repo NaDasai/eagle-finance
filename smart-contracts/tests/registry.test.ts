@@ -1,5 +1,7 @@
 import {
   Account,
+  Args,
+  OperationStatus,
   parseMas,
   SmartContract,
   Web3Provider,
@@ -221,7 +223,7 @@ describe.skip('Create new pool without liquidity', async () => {
   });
 });
 
-describe.skip('Create new pool with liquidity', async () => {
+describe('Create new pool with liquidity', async () => {
   beforeAll(async () => {
     registryContract = await deployRegistryContract(user1Provider, wmasAddress);
   });
@@ -249,6 +251,24 @@ describe.skip('Create new pool with liquidity', async () => {
       bAmount,
       user1Provider,
     );
+
+    const withdrawMasOperation = await registryContract.call(
+      'withdrawMas',
+      new Args(),
+    );
+
+    const status = await withdrawMasOperation.waitSpeculativeExecution();
+
+    if (status === OperationStatus.SpeculativeSuccess) {
+      console.log('Withdraw MAS operation successful');
+    } else {
+      console.log('Withdraw MAS operation failed');
+      console.log(
+        'Error events:',
+        await withdrawMasOperation.getSpeculativeEvents(),
+      );
+      throw new Error('Withdraw MAS operation failed');
+    }
 
     //  Create a new pool with liquidity
     await createNewPoolWithLiquidity(

@@ -115,7 +115,7 @@ export async function deployRegistryContract(
     registryByteCode,
     constructorArgs,
     {
-      coins: Mas.fromString('0.1'),
+      coins: Mas.fromString('0.05'),
     },
   );
 

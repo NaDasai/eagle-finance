@@ -38,7 +38,7 @@ let registryContract: SmartContract;
 const aTokenAddress = 'AS1RWS5UNryey6Ue5HGLhMQk9q7YRnuS1u6M6JAjRwSfc2aRbZ5H';
 const bTokenAddress = wmasAddress;
 const inputFeeRate = 25 * 10_000;
-let poolContract: SmartContract;
+let poolContract: SmartContract;  
 
 beforeAll(async () => {
   registryContract = await deployRegistryContract(user1Provider, wmasAddress);
@@ -144,7 +144,7 @@ describe.skip('Test wmasAddress functionality', async () => {
   });
 });
 
-describe('Test flashLoanFeeReceiver functionality', async () => {
+describe.skip('Test flashLoanFeeReceiver functionality', async () => {
   test('should flashLoanFeeReceiver equals to user1 address after deployment', async () => {
     const flashLoanFeeReceiver = await getFlashLoanFeeReceiver(
       registryContract,

@@ -14,9 +14,9 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'swapRouter.wasm');
 
-// constructr takes fee share protocol as a parameter
+
 const constructorArgs = new Args()
-  .addString('AS1erJMDt1wAaYr54Fvp1vKZouLGtqFix98hKnpzKWP4DvTp2686') // WMAS address
+  .addString('AS1K2k1Qfn8fCVaMPZhVp6uobAZfCXfTsJxjnnzxgseGcepxF6wu') //registry address
   .serialize();
 
 const contract = await SmartContract.deploy(
