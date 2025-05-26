@@ -12,6 +12,7 @@ import {
   bytesToString,
   i32ToBytes,
   stringToBytes,
+  u256ToBytes,
 } from '@massalabs/as-types';
 import { SwapPath } from '../structs/swapPath';
 import { IBasicPool } from '../interfaces/IBasicPool';
@@ -63,9 +64,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
  * @param binaryArgs - Arguments serialized with Args (swapPathArray, coinsOnEachSwap)
  * - `swapPathArray`: An array of SwapPath objects representing the swap path.
  * - `coinsOnEachSwap`: The storage coins to use on each swap.
- * @returns void
+ * @returns StaticArray<u8> - The serialized result of the swap.
  */
-export function swap(binaryArgs: StaticArray<u8>): void {
+export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   // Start the reentrancy guard
   ReentrancyGuard.nonReentrant();
 
@@ -100,6 +101,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const callerAddress = Context.caller();
   const contractAddress = Context.callee();
 
+  let lastAmountOut = u256.Zero;
+
   if (swapRouteLength > 1) {
     // Add support for multiple swaps
     for (let i = 0; i < swapRouteLength; i++) {
@@ -120,11 +123,14 @@ export function swap(binaryArgs: StaticArray<u8>): void {
           nextSwapPath.amountIn = amoutOut;
         }
       }
+
+      // Update the lastAmountOut
+      lastAmountOut = amoutOut;
     }
   } else {
     const swapPath = swapPathArray[0];
 
-    _swap(
+    lastAmountOut = _swap(
       swapPath,
       callerAddress,
       contractAddress,
@@ -141,6 +147,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // Ensure that the deadline has not expired
   _ensureDeadlineNotExpired(deadline);
+
+  return u256ToBytes(lastAmountOut);
 }
 
 /**
