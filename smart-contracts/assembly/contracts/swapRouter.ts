@@ -103,6 +103,9 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
 
   let lastAmountOut = u256.Zero;
 
+  // Force the swap to have isTransferFrom set to true at the first swap
+  swapPathArray[0].isTransferFrom = true;
+
   if (swapRouteLength > 1) {
     // Add support for multiple swaps
     for (let i = 0; i < swapRouteLength; i++) {
@@ -119,6 +122,12 @@ export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
       // Update the amountIn for the next swap if it's not the last swap and the swap isTransferFrom is false which will mean that this is not multiswap by splitting the original amoutn by different pools but it is is a multihop swap
       if (i < swapRouteLength - 1) {
         const nextSwapPath = swapPathArray[i + 1];
+
+        // Force the next swap to have isTransferFrom set to true if the next swap pool is not the receiver of the current swap
+        if (nextSwapPath.poolAddress != swapPath.receiverAddress) {
+          nextSwapPath.isTransferFrom = true;
+        }
+
         if (!nextSwapPath.isTransferFrom) {
           nextSwapPath.amountIn = amoutOut;
         }
