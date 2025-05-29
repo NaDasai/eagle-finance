@@ -441,11 +441,15 @@ export async function swap(
   coins: bigint = Mas.fromString('0.1'),
 ) {
   console.log(`swap ${swapRoute.length} times... : ${swapRoute}`);
+
+  const deadline = Date.now() + 1000 * 60 * 10;
+
   const operation = await swapContract.call(
     'swap',
     new Args()
       .addSerializableObjectArray<SwapPath>(swapRoute)
       .addU64(parseMas(coinsOnEachSwap))
+      .addU64(BigInt(deadline))
       .serialize(),
     { coins },
   );
@@ -456,6 +460,8 @@ export async function swap(
     console.log('Swap successful');
   } else {
     console.log('Status:', operationStatus);
-    throw new Error('Failed to swap');
+    const events = await operation.getSpeculativeEvents();
+    console.log('Error events:', events);
+    throw new Error(`Failed to swap: ${events}`);
   }
 }
