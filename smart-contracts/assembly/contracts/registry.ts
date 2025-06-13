@@ -9,6 +9,7 @@ import {
   assertIsSmartContract,
   balance,
   createEvent,
+  transferCoins,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -340,13 +341,20 @@ export function createNewPoolWithLiquidity(binaryArgs: StaticArray<u8>): void {
       'INSUFFICIENT COINS TO SEND',
     );
   } else {
+    let transferFromCoins = getBalanceEntryCost(
+      bTokenAddress,
+      poolContract._origin.toString(),
+    );
+
     // Transfer amount B to the pool contract if bTokenAddress is not native mas
     new IMRC20(new Address(bTokenAddress)).transferFrom(
       callerAddress,
       poolContract._origin,
       bAmount,
-      getBalanceEntryCost(bTokenAddress, poolContract._origin.toString()),
+      transferFromCoins,
     );
+
+    coinsToSendOnAddLiquidity -= transferFromCoins;
   }
 
   // Call the addLiquidityFromRegistry function inside the pool contract
@@ -758,6 +766,20 @@ function _getFeeShareProtocol(): u64 {
  */
 function _getFlashLoanFee(): u64 {
   return bytesToU64(Storage.get(flashLoanFee));
+}
+
+/**
+ * Withdraws the remaining MAS from the contract.
+ * This function is only called by the owner.
+ */
+export function withdrawMas(): void {
+  onlyOwner();
+
+  const amount = balance();
+
+  if (amount > u64(0)) {
+    transferCoins(Context.caller(), amount);
+  }
 }
 
 // Export necessary functions from the ownership functions

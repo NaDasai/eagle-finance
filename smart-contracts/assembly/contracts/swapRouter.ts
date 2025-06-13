@@ -12,6 +12,7 @@ import {
   bytesToString,
   i32ToBytes,
   stringToBytes,
+  u256ToBytes,
 } from '@massalabs/as-types';
 import { SwapPath } from '../structs/swapPath';
 import { IBasicPool } from '../interfaces/IBasicPool';
@@ -63,9 +64,9 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
  * @param binaryArgs - Arguments serialized with Args (swapPathArray, coinsOnEachSwap)
  * - `swapPathArray`: An array of SwapPath objects representing the swap path.
  * - `coinsOnEachSwap`: The storage coins to use on each swap.
- * @returns void
+ * @returns StaticArray<u8> - The serialized result of the swap.
  */
-export function swap(binaryArgs: StaticArray<u8>): void {
+export function swap(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   // Start the reentrancy guard
   ReentrancyGuard.nonReentrant();
 
@@ -100,6 +101,11 @@ export function swap(binaryArgs: StaticArray<u8>): void {
   const callerAddress = Context.caller();
   const contractAddress = Context.callee();
 
+  let lastAmountOut = u256.Zero;
+
+  // Force the swap to have isTransferFrom set to true at the first swap
+  swapPathArray[0].isTransferFrom = true;
+
   if (swapRouteLength > 1) {
     // Add support for multiple swaps
     for (let i = 0; i < swapRouteLength; i++) {
@@ -116,15 +122,24 @@ export function swap(binaryArgs: StaticArray<u8>): void {
       // Update the amountIn for the next swap if it's not the last swap and the swap isTransferFrom is false which will mean that this is not multiswap by splitting the original amoutn by different pools but it is is a multihop swap
       if (i < swapRouteLength - 1) {
         const nextSwapPath = swapPathArray[i + 1];
+
+        // Force the next swap to have isTransferFrom set to true if the next swap pool is not the receiver of the current swap
+        if (nextSwapPath.poolAddress != swapPath.receiverAddress) {
+          nextSwapPath.isTransferFrom = true;
+        }
+
         if (!nextSwapPath.isTransferFrom) {
           nextSwapPath.amountIn = amoutOut;
         }
       }
+
+      // Update the lastAmountOut
+      lastAmountOut = amoutOut;
     }
   } else {
     const swapPath = swapPathArray[0];
 
-    _swap(
+    lastAmountOut = _swap(
       swapPath,
       callerAddress,
       contractAddress,
@@ -141,6 +156,8 @@ export function swap(binaryArgs: StaticArray<u8>): void {
 
   // Ensure that the deadline has not expired
   _ensureDeadlineNotExpired(deadline);
+
+  return u256ToBytes(lastAmountOut);
 }
 
 /**

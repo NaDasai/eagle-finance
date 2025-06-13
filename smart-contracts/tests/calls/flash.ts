@@ -113,6 +113,8 @@ export async function initFlash(
 
   const operationStatus = await operation.waitSpeculativeExecution();
 
+  console.debug("Operation Id: ", operation.id);
+
   if (operationStatus === OperationStatus.SpeculativeSuccess) {
     console.log('Initialization successful');
   } else {

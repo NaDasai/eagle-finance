@@ -3138,3 +3138,40 @@ describe.skip('User 1 add lqi, user2 swap,  user2 add liq, user1 rem liquidity, 
     console.log('Price A of B: ', priceAofB);
   });
 });
+
+describe('Trying to swap without pay the amountIn', async () => {
+  beforeAll(async () => {
+    swapRouterContract = new SmartContract(
+      user1Provider,
+      'AS1cwUV8S9R4SdUYYejRk3ZpLYwBFy3Q7Y7RrFYEspKXwJZMDygR',
+    );
+
+    poolAddress = 'AS12gSdL2EZH5Mj4UAFuk69aiYPuKoH1sK982oEDQfwxu97sAT9js';
+
+    poolContract = new SmartContract(user1Provider, poolAddress);
+  });
+
+  test('User1 make swap without transfering the amountIn', async () => {
+    const swapPath = [
+      new SwapPath(
+        poolContract.address,
+        wmasAddress,
+        aTokenAddress,
+        user1Provider.address,
+        parseMas('5'),
+        1n,
+        false,
+      ),
+    ];
+
+    const poolReserves = await getPoolReserves(poolContract);
+
+    console.log('Pool Reserves Before Swap: ', poolReserves);
+
+    await swap(swapRouterContract, swapPath, '0.01');
+
+    const poolReservesAfter = await getPoolReserves(poolContract);
+
+    console.log('Pool Reserves After Swap: ', poolReservesAfter);
+  });
+});
