@@ -196,15 +196,6 @@ export class IBasicPool {
   }
 
   /**
-   * Retrieves the price of Token A in terms of Token B.
-   * @returns {u256}  The price of token A in terms of token B, as a u256 represented as a fraction.
-   */
-  getPrice(): u256 {
-    const result = call(this._origin, 'getPrice', new Args(), 0);
-    return bytesToU256(result);
-  }
-
-  /**
    * Retrieves the address of the A token.
    * @returns {string} The address of the A token.
    */
