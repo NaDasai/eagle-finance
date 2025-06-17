@@ -26,6 +26,7 @@ import {
 } from '@massalabs/massa-web3';
 import {
   createNewPool,
+  createNewPoolWithLiquidity,
   deployRegistryContract,
   getPool,
   getSwapRouterAddress,
@@ -75,6 +76,14 @@ console.log('User2 address: ', user2Provider.address);
 const wmasAddress = 'AS12FW5Rs5YN2zdpEnqwj4iHUUPt9R4Eqjq2qtpJFNKW3mn33RuLU';
 let aTokenAddress = 'AS12N76WPYB3QNYKGhV2jZuQs1djdhNJLQgnm7m52pHWecvvj1fCQ';
 let bTokenAddress = wmasAddress;
+const wethTokenAddress =
+  'AS12rcqHGQ3bPPhnjBZsYiANv9TZxYp96M7r49iTMUrX8XCJQ8Wrk';
+const usdcAddress = 'AS12N76WPYB3QNYKGhV2jZuQs1djdhNJLQgnm7m52pHWecvvj1fCQ';
+
+const wethDecimals = 18;
+const usdcDecimals = 6;
+const wmasDecimals = 9;
+
 let poolFeeRate = 0.3 * 10_000;
 
 let registryContract: SmartContract;
@@ -82,261 +91,439 @@ let poolContract: SmartContract;
 let swapRouterContract: SmartContract;
 let poolAddress: string;
 
-// beforeAll(async () => {
-//   registryContract = await deployRegistryContract(user1Provider, wmasAddress);
+describe.skip('Test swap with wrong isTransferFrom value', () => {
+  beforeAll(async () => {
+    registryContract = await deployRegistryContract(user1Provider, wmasAddress);
 
-//   // create new pool
-//   await createNewPool(
-//     registryContract,
-//     aTokenAddress,
-//     bTokenAddress,
-//     poolFeeRate,
-//   );
-
-//   const pool = await getPool(
-//     registryContract,
-//     aTokenAddress,
-//     bTokenAddress,
-//     poolFeeRate,
-//   );
-
-//   // get the last pool address
-//   poolAddress = pool.poolAddress;
-
-//   poolContract = new SmartContract(user1Provider, poolAddress);
-
-//   // Create the swap router contract
-//   swapRouterContract = await deploySwapRouterContract(
-//     user1Provider,
-//     registryContract.address,
-//   );
-
-//   // Set the swap router address in the registry contract
-//   await setSwapRouterAddress(registryContract, swapRouterContract.address);
-// });
-
-// beforeAll(async () => {
-//   poolAddress = 'AS12S6apFw6tmkFfA6W9iAMUMKjzu3ZkZXqZixXRUHpSYnsdMqpns';
-//   poolContract = new SmartContract(user1Provider, poolAddress);
-
-//   swapRouterContract = new SmartContract(
-//     user1Provider,
-//     'AS12M6VuwUnxDt3W9UQ6d2yMoJYY1XFHEwySPjum95FqvKZ7ba7AV',
-//   );
-
-//   registryContract = new SmartContract(
-//     user1Provider,
-//     'AS12CF51tsTAs4wsw772g76QKfxdM4JDrUwe1H5GEYrJqzQnJybR5',
-//   );
-// });
-
-test.skip('User 1 adds liquidity to the pool', async () => {
-  // get all pool reserves and expect them to be 0
-  const [reserveA, reserveB] = await getPoolReserves(poolContract);
-
-  expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0n);
-  expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0n);
-
-  const user1ATokenBalanceBefore = await getTokenBalance(
-    aTokenAddress,
-    user1Provider.address,
-    user1Provider,
-  );
-
-  const user1BTokenBalanceBefore = await getTokenBalance(
-    bTokenAddress,
-    user1Provider.address,
-    user1Provider,
-  );
-
-  const aAmount = 10;
-  const bAmount = 10;
-
-  // increase allowance of both tokerns amoutns first before adding liquidity
-  await increaseAllownace(
-    aTokenAddress,
-    poolAddress,
-    aAmount,
-    user1Provider,
-    6,
-  );
-  await increaseAllownace(
-    bTokenAddress,
-    poolAddress,
-    bAmount,
-    user1Provider,
-    9,
-  );
-
-  // Get allowance of both tokens
-  const aTokenAllowance = await new MRC20(
-    user1Provider,
-    aTokenAddress,
-  ).allowance(user1Provider.address, poolAddress);
-
-  const bTokenAllowance = await new MRC20(
-    user1Provider,
-    bTokenAddress,
-  ).allowance(user1Provider.address, poolAddress);
-
-  console.log('aTokenAllowance: ', aTokenAllowance);
-  console.log('bTokenAllowance: ', bTokenAllowance);
-
-  // add liquidity
-  await addLiquidity(poolContract, aAmount, bAmount, 0, 0, 6, 9);
-
-  // get teh reserves
-  const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
-
-  expect(reserveAAfter, 'Reserve A should be 10 after adding liquidity').toBe(
-    parseUnits('10', 6),
-  );
-
-  expect(reserveBAfter, 'Reserve B should be 10 after adding liquidity').toBe(
-    parseUnits('10', 9),
-  );
-
-  const user1ATokenBalanceAfter = await getTokenBalance(
-    aTokenAddress,
-    user1Provider.address,
-    user1Provider,
-  );
-
-  const user1BTokenBalanceAfter = await getTokenBalance(
-    bTokenAddress,
-    user1Provider.address,
-    user1Provider,
-  );
-  // Expect balances beffore - after should be equal a_amount and b_amount
-  expect(
-    user1ATokenBalanceBefore - user1ATokenBalanceAfter,
-    'User1 A Token balance should decrease after adding liquidity',
-  ).toBe(parseUnits(aAmount.toString(), 6));
-
-  expect(
-    user1BTokenBalanceBefore - user1BTokenBalanceAfter,
-    'User1 B Token balance should decrease after adding liquidity',
-  ).toBe(parseUnits(bAmount.toString(), 9));
-
-  // get the lp balance of user1
-  const user1LPBalance = await getLPBalance(
-    poolContract,
-    user1Provider.address,
-  );
-
-  console.log('User1 LP balance: ', user1LPBalance);
-
-  // expect(
-  //   user1LPBalance,
-  //   'User1 LP balance should be 10 - MINIMUM_LIQUIDITY',
-  // ).toBe(9999999999999000000n);
-
-  // Get pool total supply
-  const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
-  console.log('Pool total supply: ', poolTotalSupply);
-
-  // expect the pool total supply to be 10
-  // expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
-  //   parseUnits('10', 18),
-  // );
-
-  const priceAofB =
-    Number(formatUnits(reserveBAfter, 9)) /
-    Number(formatUnits(reserveAAfter, 6));
-  console.log('Price A of B: ', priceAofB);
-
-  expect(priceAofB, 'Price A of B should be 1').toBe(1);
-});
-
-test.skip('User1 transfer maunally additonal amount of B token to the pool', async () => {
-  const bToken = new MRC20(user1Provider, bTokenAddress);
-
-  const transOpe = await bToken.transfer(poolAddress, parseMas('2'));
-
-  const status = await transOpe.waitSpeculativeExecution();
-
-  if (status === OperationStatus.SpeculativeSuccess) {
-    console.log('Transfer to pool successful');
-  } else {
-    console.log('Status:', status);
-    console.log('Error events:', await transOpe.getSpeculativeEvents());
-    throw new Error('Failed to transfer');
-  }
-
-  // get all pool reserves
-  const [reserveA, reserveB] = await getPoolReserves(poolContract);
-
-  expect(reserveA, 'Reserve A should be 10 after adding liquidity').toBe(
-    parseUnits('10', 6),
-  );
-
-  expect(reserveB, 'Reserve B should be 10 after adding liquidity').toBe(
-    parseUnits('10', 9),
-  );
-});
-
-test.skip('Should fail : User1 swaps B token for A token in pool without passing the amountIn', async () => {
-  const swapPath = [
-    new SwapPath(
-      poolContract.address,
+    // create new pool
+    await createNewPool(
+      registryContract,
+      aTokenAddress,
       bTokenAddress,
+      poolFeeRate,
+    );
+
+    const pool = await getPool(
+      registryContract,
+      aTokenAddress,
+      bTokenAddress,
+      poolFeeRate,
+    );
+
+    // get the last pool address
+    poolAddress = pool.poolAddress;
+
+    poolContract = new SmartContract(user1Provider, poolAddress);
+
+    // Create the swap router contract
+    swapRouterContract = await deploySwapRouterContract(
+      user1Provider,
+      registryContract.address,
+    );
+
+    // Set the swap router address in the registry contract
+    await setSwapRouterAddress(registryContract, swapRouterContract.address);
+  });
+
+  // beforeAll(async () => {
+  //   poolAddress = 'AS12S6apFw6tmkFfA6W9iAMUMKjzu3ZkZXqZixXRUHpSYnsdMqpns';
+  //   poolContract = new SmartContract(user1Provider, poolAddress);
+
+  //   swapRouterContract = new SmartContract(
+  //     user1Provider,
+  //     'AS12M6VuwUnxDt3W9UQ6d2yMoJYY1XFHEwySPjum95FqvKZ7ba7AV',
+  //   );
+
+  //   registryContract = new SmartContract(
+  //     user1Provider,
+  //     'AS12CF51tsTAs4wsw772g76QKfxdM4JDrUwe1H5GEYrJqzQnJybR5',
+  //   );
+  // });
+
+  test.skip('User 1 adds liquidity to the pool', async () => {
+    // get all pool reserves and expect them to be 0
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    expect(reserveA, 'Reserve should be 0 when pool is empty').toBe(0n);
+    expect(reserveB, 'Reserve should be 0 when pool is empty').toBe(0n);
+
+    const user1ATokenBalanceBefore = await getTokenBalance(
       aTokenAddress,
       user1Provider.address,
-      parseMas('1'),
-      1n,
-      false,
-    ),
-  ];
+      user1Provider,
+    );
 
-  const poolReserves = await getPoolReserves(poolContract);
-  console.log('Pool Reserves Before Swap: ', poolReserves);
-
-  const bToken = new MRC20(user1Provider, bTokenAddress);
-
-  const tokenBContractBalance = await bToken.balanceOf(poolAddress);
-
-  console.log('Token B contract balance before swap: ', tokenBContractBalance);
-
-  expect(tokenBContractBalance, 'Token B contract balance should be 2').toBe(
-    parseMas('12'),
-  );
-
-  await expect(swap(swapRouterContract, swapPath, '0.01')).rejects.toThrowError(
-    'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: Depth error: Runtime error: error: INSUFFICIENT_TOKEN_IN_ALLOWANCE at assembly/contracts/swapRouter.ts:290 col: 7',
-  );
-});
-
-test.skip('Do a Correct Swap', async () => {
-  const swapRoute = [
-    new SwapPath(
-      poolContract.address,
+    const user1BTokenBalanceBefore = await getTokenBalance(
       bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+
+    const aAmount = 10;
+    const bAmount = 10;
+
+    // increase allowance of both tokerns amoutns first before adding liquidity
+    await increaseAllownace(
+      aTokenAddress,
+      poolAddress,
+      aAmount,
+      user1Provider,
+      6,
+    );
+    await increaseAllownace(
+      bTokenAddress,
+      poolAddress,
+      bAmount,
+      user1Provider,
+      9,
+    );
+
+    // Get allowance of both tokens
+    const aTokenAllowance = await new MRC20(
+      user1Provider,
+      aTokenAddress,
+    ).allowance(user1Provider.address, poolAddress);
+
+    const bTokenAllowance = await new MRC20(
+      user1Provider,
+      bTokenAddress,
+    ).allowance(user1Provider.address, poolAddress);
+
+    console.log('aTokenAllowance: ', aTokenAllowance);
+    console.log('bTokenAllowance: ', bTokenAllowance);
+
+    // add liquidity
+    await addLiquidity(poolContract, aAmount, bAmount, 0, 0, 6, 9);
+
+    // get teh reserves
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    expect(reserveAAfter, 'Reserve A should be 10 after adding liquidity').toBe(
+      parseUnits('10', 6),
+    );
+
+    expect(reserveBAfter, 'Reserve B should be 10 after adding liquidity').toBe(
+      parseUnits('10', 9),
+    );
+
+    const user1ATokenBalanceAfter = await getTokenBalance(
       aTokenAddress,
       user1Provider.address,
-      parseMas('1'),
-      1n,
+      user1Provider,
+    );
+
+    const user1BTokenBalanceAfter = await getTokenBalance(
+      bTokenAddress,
+      user1Provider.address,
+      user1Provider,
+    );
+    // Expect balances beffore - after should be equal a_amount and b_amount
+    expect(
+      user1ATokenBalanceBefore - user1ATokenBalanceAfter,
+      'User1 A Token balance should decrease after adding liquidity',
+    ).toBe(parseUnits(aAmount.toString(), 6));
+
+    expect(
+      user1BTokenBalanceBefore - user1BTokenBalanceAfter,
+      'User1 B Token balance should decrease after adding liquidity',
+    ).toBe(parseUnits(bAmount.toString(), 9));
+
+    // get the lp balance of user1
+    const user1LPBalance = await getLPBalance(
+      poolContract,
+      user1Provider.address,
+    );
+
+    console.log('User1 LP balance: ', user1LPBalance);
+
+    // expect(
+    //   user1LPBalance,
+    //   'User1 LP balance should be 10 - MINIMUM_LIQUIDITY',
+    // ).toBe(9999999999999000000n);
+
+    // Get pool total supply
+    const poolTotalSupply = await getPoolLPTotalSupply(poolContract);
+    console.log('Pool total supply: ', poolTotalSupply);
+
+    // expect the pool total supply to be 10
+    // expect(poolTotalSupply, 'Pool total supply should be 10').toBe(
+    //   parseUnits('10', 18),
+    // );
+
+    const priceAofB =
+      Number(formatUnits(reserveBAfter, 9)) /
+      Number(formatUnits(reserveAAfter, 6));
+    console.log('Price A of B: ', priceAofB);
+
+    expect(priceAofB, 'Price A of B should be 1').toBe(1);
+  });
+
+  test.skip('User1 transfer maunally additonal amount of B token to the pool', async () => {
+    const bToken = new MRC20(user1Provider, bTokenAddress);
+
+    const transOpe = await bToken.transfer(poolAddress, parseMas('2'));
+
+    const status = await transOpe.waitSpeculativeExecution();
+
+    if (status === OperationStatus.SpeculativeSuccess) {
+      console.log('Transfer to pool successful');
+    } else {
+      console.log('Status:', status);
+      console.log('Error events:', await transOpe.getSpeculativeEvents());
+      throw new Error('Failed to transfer');
+    }
+
+    // get all pool reserves
+    const [reserveA, reserveB] = await getPoolReserves(poolContract);
+
+    expect(reserveA, 'Reserve A should be 10 after adding liquidity').toBe(
+      parseUnits('10', 6),
+    );
+
+    expect(reserveB, 'Reserve B should be 10 after adding liquidity').toBe(
+      parseUnits('10', 9),
+    );
+  });
+
+  test.skip('Should fail : User1 swaps B token for A token in pool without passing the amountIn', async () => {
+    const swapPath = [
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user1Provider.address,
+        parseMas('1'),
+        1n,
+        false,
+      ),
+    ];
+
+    const poolReserves = await getPoolReserves(poolContract);
+    console.log('Pool Reserves Before Swap: ', poolReserves);
+
+    const bToken = new MRC20(user1Provider, bTokenAddress);
+
+    const tokenBContractBalance = await bToken.balanceOf(poolAddress);
+
+    console.log(
+      'Token B contract balance before swap: ',
+      tokenBContractBalance,
+    );
+
+    expect(tokenBContractBalance, 'Token B contract balance should be 2').toBe(
+      parseMas('12'),
+    );
+
+    await expect(
+      swap(swapRouterContract, swapPath, '0.01'),
+    ).rejects.toThrowError(
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: Depth error: Runtime error: error: INSUFFICIENT_TOKEN_IN_ALLOWANCE at assembly/contracts/swapRouter.ts:290 col: 7',
+    );
+  });
+
+  test.skip('Do a Correct Swap', async () => {
+    const swapRoute = [
+      new SwapPath(
+        poolContract.address,
+        bTokenAddress,
+        aTokenAddress,
+        user1Provider.address,
+        parseMas('1'),
+        1n,
+        false,
+      ),
+    ];
+
+    const poolReserves = await getPoolReserves(poolContract);
+    console.log('Pool Reserves Before Swap: ', poolReserves);
+
+    // Increase allowance for BToken
+    await increaseAllownace(
+      bTokenAddress,
+      swapRouterContract.address,
+      1,
+      user1Provider,
+      9,
+    );
+
+    // swap B token for A token
+    await swap(swapRouterContract, swapRoute, '0.01');
+
+    // get reserves after swap
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+
+    console.log('Reserve A after swap: ', reserveAAfter);
+    console.log('Reserve B after swap: ', reserveBAfter);
+  });
+});
+
+describe('SwapPath Token Address and pool address Validation', async () => {
+  // Tests to verify correct token address validation in swap paths:
+  // - Token addresses match pool's registered tokens
+  // - Input/output token addresses are valid and match pool configuration
+
+  let usdcAmount = 1;
+  let wmasAmount = 1;
+  let wethAmount = 0.001;
+
+  let usdcPoolContract: SmartContract;
+  let wethPoolContract: SmartContract;
+
+  beforeAll(async () => {
+    registryContract = await deployRegistryContract(user1Provider, wmasAddress);
+
+    // Create the swap router contract
+    swapRouterContract = await deploySwapRouterContract(
+      user1Provider,
+      registryContract.address,
+    );
+
+    // Set the swap router address in the registry contract
+    await setSwapRouterAddress(registryContract, swapRouterContract.address);
+  });
+
+  test('Increase allowance for USDC, WETH and WMAS for registry contract and wmas for swapRouter contract', async () => {
+    // increase allowance of both tokerns amoutns first before adding liquidity
+    await increaseAllownace(
+      wmasAddress,
+      registryContract.address,
+      wmasAmount * 10,
+      user1Provider,
+      wmasDecimals,
+    );
+    await increaseAllownace(
+      usdcAddress,
+      registryContract.address,
+      usdcAmount * 10,
+      user1Provider,
+      usdcDecimals,
+    );
+
+    await increaseAllownace(
+      wethTokenAddress,
+      registryContract.address,
+      wethAmount * 10,
+      user1Provider,
+      wethDecimals,
+    );
+
+    await increaseAllownace(
+      wmasAddress,
+      swapRouterContract.address,
+      wmasAmount * 10,
+      user1Provider,
+      wmasDecimals,
+    );
+  });
+
+  test('Create USDC-WMAS pool WITH liquidity', async () => {
+    // Create a new pool
+    await createNewPoolWithLiquidity(
+      registryContract,
+      usdcAddress,
+      wmasAddress,
+      usdcAmount,
+      wmasAmount,
+      0,
+      0,
+      poolFeeRate,
       false,
-    ),
-  ];
+      usdcDecimals,
+      wmasDecimals,
+    );
 
-  const poolReserves = await getPoolReserves(poolContract);
-  console.log('Pool Reserves Before Swap: ', poolReserves);
+    // Get the pool
+    const pool = await getPool(
+      registryContract,
+      usdcAddress,
+      wmasAddress,
+      poolFeeRate,
+    );
 
-  // Increase allowance for BToken
-  await increaseAllownace(
-    bTokenAddress,
-    swapRouterContract.address,
-    1,
-    user1Provider,
-    9,
-  );
+    usdcPoolContract = new SmartContract(user1Provider, pool.poolAddress);
 
-  // swap B token for A token
-  await swap(swapRouterContract, swapRoute, '0.01');
+    console.log('USDC Pool Address: ', usdcPoolContract.address);
+  });
 
-  // get reserves after swap
-  const [reserveAAfter, reserveBAfter] = await getPoolReserves(poolContract);
+  test('Create WETH-WMAS pool WITH liquidity', async () => {
+    // Create a new pool
+    await createNewPoolWithLiquidity(
+      registryContract,
+      wethTokenAddress,
+      wmasAddress,
+      wethAmount,
+      wmasAmount,
+      0,
+      0,
+      poolFeeRate,
+      false,
+      wethDecimals,
+      wmasDecimals,
+    );
 
-  console.log('Reserve A after swap: ', reserveAAfter);
-  console.log('Reserve B after swap: ', reserveBAfter);
+    const pool = await getPool(
+      registryContract,
+      wethTokenAddress,
+      wmasAddress,
+      poolFeeRate,
+    );
+
+    wethPoolContract = new SmartContract(user1Provider, pool.poolAddress);
+
+    console.log('WETH Pool Address: ', wethPoolContract.address);
+  });
+
+  // beforeAll(async () => {
+  //   usdcPoolContract = new SmartContract(user1Provider, "AS1kQ4uyDF8ZzBGCrZBLgumCR5H4GsQhvaQJTuvNXyC8isda31qP");
+  //   wethPoolContract = new SmartContract(user1Provider, "AS1177Lrfg1xoNAAAiYTgdtNZczd6uvfVoKwqNFdiKNhppJtkwte");
+  //   swapRouterContract = new SmartContract(user1Provider, "AS1246bLXh7Zz8h6kGFRxBq5bV1yKDynucj4X3MzjGuASBpqwpFSi");
+  // });
+
+  test('Should Fail when trying to swap WMAS to WETH with wrong pool address', async () => {
+    const swapRoute = [
+      new SwapPath(
+        usdcPoolContract.address,
+        wmasAddress,
+        wethTokenAddress,
+        user1Provider.address,
+        parseMas(wmasAmount.toString()),
+        1n,
+        true,
+      ),
+    ];
+
+    await expect(
+      swap(swapRouterContract, swapRoute, '0.01'),
+    ).rejects.toThrowError(
+      'readonly call failed: VM Error in ReadOnlyExecutionTarget::FunctionCall context: Depth error: Runtime error: error: TOKEN_OUT_ADDRESS_NOT_IN_POOL at assembly/contracts/swapRouter.ts:248 col: 3',
+    );
+  });
+
+  test('Should works when trying to swap WMAS to WETH with correct pool address', async () => {
+    const swapRoute = [
+      new SwapPath(
+        wethPoolContract.address,
+        wmasAddress,
+        wethTokenAddress,
+        user1Provider.address,
+        parseMas(wmasAmount.toString()),
+        1n,
+        true,
+      ),
+    ];
+
+    const [reserveA, reserveB] = await getPoolReserves(wethPoolContract);
+
+    await swap(swapRouterContract, swapRoute, '0.01');
+
+    // get reserves after swap
+    const [reserveAAfter, reserveBAfter] = await getPoolReserves(
+      wethPoolContract,
+    );
+
+    expect(
+      reserveBAfter,
+      'Reserve B after swap should be larger than before swap',
+    ).toBeGreaterThan(reserveB);
+  });
 });
