@@ -236,6 +236,21 @@ function _swap(
 
   const pool = new IBasicPool(poolAddress);
 
+  // Validate the tokenInAddress and tokenOutAddress are the token addresses of the pool
+  let poolATokenAddress = pool.getATokenAddress();
+  let poolBTokenAddress = pool.getBTokenAddress();
+
+  assert(
+    poolATokenAddress == tokenInAddress || poolBTokenAddress == tokenInAddress,
+    'TOKEN_IN_ADDRESS_NOT_IN_POOL',
+  );
+
+  assert(
+    poolATokenAddress == tokenOutAddress ||
+      poolBTokenAddress == tokenOutAddress,
+    'TOKEN_OUT_ADDRESS_NOT_IN_POOL',
+  );
+
   const tokenIn = new IMRC20(swapPath.tokenInAddress);
 
   if (swapPath.isTransferFrom) {
