@@ -241,11 +241,6 @@ function _swap(
   let poolBTokenAddress = pool.getBTokenAddress();
 
   assert(
-    poolATokenAddress == tokenInAddress || poolBTokenAddress == tokenInAddress,
-    'TOKEN_IN_ADDRESS_NOT_IN_POOL',
-  );
-
-  assert(
     poolATokenAddress == tokenOutAddress ||
       poolBTokenAddress == tokenOutAddress,
     'TOKEN_OUT_ADDRESS_NOT_IN_POOL',
