@@ -13,13 +13,21 @@ import {
   getAClaimableProtocolFee,
   getBClaimableProtocolFee,
 } from '../tests/calls/basicPool';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 const account = await Account.fromEnv();
 const provider = Web3Provider.buildnet(account);
 
-const poolAddress = 'AS12ecWuC1QLpNw72wHGViot1ys52pBPNv6AhcUJcqXQ5unQJGeS5';
+console.log('Account address:', account.address.toString());
+
+const poolAddress = 'AS12t46mM65PJa7zPPXYGJWindSNGW3YpYApEGAPhtpxYx5pxELum';
+const multisigAddress = 'AS1ArFpxvA1nMeZuCq5nrzWa4aGpBW7KvKgustbZmCUyPqciVKKH';
 
 const poolContract = new SmartContract(provider, poolAddress);
+
+console.log('Pool address:', poolAddress);
 
 // Get pool tokens
 const aTokenAddress = bytesToStr(
@@ -38,11 +46,11 @@ console.log('Pool tokens decimals:', aTokenDecimals, bTokenDecimals);
 
 // get user token balance before
 const aTokenBalanceBefore = await new MRC20(provider, aTokenAddress).balanceOf(
-  account.address.toString(),
+  multisigAddress,
 );
 
 const bTokenBalanceBefore = await new MRC20(provider, bTokenAddress).balanceOf(
-  account.address.toString(),
+  multisigAddress,
 );
 
 console.log(
@@ -66,11 +74,11 @@ await claimeProtocolFees(poolContract);
 
 // get user token balance after
 const aTokenBalanceAfter = await new MRC20(provider, aTokenAddress).balanceOf(
-  account.address.toString(),
+  multisigAddress,
 );
 
 const bTokenBalanceAfter = await new MRC20(provider, bTokenAddress).balanceOf(
-  account.address.toString(),
+  multisigAddress,
 );
 
 console.log(

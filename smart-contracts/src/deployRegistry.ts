@@ -2,18 +2,33 @@ import {
   Account,
   Args,
   BUILDNET_TOKENS,
+  MAINNET_TOKENS,
   Mas,
   SmartContract,
   Web3Provider,
 } from '@massalabs/massa-web3';
 import { getScByteCode } from './utils';
 import { setSwapRouterAddress } from '../tests/calls/registry';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const account = await Account.fromEnv();
-const provider = Web3Provider.buildnet(account);
-const wmasAddress = BUILDNET_TOKENS.WMAS;
 
-console.log('Deploying contract...');
+let wmasAddress: string;
+let provider: Web3Provider;
+
+const isMainnet = process.env.IS_MAINNET === 'true';
+
+if (isMainnet) {
+  console.log('Deploying contract on mainnet...');
+  wmasAddress = MAINNET_TOKENS.WMAS;
+  provider = Web3Provider.mainnet(account);
+} else {
+  console.log('Deploying contract on buildnet...');
+  wmasAddress = BUILDNET_TOKENS.WMAS;
+  provider = Web3Provider.buildnet(account);
+}
 
 const byteCode = getScByteCode('build', 'registry.wasm');
 
