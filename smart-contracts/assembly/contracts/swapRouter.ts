@@ -236,22 +236,55 @@ function _swap(
 
   const pool = new IBasicPool(poolAddress);
 
+  // Validate the tokenInAddress and tokenOutAddress are the token addresses of the pool
+  let poolATokenAddress = pool.getATokenAddress();
+  let poolBTokenAddress = pool.getBTokenAddress();
+
+  // Wrap mas before swap and transfer wmas
+  const registryContractAddressStored = bytesToString(
+    Storage.get(registryContractAddress),
+  );
+
+  // Get the wmas token address
+  const wmasTokenAddressStored = new Address(
+    new IRegistery(
+      new Address(registryContractAddressStored),
+    ).getWmasTokenAddress(),
+  );
+
+  if (isNativeCoinOut) {
+    // if the token out is native coin, wmas should be A or B token
+    assert(
+      poolATokenAddress == wmasTokenAddressStored.toString() ||
+        poolBTokenAddress == wmasTokenAddressStored.toString(),
+      'TOKEN_OUT_ADDRESS_NOT_IN_POOL',
+    );
+  } else {
+    assert(
+      poolATokenAddress == tokenOutAddress ||
+        poolBTokenAddress == tokenOutAddress,
+      'TOKEN_OUT_ADDRESS_NOT_IN_POOL',
+    );
+  }
+
+  if (isNativeCoinIn) {
+    assert(
+      poolATokenAddress == wmasTokenAddressStored.toString() ||
+        poolBTokenAddress == wmasTokenAddressStored.toString(),
+      'TOKEN_IN_ADDRESS_NOT_IN_POOL',
+    );
+  } else {
+    assert(
+      poolATokenAddress == tokenInAddress ||
+        poolBTokenAddress == tokenInAddress,
+      'TOKEN_IN_ADDRESS_NOT_IN_POOL',
+    );
+  }
+
   const tokenIn = new IMRC20(swapPath.tokenInAddress);
 
   if (swapPath.isTransferFrom) {
     if (isNativeCoinIn) {
-      // Wrap mas before swap and transfer wmas
-      const registryContractAddressStored = bytesToString(
-        Storage.get(registryContractAddress),
-      );
-
-      // Get the wmas token address
-      const wmasTokenAddressStored = new Address(
-        new IRegistery(
-          new Address(registryContractAddressStored),
-        ).getWmasTokenAddress(),
-      );
-
       // Wrap Mas to WMAS
       wrapMasToWMAS(amountIn, wmasTokenAddressStored);
 

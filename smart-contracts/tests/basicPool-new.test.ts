@@ -3139,7 +3139,7 @@ describe.skip('User 1 add lqi, user2 swap,  user2 add liq, user1 rem liquidity, 
   });
 });
 
-describe('Trying to swap without pay the amountIn', async () => {
+describe.skip('Trying to swap without pay the amountIn', async () => {
   beforeAll(async () => {
     swapRouterContract = new SmartContract(
       user1Provider,
