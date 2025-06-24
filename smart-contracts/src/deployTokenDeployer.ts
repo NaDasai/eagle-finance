@@ -30,7 +30,7 @@ if (process.env.IS_MAINNET === 'true') {
 const constructorArgs = new Args().serialize();
 
 let contract = await SmartContract.deploy(provider, byteCode, constructorArgs, {
-  coins: Mas.fromString('0.5'),
+  coins: Mas.fromString('0.1'),
 });
 
 console.log('Contract deployed at:', contract.address);

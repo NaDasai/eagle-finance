@@ -31,8 +31,8 @@ if (isMainnet) {
 // const registryAddress = 'AS1ux1qNquxNYMouTJDQB8tcAEyuXQxwaCNSq2cKr44Ki3HwVNsK';
 // const multisigAddress = 'AS1ArFpxvA1nMeZuCq5nrzWa4aGpBW7KvKgustbZmCUyPqciVKKH';
 
-const registryAddress = 'AS12sMLjqrsjbje5kp3iGtLjwR81DWemFXnMZcC19uUuYZWWS1AjC'; 
-const multisigAddress = 'AS12STKH4DincowsczrEYB5bduH2do7CwWm8LQtFXe7GK2UmjatAp';
+const registryAddress = 'AS1NYihs2Wy4D4P68JGY2hYSDDaqZ5YxhM2nDRsJVFZUykEEdSAW'; 
+const multisigAddress = 'AS1FdvdrhiUZTgQf6ker6Yh75hDWvxFABz4wYZThJAqMFUo318PW';
 
 const registryContract = new SmartContract(provider, registryAddress);
 
