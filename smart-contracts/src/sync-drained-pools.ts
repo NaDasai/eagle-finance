@@ -5,9 +5,12 @@
  * hold, which blocks every WMAS-in swap and almost every removeLiquidity. `syncReserves`
  * resets the recorded reserves to the real token balances.
  *
+ * Protocol fees are claimed BEFORE the sync: claimProtocolFees doesn't touch the reserves,
+ * so claiming after the sync would recreate a reserve > balance gap.
+ *
  * Usage:
  *   npm run sync-drained-pools              -> dry run, only reads and prints the pools state
- *   npm run sync-drained-pools -- --execute -> sends one syncReserves tx per pool
+ *   npm run sync-drained-pools -- --execute -> per pool: claimProtocolFees (when possible) then syncReserves
  *
  * Requirements:
  *   - PRIVATE_KEY in .env must be the owner of the registry (syncReserves is owner only).
@@ -23,6 +26,7 @@ import {
   Web3Provider,
 } from '@massalabs/massa-web3';
 import {
+  claimeProtocolFees,
   getAClaimableProtocolFee,
   getBClaimableProtocolFee,
   getPoolReserves,
@@ -72,11 +76,19 @@ async function getPoolTokens(pool: SmartContract): Promise<PoolTokens> {
   };
 }
 
-// Prints recorded reserves vs real balances so we can see the gap before/after the sync
+type PoolState = {
+  balanceA: bigint;
+  balanceB: bigint;
+  feeA: bigint;
+  feeB: bigint;
+};
+
+// Prints recorded reserves vs real balances so we can see the gap before/after the sync.
+// Returns balances and fees so the caller can decide whether the claim can succeed.
 async function printPoolState(
   pool: SmartContract,
   tokens: PoolTokens,
-): Promise<void> {
+): Promise<PoolState> {
   const [reserveA, reserveB] = await getPoolReserves(pool);
 
   const balanceA = await new MRC20(provider, tokens.aAddress).balanceOf(
@@ -110,9 +122,35 @@ async function printPoolState(
   // after the sync would recreate a reserve > balance gap. Flag it so it's not missed.
   if (feeA > balanceA || feeB > balanceB) {
     console.log(
-      '  ⚠️ Protocol fee is above the real balance: do NOT claim protocol fees on this pool after the sync.',
+      '  ⚠️ Protocol fee is above the real balance: claim is not possible, do NOT claim protocol fees on this pool after the sync.',
     );
   }
+
+  return { balanceA, balanceB, feeA, feeB };
+}
+
+// Claims protocol fees only when the tx can succeed, otherwise logs why it's skipped.
+async function claimFeesIfPossible(
+  pool: SmartContract,
+  state: PoolState,
+): Promise<void> {
+  // claimProtocolFees asserts 'No accumulated fees' when both are 0
+  if (state.feeA === 0n && state.feeB === 0n) {
+    console.log('  No protocol fees to claim');
+    return;
+  }
+
+  // A and B are claimed in the same tx: if one transfer can't be covered, the whole
+  // claim reverts. Skip it and still sync, so the pool gets unblocked (fee stays recorded).
+  if (state.feeA > state.balanceA || state.feeB > state.balanceB) {
+    console.log('  ⚠️ Skipping claim: protocol fee is above the real balance');
+    return;
+  }
+
+  // Helper waits for speculative success and throws (with events logged) on failure.
+  // A throw here skips the sync for this pool on purpose: syncing with fees still
+  // inside the balance is what we want to avoid.
+  await claimeProtocolFees(pool);
 }
 
 // syncReserves is restricted to the registry owner, so check it once before sending
@@ -152,9 +190,12 @@ for (const poolAddress of DRAINED_POOLS) {
     const tokens = await getPoolTokens(pool);
 
     console.log('Before:');
-    await printPoolState(pool, tokens);
+    const stateBefore = await printPoolState(pool, tokens);
 
     if (shouldExecute) {
+      // Claim must happen before the sync (see header comment)
+      await claimFeesIfPossible(pool, stateBefore);
+
       // Helper waits for speculative success and throws (with events logged) on failure
       await syncReserves(pool);
 
