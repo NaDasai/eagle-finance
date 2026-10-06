@@ -9,13 +9,13 @@ import { getScByteCode } from './utils';
 import { setSwapRouterAddress } from '../tests/calls/registry';
 
 const account = await Account.fromEnv();
-const provider = Web3Provider.buildnet(account);
+const provider = Web3Provider.mainnet(account);
 
 console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'swapRouter.wasm');
 
-const registryAddress = 'AS12BFMd6JHrZJNLLWiMB4ai8vxNzTpFBdiVEFy2QhFx2KkyTzrXR';
+const registryAddress = 'AS1NYihs2Wy4D4P68JGY2hYSDDaqZ5YxhM2nDRsJVFZUykEEdSAW';
 
 const constructorArgs = new Args()
   .addString(registryAddress) //registry address
