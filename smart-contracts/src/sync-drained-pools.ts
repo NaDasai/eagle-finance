@@ -32,6 +32,10 @@ import {
   getPoolReserves,
   syncReserves,
 } from '../tests/calls/basicPool';
+import * as dotenv from 'dotenv';
+
+// Load PRIVATE_KEY from .env, Account.fromEnv only reads process.env
+dotenv.config();
 
 // Pools listed in the exploit report
 const DRAINED_POOLS = [
